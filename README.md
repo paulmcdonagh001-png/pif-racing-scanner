@@ -1,26 +1,39 @@
-# PIF Racing Scanner V0.1
+# PIF Racing Scanner V0.2 — personal, experimental
 
-A mobile-first, experimental horse-racing analysis and paper-selection tracker.
+**Website:** https://pif-racing-scanner.onrender.com
 
-## Current version
-- Three Hereford racecards from 13 October 2026 are **archived examples**, not live data.
-- Review horses with PIF's eight-factor, 100-point evidence checklist.
-- Unverified/missing factors do not score. A Power Rating only appears once at least 75% of weighted evidence has been assessed.
-- The Power Rating is **not a win probability** and has no validated betting advantage.
-- Import copied markdown racecards or enter your own.
-- Enter odds manually to calculate market break-even percentage, not a proven value edge.
-- Log hypothetical win singles, outcomes and paper P/L. No actual bets are placed.
+A mobile-first racing Power Check and paper-selection tracker. Live UK and Ireland racecards from The Racing API Free require one-time private backend configuration.
 
-## Privacy
-The hosted site is publicly accessible at its URL. Your assessments and paper tracking records are stored **only in this browser's local storage**. They do not sync between PC and phone automatically. Export/import a JSON backup to transfer them. Do not put credentials or sensitive information into the app.
+## What works
+- Choose **Load today** or **Tomorrow** then select a meeting and race.
+- Import runner names, form strings, OR and weights from the free Racing API **after setup**.
+- Record supporting evidence for each horse using eight weighted categories (100 points total), minimum 75% coverage to show a rating.
+- Keep manually entered assessments and paper results in this device's browser only; no automatic PC/phone syncing.
+- Paper tracker, manually entered odds and break-even percentages; **no bets placed**.
+- Initial sample (13 October 2026 Hereford) is an archived example.
 
-## Deployment
-The app uses just one self-contained `index.html`, plus a service worker, SVG icon and manifest. Render Static Site: main branch `main`, build command `echo Static ready`, publish directory `.`.
+**The Power Rating is not a winning probability and has not been validated for betting profitability.** The free API provides no odds or detailed horse course, distance and going histories. Selecting a well-rated horse is not evidence of positive expected return.
 
-## Home-screen shortcut
-In Android Chrome, open the published URL and select **Add to Home screen**. Whether Chrome offers full PWA installation or a shortcut depends on device and icon support.
+## Configure the free live feed (one-time)
 
-## Future plans
-Live racecards can be added using a secure API backend, but **never** embed Racing API credentials in the public GitHub repository or browser JavaScript.
+No subscriptions are needed, but free Render usage is shared across your workspace (750 free instance-hours per month) and an unused feed sleeps after 15 minutes, causing up to a one-minute wake-up delay. Be aware of your account's bandwidth/build allowance.
 
-Additional software subscription cost: £0. Free Render hosting is subject to platform quotas and billing terms.
+1. Open the separate feed service in Render: https://dashboard.render.com/web/srv-db73gkl9fdbs73etfntg
+2. Choose **Environment**, then add these **secret environment variables**:
+   - `RACING_API_USERNAME` — your API Username from The Racing API's My Account page.
+   - `RACING_API_PASSWORD` — your API Password from the same place.
+   - `SCANNER_ACCESS_PIN` — a new private access code you create (at least 12 characters is recommended). This PIN is NOT the Racing API password.
+3. Save the environment variables and allow Render to deploy/restart the service.
+4. Verify https://pif-racing-feed.onrender.com/health shows `{"ok":true,"ready":true}`.
+5. Visit the scanner, click **Load today**, enter only your own **SCANNER_ACCESS_PIN** when prompted. Do not enter your actual API username or password into the scanner.
+
+**Never share your API password/PIN in ChatGPT or commit it to GitHub.** The feed backend sends credentials to The Racing API via HTTPS and returns only a subset of free racecard fields to visitors who possess the access PIN. The app stores the PIN only in browser sessionStorage, cleared when the tab session ends.
+
+The scanner website itself has a public URL, and the frontend code is public. Its racecard endpoint requires a PIN and has a fixed permitted website origin. The tool is intended for personal, non-commercial use consistent with the provider's terms.
+
+## Security and data limitations
+- Free cards are refreshed on demand, cached for 5 minutes server-side to reduce API calls, and filtered to GB and Ireland. They are **not continuously monitored**.
+- Odds are not included. Change-of-going or distance clears previously recorded factor ratings for that race.
+- No automatic data sync between phone and PC. Export/import a backup to move your notes.
+- Your old ratings and journal remain in the device browser even if live data is unavailable.
+- Free Render web services count toward shared workspace hours. If exhausted, existing free web services may be suspended until the next month.
