@@ -36,3 +36,7 @@ Outputs: runner count, race count, selections, win rate, unit-stake ROI, peak-to
 Do not embed Racing API credentials or scanner PIN in repository files. Do not change subscriptions before confirming the data needed.
 
 Current status: **evaluator code committed; no genuine historical predictions loaded, no completed backtest or profitability result.**
+
+## Andy Holding-inspired speed replay research
+
+`research/speed_replay.py` is a chronological, experimental rating replay. It uses earlier same-course/distance/going race-time standards and prior horse performances, and reports strike rate, theoretical SP ROI where priced, losing streaks and a market-favourite comparison. It is not an Andy Holding rating or validated betting model. Source audit: `research/DATA_SOURCES.md`. **No suitable legally verified £0 multi-season dataset was obtained, so no genuine speed-rating backtest result is claimed.** Existing seven-day real SP baseline is in `research/REAL_DATA_BASELINE_2025.md`. Test code is synthetic only.
