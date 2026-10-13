@@ -65,3 +65,6 @@ function mergeLiveCards(data){
  if(first){currentRaceId=first.id;meetingFilter=first.date+'|'+first.course}
  save();return n
 }
+
+// Re-render once the live-card extension is loaded, rather than waiting for a tab click.
+render();
