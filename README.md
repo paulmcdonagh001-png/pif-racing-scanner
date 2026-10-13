@@ -37,3 +37,7 @@ The scanner website itself has a public URL, and the frontend code is public. It
 - No automatic data sync between phone and PC. Export/import a backup to move your notes.
 - Your old ratings and journal remain in the device browser even if live data is unavailable.
 - Free Render web services count toward shared workspace hours. If exhausted, existing free web services may be suspended until the next month.
+
+## Experimental daily speed shortlist
+
+The research folder now contains a chronological handicap-hurdle shortlist prototype and synthetic tests. It can read permitted, locally held history and a normalized racecard, filter to clear prior-speed leaders, and append timestamped pre-race snapshots. It does not fetch odds, estimate win probabilities, identify value prices, or establish a betting edge. See [`research/DAILY_SHORTLIST.md`](research/DAILY_SHORTLIST.md). The mobile scanner interface is unchanged. No licensed historical archive has yet been supplied, so there are no genuine speed-model backtest results.
