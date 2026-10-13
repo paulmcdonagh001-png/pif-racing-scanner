@@ -46,3 +46,10 @@ The research folder now contains a chronological handicap-hurdle shortlist proto
 ## Latest research: class and sectional quality (V0.6)
 
 The V0.5 historical 'strong race' tags proved **confounded by race class**: among 2,331 assessable races, Class 1 races received the label in 37.5% of cases versus 18.3% for Class 5. A manual Chepstow example confirms that free-to-view RaceiQ adds useful late-speed and jumping context but **does not grant permission for automated reuse**. The next research step is independent, class-aware analysis with permissioned sectional data and prospectively recorded paper-only selections. **No market edge has been established.** See [`research/V06_CLASS_BIAS_AND_SECTIONALS.md`](research/V06_CLASS_BIAS_AND_SECTIONALS.md). The live scanner is unchanged.
+
+
+## V0.7 prospective Race Research
+
+The mobile site's **Research** navigation opens [race-research.html](race-research.html), a browser-local, exportable **horses-to-follow observation notebook**. It lets users record original post-race performance notes, freeze a next-race assessment and manually observed odds *before* the scheduled off, then append the result. It does **not** scrape third-party sectionals, automatically publish tips, claim immutable server timestamps or calculate predictive value. Data do not sync between devices; export backups regularly.
+
+A class-matched historical replay compared past winning times within course / approximately equal distance / ground / **race class**, correcting the V0.5 higher-class bias but leaving thin samples. **2026: 350 next-run observations, 72 winners versus 73.11 final-SP expected, and −30.75% hypothetical SP ROI. No market edge.** Details: [V0.7 class-aware audit and research log](research/V07_CLASS_CORRECTION_AND_PROSPECTIVE_PILOT.md). No change to automated qualifiers; no new data costs.
