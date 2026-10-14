@@ -64,6 +64,29 @@ footer{border-top:1px solid var(--line);margin-top:30px;padding-top:18px;color:v
 footer a{color:var(--mint)}[hidden]{display:none!important}
 @media(min-width:780px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.horse-card{padding:18px}.horse-head h3{font-size:22px}}
 @media(max-width:500px){.panel{padding:16px}.toolbar{align-items:stretch}.view-buttons{width:100%}.view-buttons .button{flex:1;padding:11px 7px}.horse-card{padding:14px}.lead-figure{min-width:67px;font-size:22px}.horse-head h3{font-size:21px}.result-row{grid-template-columns:1.6fr .75fr .6fr;padding:9px;font-size:12px}}
+/* Compact one-screen qualifiers: details expand only on request */
+.qualifier-list{display:flex;flex-direction:column;gap:9px;margin-top:12px}
+.qual-row{background:#11273a;border:1px solid #326459;border-radius:12px;overflow:hidden}
+.qual-row[open]{border-color:#66bda3}
+.qual-summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;min-height:80px}
+.qual-summary::-webkit-details-marker{display:none}
+.qual-summary:focus-visible{outline:2px solid #80dfbe;outline-offset:-2px}
+.qual-summary:after{content:"⌄";font-size:21px;color:#99b9c8;align-self:center}
+.qual-row[open] .qual-summary:after{content:"⌃"}
+.qual-main,.qual-right{display:flex;flex-direction:column;gap:2px;min-width:0}
+.qual-main{flex:1}.qual-horse{font-size:19px;font-weight:800;line-height:1.2}
+.qual-meta{color:#b8c9d5;font-size:12px;white-space:normal}
+.qual-right{align-items:flex-end;text-align:right;max-width:45%}
+.qual-price{font-size:12px;color:#ffdd9d;white-space:normal}
+.qual-badge,.watch-badge{font-size:10px;font-weight:800;letter-spacing:.02em;border:1px solid #427a68;color:#a4e8ce;background:#1a413b;padding:4px 8px;border-radius:20px;white-space:nowrap}
+.watch-badge{border-color:#60676e;color:#ced8df;background:#25394a}
+.qual-expanded{padding:0 16px 16px;border-top:1px solid #2b475a}
+.qual-expanded .evidence{margin:8px 0}
+.qual-explanation{font-size:13px;color:#b6e8d3}
+.other-research{margin-top:20px;background:#11283b;border:1px solid #2a4458;border-radius:12px;padding:13px 15px}
+.other-research>summary{cursor:pointer;font-weight:700;color:#b7cfdd}
+.other-research .qual-row{border-color:#354e5e}
+@media(max-width:500px){.qual-summary{padding:11px 12px;min-height:73px;gap:7px}.qual-horse{font-size:17px}.race-label{font-size:11px}.qual-price{font-size:11px}.qual-badge,.watch-badge{font-size:9px;padding:3px 5px}.qual-right{max-width:43%}.qual-summary:after{font-size:17px}.qual-expanded{padding:0 12px 13px}.toolbar{margin-top:13px}.view-buttons .button{font-size:13px}}
 </style>
 <script src="./v1.js" defer></script>
 </head>
@@ -73,8 +96,8 @@ footer a{color:var(--mint)}[hidden]{display:none!important}
  <div class="brand"><div class="brand-mark" aria-hidden="true">P</div><div><h1>PIF RACING</h1><div class="subtitle">V1 · COMBINED RACING SCANNER</div></div><span class="trial-marker">RESEARCH ONLY</span></div>
 </header>
 <main>
- <div class="intro"><h2 id="main-heading">Today’s PIF research shortlist</h2>
-  <p>Horse history, trainers, jockeys, racecourses, speed, class and handicap conditions analysed together. No forced betting selections.</p>
+ <div class="intro"><h2 id="main-heading">Today’s PIF qualifiers</h2>
+  <p>One formula examining horses, trainers, jockeys, racecourses, speed and handicap conditions. Only evidence-qualified research horses appear above the fold.</p>
   <div id="connection-status" class="connection muted" role="status" aria-live="polite">Checking your private racing access…</div>
  </div>
  <section id="access-panel" class="panel">
