@@ -30,8 +30,8 @@ function status(message,tone){
 }
 function setView(tab){
  view=tab;
- $('main-heading').textContent=tab==='today'?'Today’s speed-qualified horses':
-   tab==='tomorrow'?'Tomorrow’s speed-qualified horses':'My trial & results';
+ $('main-heading').textContent=tab==='today'?'Today’s PIF research shortlist':
+   tab==='tomorrow'?'Tomorrow’s PIF research shortlist':'My trial & results';
  for(const btn of document.querySelectorAll('[data-view]')){
    const active=btn.getAttribute('data-view')===tab;
    btn.classList.toggle('selected',active);btn.setAttribute('aria-current',active?'page':'false');
@@ -126,80 +126,83 @@ function showRaceDay(day){
  if(!pin){el.innerHTML='';return;}
  const data=dayData[day];
  if(errorMessage&&!data){
-   el.innerHTML='<div class="empty error"><strong>Could not complete a live scan.</strong><p>'+
-     e(errorMessage)+'</p><p>The scanner will not display stale horses as current qualifiers.</p>'+
-     '<button class="button" data-retry="'+e(day)+'">Retry connection</button></div>';
-   return;
+  el.innerHTML='<div class="empty error"><strong>Could not complete a live scan.</strong><p>'+
+   e(errorMessage)+'</p><p>No cached runners are being presented as fresh research selections.</p>'+
+   '<button class="button" data-retry="'+e(day)+'">Retry connection</button></div>';
+  return;
  }
- if(!data){
-   el.innerHTML='<div class="empty">Waiting for the live racing feed. No verified speed selections yet.</div>';return;
+ if(!data){el.innerHTML='<div class="empty">Waiting for live racecards and the combined historical model.</div>';return;}
+ const scan=data.combined_research||{};
+ if(scan.status==='MODEL_NOT_READY'||scan.status==='MODEL_UNAVAILABLE'||!scan.status){
+  el.innerHTML='<div class="empty error"><strong>Combined formula temporarily unavailable.</strong>'+
+   '<p>Racecards loaded, but the combined horse, jockey, trainer, course and performance model could not be verified. No substitute speed-only selections are shown.</p>'+
+   '<button class="button" data-retry="'+e(day)+'">Retry</button></div>';return;
  }
- const scan=data.speed_trial||{};
- if(scan.status==='TIMING_HISTORY_LOADING'||scan.status==='NOT_READY'){
-   el.innerHTML='<div class="empty"><strong>Timing calculations are temporarily unavailable.</strong>'+
-     '<p>Racecards loaded, but no timed selections can be verified. Please retry later.</p></div>';return;
- }
- const candidates=Array.isArray(scan.candidates)?scan.candidates:[];
  const total=(data.races||[]).length;
- const header='<div class="scan-meta">'+e(ukDate(day==='today'?0:1))+' · '+e(total)+
-   ' racecards available · '+e(scan.standards_derived??'—')+' race-time standards built</div>';
+ const candidates=Array.isArray(scan.leaders)?scan.leaders:[];
+ const header='<div class="scan-meta">'+e(ukDate(day==='today'?0:1))+
+  ' · '+e(total)+' racecards · '+e(scan.screened_races||0)+' eligible races checked · '+
+   e(scan.eligible_races||0)+' research leaders with history'+
+   (scan.failed_to_score?' · '+e(scan.failed_to_score)+' model errors':'')+'</div>';
  if(!candidates.length){
-  el.innerHTML=header+'<div class="empty"><strong>No qualifying speed horses.</strong>'+
-    '<p>The locked Andy-inspired rules found no sufficiently strong timed selection for this scan. '+
-    'We will not force a pick or replace the formula with form and trainer tips.</p>'+
-    '<p>Only upcoming handicap hurdles with enough prior timing evidence are considered.</p></div>';return;
+  el.innerHTML=header+'<div class="empty"><strong>No research leaders with adequate history.</strong>'+
+   '<p>The full combined model found no upcoming runners meeting the minimum prior-history coverage. No arbitrary pick is forced.</p>'+
+   '<p>This is a forward research trial, not a validated profitable betting system.</p></div>';return;
  }
- el.innerHTML=header+'<div class="cards">'+candidates.map(speedCard).join('')+'</div>';
+ const shown=candidates.slice(0,20);
+ const note='<p class="hint" style="margin:8px 0 14px">Showing '+e(shown.length)+
+  ' highest-separated research leaders, ranked against their current opposition. '+
+  'These are not validated value bets. Quoted prices are indicative, not guaranteed.</p>';
+ el.innerHTML=header+note+'<div class="cards">'+shown.map(combinedCard).join('')+'</div>';
 }
-function speedCard(v){
- const proof=Array.isArray(v.timed_evidence)?v.timed_evidence:[];
- const context=v.race_context||{};
+function combinedCard(v){
+ const ev=v.evidence||{};
  const key=paperKey(v.race_id,v.horse_id);
  const saved=!!paper[key];
- const odds=v.quote&&v.quote.indicative_decimal?
-   e(v.quote.bookmaker)+' indicative '+e(nfmt(v.quote.indicative_decimal,2))+
-     ' · '+e(v.quote.minutes_old)+' min old':'No fresh market quote available';
- const contextBits=[
-   context.race_class&&'Class '+context.race_class,
-   context.horse_weight_lbs&&'Weight '+context.horse_weight_lbs+' lb',
-   context.horse_official_rating&&'Official rating '+context.horse_official_rating,
-   context.days_since_run&&'Last raced '+context.days_since_run+' days ago'
+ const q=v.quote;
+ const price=q&&q.decimal?'Indicative '+e(q.source)+' '+e(nfmt(q.decimal,2))+
+   ' · feed updated '+e(q.feed_updated||'unknown'):'No verified available quote';
+ const factors=[
+  'Prior horse runs '+e(ev.prior_races??'—'),
+  'At course '+e(ev.course_runs??'—')+' runs / '+e(ev.course_wins??'—')+' wins',
+  'Trip '+e(ev.distance_runs??'—')+' runs / '+e(ev.distance_places??'—')+' places',
+  'Going '+e(ev.going_runs??'—')+' runs / '+e(ev.going_places??'—')+' places',
+  'Trainer, last 30 days '+e(ev.trainer30_wins??'—')+'/'+e(ev.trainer30_runs??'—')+' wins',
+  'History-derived speed runs '+e(ev.raw_speed_evidence_count??'—')
+ ];
+ const conditions=[
+  ev.horse_official_rating?'Official mark '+ev.horse_official_rating:null,
+  ev.horse_weight_lbs?'Weight '+ev.horse_weight_lbs+' lb':null,
+  ev.days_since_last_history!=null?'Last historic start '+ev.days_since_last_history+' days ago':null,
+  ev.horse_age?'Age '+ev.horse_age:null
  ].filter(Boolean);
- const warn=(v.warnings||[]).slice();
- if(!context.horse_official_rating)warn.push('Current handicap mark not confirmed');
- if(!context.horse_weight_lbs)warn.push('Carried weight not confirmed');
- const evidence=proof.map(p=>'<div class="past-run"><div><strong>'+e(p.date)+
-   '</strong> · '+e(p.course_name||p.course_id||'Course unconfirmed')+
-   ' · '+e(p.yards)+' yards · going: '+e(p.going)+'</div>'+
-   '<div>Finished '+e(p.finish_position)+(p.beaten_lengths?' · beaten '+e(p.beaten_lengths)+' lengths':'')+
-   ' · adjusted speed '+e(nfmt(p.speed_pts))+' · race strength '+e(nfmt(p.race_strength_pts))+'</div>'+
-   '<div class="muted-text">Actual winning time '+e(nfmt(p.winning_seconds,2))+
-   's · adjusted standard '+e(nfmt(p.adjusted_standard_seconds,2))+
-   's · '+e(p.standard_sample)+' prior comparable races</div></div>').join('');
- return '<article class="horse-card"><div class="horse-head">'+
-  '<div><div class="race-label">'+e(ukOff(v.off_time))+' · '+e(v.course)+
-  '</div><h3>'+e(v.horse)+'</h3><div class="muted-text">'+e(v.distance)+' · '+e(v.going)+'</div></div>'+
-  '<div class="lead-figure">'+e(nfmt(v.speed_lead_pts))+'<span>speed lead</span></div></div>'+
-  '<p class="price">'+odds+'</p>'+
-  '<div class="metrics"><span>Speed figure: '+e(nfmt(v.speed_pts))+'</span>'+
-  '<span>Eligible timed opponents: '+e(v.comparable_runners)+'</span>'+
-  '<span>Comparable timed runs: '+e(v.prior_timed_runs)+'</span></div>'+
-  (contextBits.length?'<div class="context"><strong>Today’s racecard:</strong> '+contextBits.map(e).join(' · ')+'</div>':'')+
-  '<div class="evidence"><strong>Why it qualifies — previous timed performances</strong>'+evidence+'</div>'+
-  '<div class="cautions"><strong>What might be wrong:</strong> '+e(warn.length?warn.join(' · '):
-   'Jumping, race pace and opposition still require caution')+'</div>'+
+ return '<article class="horse-card">'+
+  '<div class="horse-head"><div><div class="race-label">'+e(ukOff(v.off_utc))+' · '+e(v.course)+
+  '</div><h3>'+e(v.horse)+'</h3><div class="muted-text">'+e(v.distance)+' · '+e(v.going)+
+  ' · '+e(v.race_name)+'</div></div><div class="lead-figure">'+
+  e(nfmt(Number(v.model_gap)*100,1))+
+  '<span>model ranking gap</span></div></div>'+
+  '<p class="price">'+price+'</p>'+
+  '<div class="metrics"><span>'+e(v.coverage)+' historical evidence</span>'+
+   '<span>'+e(v.field_size)+' runners compared</span>'+
+   '<span>'+e(v.version.includes("hcap")?'Hurdle-specific model':'Combined model')+'</span></div>'+
+  '<div class="context"><strong>Today’s conditions:</strong> '+conditions.map(e).join(' · ')+'</div>'+
+  '<div class="evidence"><strong>Why PIF is examining this horse</strong>'+
+   factors.map(x=>'<div class="past-run">'+x+'</div>').join('')+'</div>'+
+  '<div class="cautions"><strong>Limitations:</strong> This is an uncalibrated research ranking. '+
+   'The live service has approximately 12 months of API history, shorter than the original training archive. '+
+   'No verified sectional times, market edge or executable odds. A model leader is not automatically a bet.</div>'+
   '<div class="horse-actions"><button class="button" data-track="'+encodeURIComponent(key)+'">'+
-  (saved?'Saved to paper list':'Save to my paper list')+'</button>'+
-  '<span class="hint">Experimental speed research — no proven betting advantage</span></div></article>';
+    (saved?'Saved to paper list':'Save to paper list')+'</button>'+
+    '<span class="hint">Frozen before the off for independent forward results testing.</span></div>'+
+  '</article>';
 }
 async function fetchResults(){
  if(!pin)return;
  $('results-content').innerHTML='<div class="empty">Loading recorded trial selections and outcomes…</div>';
  try{
-  const [statusData,detail]=await Promise.all([
-    privateCall('/forward-status',{}),privateCall('/trial-results',{})
-  ]);
-  results={summary:statusData.speed_trial||{},items:detail.items||[],at:Date.now()};
+  const data=await privateCall('/combined-results',{});
+  results={summary:data,items:data.rows||[],at:Date.now()};
   status('Live trial results verified.','good');
   showResults();
  }catch(err){
@@ -227,16 +230,16 @@ function showResults(){
    html+='<div class="result-table"><div class="result-row result-head"><span>Race / horse</span><span>Pre-race price</span><span>Result</span></div>'+
     remote.slice(0,80).map(x=>'<div class="result-row"><span><strong>'+e(x.horse)+'</strong><small>'+
       e(x.course)+' · '+e(ukOff(x.off_utc))+'</small></span>'+
-      '<span>'+e(x.observed_decimal_odds?nfmt(x.observed_decimal_odds,2):'No fresh quote')+'</span>'+
+      '<span>'+e(x.first_quote?nfmt(x.first_quote,2):'No fresh quote')+'</span>'+
       '<span>'+e(x.status==='SETTLED'?(x.won?'Won':'Lost'):
-       x.status==='VOID_NONRUNNER'?'Non-runner':'Pending')+'</span></div>').join('')+'</div>';
-  }else html+='<div class="empty">No speed-qualified horses have been frozen by the server yet. The system will not invent selections.</div>';
+       x.status==='NON_RUNNER'?'Non-runner':'Pending')+'</span></div>').join('')+'</div>';
+  }else html+='<div class="empty">No combined-model research leaders have been frozen by the server yet. The system will not invent selections.</div>';
  }
  html+='</section><section><div class="section-head"><h2>My paper list — on this device</h2>'+
    '<span class="muted-text">'+e(local.length)+' saved</span></div>'+
    '<p class="hint">These are personal notes stored in this browser, not audited server selections. '+
    'You can record the actual accepted odds yourself. The site never places a bet.</p>';
- if(!local.length)html+='<div class="empty">Your paper list is empty. Save a horse from a live speed shortlist to follow it.</div>';
+ if(!local.length)html+='<div class="empty">Your paper list is empty. Save a horse from a live combined research shortlist to follow it.</div>';
  else html+=local.map(x=>{
   const savedResult=remote.find(z=>paperKey(z.race_id,z.horse_id)===x.key);
   let state=savedResult?(savedResult.status==='SETTLED'?(savedResult.won?'Won':'Lost'):
@@ -255,13 +258,13 @@ function track(encoded){
  if(paper[key]){setView('results');return;}
  let candidate=null;
  for(const d of Object.values(dayData)){
-  const x=(d?.speed_trial?.candidates||[]).find(v=>paperKey(v.race_id,v.horse_id)===key);
+  const x=(d?.combined_research?.leaders||[]).find(v=>paperKey(v.race_id,v.horse_id)===key);
   if(x){candidate=x;break;}
  }
  if(!candidate)return;
  paper[key]={key,horse:candidate.horse,course:candidate.course,
-   off:candidate.off_time,race_id:candidate.race_id,horse_id:candidate.horse_id,
-   indicativeOdds:candidate.quote?.indicative_decimal||null,
+   off:candidate.off_utc,race_id:candidate.race_id,horse_id:candidate.horse_id,
+   indicativeOdds:candidate.quote?.decimal||null,
    savedAt:new Date().toISOString(),actualOdds:null};
  savePaper();showRaceDay(view);
 }
