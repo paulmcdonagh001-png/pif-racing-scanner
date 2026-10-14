@@ -2,6 +2,7 @@
 // Live cards add-on. No Racing API credentials ever reach this browser.
 const FEED_URL='https://pif-racing-paper.onrender.com/racecards';
 let liveBusy=false,liveMessage='',meetingFilter='auto';
+let speedTrialData=null;
 const oldRenderRaces=renderRaces;
 function todayUK(){const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const o={};for(const x of parts)o[x.type]=x.value;return o.year+'-'+o.month+'-'+o.day}
 function ukClock(){return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date())}
@@ -133,6 +134,52 @@ function renderWatchlist(){
  }
  return result+'</section>';
 }
+function renderSpeedTrial(){
+ const data=speedTrialData,items=Array.isArray(data?.candidates)?data.candidates:[];
+ const status=data?.status||'';
+ const dateText=items.length?new Date(items[0].off_time).toLocaleDateString('en-GB',{timeZone:'Europe/London'}):'';
+ let html='<section class="card" style="margin-top:12px;border-color:#348d8e">'+
+  '<div class="headrow"><div><h2 style="margin:0">PIF Speed Trial</h2>'+
+  '<div class="small">Original Andy-inspired race-time model · handicap hurdles only</div></div>'+
+  '<span class="tag">EXPERIMENTAL</span></div>'+
+  '<div class="fine" style="margin:8px 0">Only actual historical race times and beaten distances create these candidates. '+
+  'Previous time standards and horse runs are required; no generic form/trainer picks. '+
+  'These are <strong>not validated value bets</strong>. Final-circuit/sectional data are unavailable.</div>';
+ if(!data){
+  html+='<div class="small">Loading private timing history with racecards…</div>';
+ }else if(status==='TIMING_HISTORY_LOADING'||status==='NOT_READY'){
+  html+='<div class="small">Timing database is loading. No race-time selection can be verified yet.</div>';
+ }else if(!items.length){
+  html+='<div class="small">No horses currently qualify under the frozen speed pilot. Nothing is forced. '+ 
+    'Some history may still be importing.</div>';
+ }else{
+  html+='<div class="small">'+items.length+' provisional speed candidate'+(items.length===1?'':'s')+
+   ' · Timing standards derived: '+e(data.standards_derived??'—')+'</div>';
+  html+=items.map(v=>{
+   const off=new Date(v.off_time).toLocaleTimeString('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'});
+   const quote=v.quote?'Indicative '+e(v.quote.bookmaker)+' '+e(v.quote.indicative_decimal)+
+     ' (quoted '+e(v.quote.minutes_old)+' min ago)':'No recent verified price';
+   const evidence=(v.timed_evidence||[]).map(x=>
+     e(x.date)+' · finished '+e(x.finish_position)+
+     (Number(x.beaten_lengths)>0?' ('+e(x.beaten_lengths)+'L behind)':'')+
+     ' · individual speed '+e(x.speed_pts)+' · race strength '+e(x.race_strength_pts)+
+     ' · '+e(x.going)+' · '+e(x.yards)+' yards · '+e(x.standard_sample)+' earlier comparable races'
+    ).join(' | ');
+   const risk=(v.warnings||[]).join(' · ')||'No automatic warning; jumping, pace and competition still unverified';
+   return '<div style="border-top:1px solid #294357;padding:12px 0">'+
+    '<div class="headrow"><div><strong>'+e(v.horse)+'</strong>'+
+    '<div class="small">'+e(off)+' · '+e(v.course)+' · '+e(v.distance)+' · '+quote+'</div>'+
+    '<div class="fine">Pilot individual speed: '+e(v.speed_pts)+' points; lead: '+e(v.speed_lead_pts)+
+    ' points over next eligible runner ('+e(v.comparable_runners)+' runners had sufficient timing records).</div>'+
+    '</div><button type="button" class="btn" onclick="openWatchRace(\''+
+       encodeURIComponent('api_'+v.race_id)+'\',\''+
+       encodeURIComponent('api_'+v.horse_id)+'\')">View race</button></div>'+
+    '<div class="fine" style="margin-top:6px"><strong>Actual prior timed races:</strong> '+evidence+'</div>'+
+    '<div class="fine" style="margin-top:4px"><strong>Reservations:</strong> '+e(risk)+'</div></div>';
+  }).join('');
+ }
+ return html+'</section>';
+}
 function selectMeeting(key){meetingFilter=key;currentRaceId=null;render()}
 renderRaces=function(){
  const today=todayUK();
@@ -149,7 +196,7 @@ renderRaces=function(){
  const chooser=groups.length?'<div class="field" style="margin:12px 0 0"><label>Meeting</label><select onchange="selectMeeting(this.value)">'+options+'</select></div>':'';
  const ui='<section class="card" style="margin-top:10px"><div class="headrow"><div><strong>UK & Ireland racecards</strong><div class="fine">Standard racecards · private access</div></div><span class="tag">STANDARD API</span></div><div class="actions" style="margin-top:12px"><button class="btn primary" '+(liveBusy?'disabled':'')+' onclick="loadLiveCards(\'today\')">'+(liveBusy?'Loading…':'Load today')+'</button><button class="btn" '+(liveBusy?'disabled':'')+' onclick="loadLiveCards(\'tomorrow\')">Tomorrow</button></div><div class="fine">'+e(liveMessage||'Enter your private scanner code to load Standard racecards. No API password is needed on your phone.')+'</div></section>';
  const firstEnd=inner.indexOf('</section>');
- const watch=renderWatchlist();
+ const watch=renderSpeedTrial()+'<details style="margin-top:10px"><summary>Legacy form-only research (not the PIF speed formula)</summary>'+renderWatchlist()+'</details>';
  return firstEnd<0?watch+ui+chooser+inner:
    inner.slice(0,firstEnd+10)+watch+ui+chooser+inner.slice(firstEnd+10);
 };
@@ -177,6 +224,7 @@ async function fetchLiveCards(day,pin){
 }
 function mergeLiveCards(data){
  if(!Array.isArray(data.races))throw Error('Unexpected feed response');
+ speedTrialData=data.speed_trial&&typeof data.speed_trial==='object'?data.speed_trial:null;
  let n=0,first=null;
  for(const x of data.races){
   if(!x.feed_id||!x.date||!x.course||!Array.isArray(x.runners))continue;
