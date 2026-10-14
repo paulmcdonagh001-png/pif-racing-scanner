@@ -120,4 +120,11 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(400,{'ok':False,'error':'Unexpected request or racecard response.'},origin)
 
 if __name__=='__main__':
+    # Environment diagnostics contain only variable names, never credential values.
+    required=('RACING_API_USERNAME','RACING_API_PASSWORD','SCANNER_ACCESS_PIN')
+    missing=[key for key in required if not os.getenv(key)]
+    if missing:
+        print('PIF Racing configuration missing: '+', '.join(missing), flush=True)
+    else:
+        print('PIF Racing configuration keys present; upstream account access remains untested', flush=True)
     ThreadingHTTPServer(('0.0.0.0',int(os.getenv('PORT','10000'))),Handler).serve_forever()
