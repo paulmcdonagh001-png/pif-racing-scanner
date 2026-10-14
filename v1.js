@@ -112,6 +112,9 @@ async function loadDay(day){
   const detail=String(err.message||'Could not reach the racing service.');
   if(/incorrect scanner code/i.test(detail)){signOut();$('access-error').textContent=detail;return;}
   errorMessage=detail;
+  // A failed refresh invalidates that day's verification. Never reuse a cached
+  // horse as a current qualifier if the live service is unavailable.
+  dayData[day]=null;dayReceived[day]=0;
   status('Live data unavailable — no selections are being shown from an old cache.','bad');
   if(seq===requests&&view===day)showRaceDay(day);
  }finally{busy=false;}
