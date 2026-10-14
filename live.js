@@ -34,7 +34,7 @@ async function fetchLiveCards(day,pin){
   if(!reply.ok||!data.ok)throw Error(data.error||'Unable to fetch racecards');
   const n=mergeLiveCards(data);
   try{sessionStorage.setItem('pif-racing-pin',pin)}catch(_){}
-  liveMessage=n+' racecards loaded at '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' · Standard racecard data. Model probabilities are not yet available.';
+  liveMessage=n+' racecards loaded at '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' · Standard form, trainer stats and indicative odds. No calibrated winning probabilities yet.';
  }catch(err){
   if(/incorrect[_ ]code/i.test(err.message))try{sessionStorage.removeItem('pif-racing-pin')}catch(_){}
   const detail=err.name==='AbortError'?'Connection timed out. Try again.':err.message==='scanner_not_configured'?'Private scanner code has not yet been saved in the PIF Racing backend.':err.message==='incorrect_code'?'Incorrect private scanner code.':err.message;
@@ -56,6 +56,10 @@ function mergeLiveCards(data){
    const runnerId='api_'+(h.horse_id||('name_'+String(h.name).toLowerCase()));
    const prev=old.runners.find(r=>r.id===runnerId)||{};
    runners.push({id:runnerId,name:String(h.name),age:h.age,or:h.or,weight:h.weight,form:h.form,days:h.days,trainer:h.trainer,jockey:h.jockey,draw:h.draw,headgear:h.headgear,
+    trainer14_wins:h.trainer14_wins||'',trainer14_runs:h.trainer14_runs||'',
+    trainer14_pct:h.trainer14_pct||'',market_betfair:h.market_betfair||'',
+    market_bet365:h.market_bet365||'',performance_rating:h.performance_rating||'',
+    past_results_flags:Array.isArray(h.past_results_flags)?h.past_results_flags:[],
     notes:prev.notes||'',odds:prev.odds||'',factors:changed?{}:(prev.factors||{})});
   }
   old.runners=runners;
