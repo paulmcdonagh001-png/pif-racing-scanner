@@ -134,6 +134,13 @@ function renderWatchlist(){
  }
  return result+'</section>';
 }
+function logSpeedPaper(raceId){
+ const v=(speedTrialData?.candidates||[]).find(x=>x.race_id===raceId);
+ if(!v)return;
+ const r=state.races.find(x=>x.id==='api_'+raceId);
+ if(r){meetingFilter=r.date+'|'+r.course;currentRaceId=r.id;render()}
+ openJournal(null,{name:v.horse,odds:v.quote?.indicative_decimal||''});
+}
 function renderSpeedTrial(){
  const data=speedTrialData,items=Array.isArray(data?.candidates)?data.candidates:[];
  const status=data?.status||'';
@@ -173,7 +180,8 @@ function renderSpeedTrial(){
     ' points over next eligible runner ('+e(v.comparable_runners)+' runners had sufficient timing records).</div>'+
     '</div><button type="button" class="btn" onclick="openWatchRace(\''+
        encodeURIComponent('api_'+v.race_id)+'\',\''+
-       encodeURIComponent('api_'+v.horse_id)+'\')">View race</button></div>'+
+       encodeURIComponent('api_'+v.horse_id)+'\')">View race</button>'+
+    (v.quote?'<button type="button" class="btn" onclick="logSpeedPaper(\''+e(v.race_id)+'\')">Paper track</button>':'')+'</div>'+
     '<div class="fine" style="margin-top:6px"><strong>Actual prior timed races:</strong> '+evidence+'</div>'+
     '<div class="fine" style="margin-top:4px"><strong>Reservations:</strong> '+e(risk)+'</div></div>';
   }).join('');
