@@ -69,7 +69,7 @@ function researchWatches(){
    }
  }
  return rows.sort((a,b)=>Number(b.priority)-Number(a.priority)
-   ||(a.priority&&b.priority?(a.rank/b.fieldCount)-(b.rank/a.fieldCount):0)
+   ||(a.priority&&b.priority?(a.rank/a.fieldCount)-(b.rank/b.fieldCount):0)
    ||b.count-a.count
    ||String(a.race.time).localeCompare(String(b.race.time))
    ||String(a.runner.name).localeCompare(String(b.runner.name)));
