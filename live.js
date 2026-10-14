@@ -191,6 +191,7 @@ function mergeLiveCards(data){
    const prev=old.runners.find(r=>r.id===runnerId)||{};
    runners.push({id:runnerId,name:String(h.name),age:h.age,or:h.or,weight:h.weight,form:h.form,days:h.days,trainer:h.trainer,jockey:h.jockey,draw:h.draw,headgear:h.headgear,
     recent_form:h.recent_form&&typeof h.recent_form==='object'?h.recent_form:null,
+    private_history:h.private_history&&typeof h.private_history==='object'?h.private_history:null,
     trainer14_wins:h.trainer14_wins||'',trainer14_runs:h.trainer14_runs||'',
     trainer14_pct:h.trainer14_pct||'',market_betfair:h.market_betfair||'',
     market_bet365:h.market_bet365||'',performance_rating:h.performance_rating||'',
