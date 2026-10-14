@@ -20,7 +20,7 @@ renderRaces=function(){
  return firstEnd<0?ui+chooser+inner:inner.slice(0,firstEnd+10)+ui+chooser+inner.slice(firstEnd+10);
 };
 function showLivePin(day){
- modal('<div class="headrow"><h2>Racing feed access</h2><button class="close" onclick="closeModal()">✕</button></div><div class="small">Enter your private scanner access code set in Render. <strong>Not</strong> your Racing API password. The code is kept only for this browser session.</div><form onsubmit="submitLivePin(event,\''+day+'\')"><div class="field"><label>Scanner access code</label><input name="pin" type="password" autocomplete="off" minlength="8" required></div><div class="actions"><button class="btn primary" type="submit">Load racecards</button></div></form>');
+ modal('<div class="headrow"><h2>Racing feed access</h2><button class="close" onclick="closeModal()">✕</button></div><div class="small">Enter your private scanner access code set in Render. <strong>Not</strong> your Racing API password. The code is kept only for this browser session.</div><form onsubmit="submitLivePin(event,\''+day+'\')"><div class="field"><label>Scanner access code</label><input name="pin" type="password" autocomplete="off" minlength="12" required></div><div class="actions"><button class="btn primary" type="submit">Load racecards</button></div></form>');
 }
 function submitLivePin(ev,day){ev.preventDefault();const pin=new FormData(ev.target).get('pin');closeModal();fetchLiveCards(day,String(pin))}
 function loadLiveCards(day){if(liveBusy)return;let pin='';try{pin=sessionStorage.getItem('pif-racing-pin')||''}catch(_){}if(pin)fetchLiveCards(day,pin);else showLivePin(day)}
@@ -37,7 +37,8 @@ async function fetchLiveCards(day,pin){
   liveMessage=n+' racecards loaded at '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' · Standard racecard data. Model probabilities are not yet available.';
  }catch(err){
   if(/incorrect[_ ]code/i.test(err.message))try{sessionStorage.removeItem('pif-racing-pin')}catch(_){}
-  liveMessage='Could not load racecards: '+(err.name==='AbortError'?'Connection timed out. Try again.':err.message);
+  const detail=err.name==='AbortError'?'Connection timed out. Try again.':err.message==='scanner_not_configured'?'Private scanner code has not yet been saved in the PIF Racing backend.':err.message==='incorrect_code'?'Incorrect private scanner code.':err.message;
+  liveMessage='Could not load racecards: '+detail;
  }finally{liveBusy=false;render()}
 }
 function mergeLiveCards(data){
