@@ -10,37 +10,69 @@ function pickUpcoming(rows){const today=todayUK(),clock=ukClock();const sorted=[
 // watchlist, not the retired historical win-probability model or a bet tip.
 // Keep the criteria visible in the UI and exclude all non-runners.
 let watchExpanded=false;
+let watchOthersExpanded=false;
 function researchEvidence(h){
  if(!h||h.is_non_runner)return {watch:false,signals:[],count:0};
  const form=h.recent_form||{},shown=Number(form.shown)||0,wins=Number(form.wins)||0,places=Number(form.places)||0;
  const signals=[];
  const formPass=shown>=4&&((wins>=1&&places>=2)||places>=3);
- if(formPass)signals.push('Recent form: '+wins+' win(s), '+places+' top-three in '+shown);
+ if(formPass)signals.push('Form: '+wins+' wins and '+places+' top-three finishes from '+shown+' recent results');
  const tw=Number(h.trainer14_wins),tr=Number(h.trainer14_runs);
  if(Number.isFinite(tw)&&Number.isFinite(tr)&&tr>=10&&tw>=2&&tw/tr>=0.18)
-   signals.push('Trainer: '+tw+'/'+tr+' wins in 14 days');
+    signals.push('Trainer last 14 days: '+tw+' wins from '+tr);
  const days=Number(h.days);
  if(h.days!==''&&Number.isFinite(days)&&days>=7&&days<=60)
-   signals.push('Ran '+days+' days ago');
+    signals.push('Last raced '+days+' days ago');
  const flags=Array.isArray(h.past_results_flags)?h.past_results_flags.map(x=>String(x).toUpperCase()):[];
  if(flags.some(x=>x==='C'||x==='D'||x==='CD'||x==='DC'))
-   signals.push('Previous course/distance win flag');
+    signals.push(flags.includes('CD')||flags.includes('DC')?'Previous course-and-distance win flag':
+      flags.includes('C')?'Previous course-win flag':'Previous distance-win flag');
  return {watch:formPass&&signals.length>=3,signals,count:signals.length};
 }
+function ratedNumber(value){
+ const s=String(value===undefined||value===null?'':value).trim();
+ if(!/^[0-9]+(?:\.[0-9]+)?$/.test(s))return null;
+ const n=Number(s);return Number.isFinite(n)&&n>0&&n<=250?n:null;
+}
+function researchProfile(r,h){
+ const basis=researchEvidence(h);
+ const active=(r.runners||[]).filter(x=>!x.is_non_runner);
+ const rated=active.map(x=>ratedNumber(x.performance_rating)).filter(x=>x!==null);
+ const own=ratedNumber(h.performance_rating);
+ const sufficientlyRated=active.length>=4&&rated.length>=Math.ceil(active.length*.75);
+ const rank=sufficientlyRated&&own!==null?1+rated.filter(v=>v>own).length:null;
+ const best=rated.length?Math.max(...rated):null;
+ const price=h.market_betfair||h.market_bet365||'';
+ const topThird=rank!==null&&rank<=Math.max(2,Math.ceil(active.length/3));
+ const priority=basis.watch&&topThird&&Boolean(price);
+ const issues=[];
+ if(rank===null)issues.push('Too few comparable performance ratings');
+ else if(!topThird)issues.push('Only #'+rank+' of '+rated.length+' on supplied performance ratings');
+ const form=h.recent_form||{};
+ if(Number(form.wins)===0)issues.push('No win in the last '+(Number(form.shown)||5)+' form figures');
+ if(Number(h.days)>45)issues.push('Last raced '+String(h.days)+' days ago');
+ if(/[PFU]/i.test(String(h.form||'').replace(/[^\w]/g,'')))
+     issues.push('Form includes a non-completion code');
+ const positives=[...basis.signals];
+ if(rank!==null)positives.unshift('Performance rating '+own+': #'+rank+'/'+rated.length+
+        ' in this field (best '+best+')');
+ return {...basis,priority,rank,fieldCount:rated.length,positives,issues,price};
+}
 function researchWatches(){
- const today=todayUK(),clock=ukClock();
- const rows=[];
+ const today=todayUK(),clock=ukClock(),rows=[];
  for(const r of state.races){
    if(!String(r.id).startsWith('api_')||r.date!==today||String(r.time||'')<=clock)continue;
    if(/abandon|cancel/i.test(String(r.status||'')))continue;
    for(const h of r.runners||[]){
-      const check=researchEvidence(h);
+      const check=researchProfile(r,h);
       if(check.watch)rows.push({race:r,runner:h,...check});
    }
  }
- return rows.sort((a,b)=>b.count-a.count
-     ||String(a.race.time).localeCompare(String(b.race.time))
-     ||String(a.runner.name).localeCompare(String(b.runner.name)));
+ return rows.sort((a,b)=>Number(b.priority)-Number(a.priority)
+   ||(a.priority&&b.priority?(a.rank/b.fieldCount)-(b.rank/a.fieldCount):0)
+   ||b.count-a.count
+   ||String(a.race.time).localeCompare(String(b.race.time))
+   ||String(a.runner.name).localeCompare(String(b.runner.name)));
 }
 function openWatchRace(encodedRace,encodedRunner){
  const id=decodeURIComponent(encodedRace),runnerId=decodeURIComponent(encodedRunner);
@@ -54,37 +86,52 @@ function openWatchRace(encodedRace,encodedRunner){
  },50);
 }
 function toggleWatchlist(){watchExpanded=!watchExpanded;render()}
+function toggleOtherMatches(){watchOthersExpanded=!watchOthersExpanded;render()}
+function renderWatchRow(x,compact){
+ const r=x.race,h=x.runner;
+ const quote=h.market_betfair?'Betfair '+h.market_betfair:
+   h.market_bet365?'Bet365 '+h.market_bet365:'No quote';
+ const evidence=compact?x.positives.slice(0,2):x.positives;
+ const issues=x.issues.length?x.issues.join(' · '):
+    'No obvious form warning; ground, pace and race history still need verification';
+ return '<div class="headrow" style="padding:12px 0;border-top:1px solid #294357;align-items:flex-start">'+
+  '<div style="min-width:0;flex:1"><strong style="color:'+
+   (x.priority?'#80e0bb':'#d4e2ed')+'">'+e(h.name)+'</strong> '+
+  '<span class="tag">'+(x.priority?'FIELD-CHECKED':'PRELIMINARY')+'</span>'+
+  '<div class="small">'+e(r.time)+' · '+e(r.course)+' · '+e(r.distance||'')+
+   ' · '+e(quote)+' indicative</div>'+
+  '<div class="fine" style="margin-top:5px"><strong>Evidence:</strong> '+e(evidence.join(' · '))+'</div>'+
+  '<div class="fine" style="margin-top:4px;color:#ffcf83"><strong>Reservations:</strong> '+e(issues)+'</div>'+
+  '</div><button class="btn" type="button" style="flex-shrink:0" onclick="openWatchRace(\''+
+    encodeURIComponent(r.id)+'\',\''+encodeURIComponent(h.id)+'\')">View race</button></div>';
+}
 function renderWatchlist(){
- const watches=researchWatches();
- const liveCount=state.races.filter(r=>String(r.id).startsWith('api_')&&r.date===todayUK()).length;
- const shown=watchExpanded?watches:watches.slice(0,6);
- const items=shown.map(x=>{
-   const r=x.race,h=x.runner;
-   const source=h.market_betfair?'Betfair indicative '+e(h.market_betfair):
-     h.market_bet365?'Bet365 indicative '+e(h.market_bet365):'No price available';
-   return '<div style="padding:12px 0;border-top:1px solid #294357" class="headrow">'+
-      '<div style="min-width:0"><div><strong style="color:#80e0bb">'+e(h.name)+'</strong> '+
-      '<span class="tag">'+e(String(x.count))+'/4 signals</span></div>'+
-      '<div class="small">'+e(r.time)+' · '+e(r.course)+' · '+e(r.distance||'')+' · '+e(source)+'</div>'+
-      '<div class="fine">'+x.signals.map(e).join(' · ')+'</div></div>'+
-      '<button type="button" class="btn" style="flex-shrink:0" onclick="openWatchRace(\''+
-       encodeURIComponent(r.id)+'\',\''+encodeURIComponent(h.id)+'\')">View race</button></div>';
- }).join('');
- const empty=liveCount===0
-   ?'No live racecards loaded yet. Load today to activate the automatic research screen.'
-   :'No upcoming runners currently meet the experimental research rules. Nothing is being forced.';
- const more=watches.length>6?'<button class="btn" type="button" onclick="toggleWatchlist()">'+
-   (watchExpanded?'Show first six':'Show all '+watches.length)+'</button>':'';
- return '<section class="card" id="research-watchlist" style="margin-top:10px;border-color:#317d6b">'+
-  '<div class="headrow"><div><h2 style="margin:0">PIF Research Watchlist</h2>'+
-  '<div class="small">Automatic across all upcoming UK &amp; Ireland meetings · '+
-  e(String(watches.length))+(watches.length===1?' horse':' horses')+' flagged for review</div></div>'+
-  '<span class="tag">EXPERIMENTAL</span></div>'+
-  '<div class="fine" style="margin-top:8px">Flags require strong recent finishing form plus at least two of: '+
-  'active trainer (2+ wins from 10+ runners, 18%+), recent run (7–60 days), or previous course/distance winning form. '+
-  'These checks are <strong>not backtested for profit</strong>; no estimated winning chance or betting value is claimed.</div>'+
-  (watches.length?items:'<div class="small" style="padding:12px 0">'+empty+'</div>')+
-  (more?'<div class="actions" style="margin-top:8px">'+more+'</div>':'')+'</section>';
+ const watches=researchWatches(),priority=watches.filter(x=>x.priority),others=watches.filter(x=>!x.priority);
+ const todayCards=state.races.filter(r=>String(r.id).startsWith('api_')&&r.date===todayUK()).length;
+ const shown=watchExpanded?priority:priority.slice(0,5);
+ const intro='<section class="card" id="research-watchlist" style="margin-top:10px;border-color:#317d6b">'+
+  '<div class="headrow"><div><h2 style="margin:0">PIF Research Shortlist</h2>'+
+  '<div class="small">All upcoming UK &amp; Ireland races checked · '+
+  e(String(priority.length))+' field-checked candidates</div></div>'+
+  '<span class="tag">UNVALIDATED</span></div>'+
+  '<div class="fine" style="margin-top:8px">First screens for recent form, trainer activity and fitness/course-distance flags; '+
+  'then checks each horse against the published performance ratings of today’s field. '+
+  'Only horses in roughly the top third of a sufficiently rated field appear here. '+
+  '<strong>This is not a calibrated prediction, verified value, or advice to bet.</strong></div>';
+ let result=intro;
+ if(todayCards===0)result+='<div class="small" style="padding:16px 0">Load today to run the shortlist.</div>';
+ else if(!priority.length)result+='<div class="small" style="padding:16px 0">No upcoming horses meet both the form screen and field-strength check. No selections forced.</div>';
+ else result+=shown.map(x=>renderWatchRow(x,false)).join('');
+ if(priority.length>5)result+='<div class="actions" style="margin:8px 0"><button class="btn" onclick="toggleWatchlist()">'+
+    (watchExpanded?'Show first five':'Show all '+priority.length+' field-checked candidates')+'</button></div>';
+ if(others.length) {
+   result+='<div style="border-top:1px solid #294357;padding-top:12px;margin-top:10px" class="fine">'+
+       e(String(others.length))+' other horses met the basic form screen but failed or lacked field-strength evidence. '+
+       '<button type="button" class="btn" onclick="toggleOtherMatches()">'+
+       (watchOthersExpanded?'Hide preliminary matches':'Show preliminary matches')+'</button></div>';
+   if(watchOthersExpanded)result+=others.map(x=>renderWatchRow(x,true)).join('');
+ }
+ return result+'</section>';
 }
 function selectMeeting(key){meetingFilter=key;currentRaceId=null;render()}
 renderRaces=function(){
