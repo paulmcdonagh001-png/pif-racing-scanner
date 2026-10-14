@@ -154,6 +154,8 @@ function renderSpeedTrial(){
   'These are <strong>not validated value bets</strong>. Final-circuit/sectional data are unavailable.</div>';
  if(!data){
   html+='<div class="small">Loading private timing history with racecards…</div>';
+ }else if(status==='FEED_OFFLINE'){
+  html+='<div class="small" style="color:#ffd190"><strong>Live feed unavailable.</strong> No speed selections have been verified for this session. Old racecards may be cached. Retry loading the racecards.</div>';
  }else if(status==='TIMING_HISTORY_LOADING'||status==='NOT_READY'){
   html+='<div class="small">Timing database is loading. No race-time selection can be verified yet.</div>';
  }else if(!items.length){
@@ -213,21 +215,74 @@ function showLivePin(day){
 }
 function submitLivePin(ev,day){ev.preventDefault();const pin=new FormData(ev.target).get('pin');closeModal();fetchLiveCards(day,String(pin))}
 function loadLiveCards(day){if(liveBusy)return;let pin='';try{pin=sessionStorage.getItem('pif-racing-pin')||''}catch(_){}if(pin)fetchLiveCards(day,pin);else showLivePin(day)}
+// The private API checks the Origin and PIN itself. Sending JSON with a
+// text/plain content type avoids a fragile cross-origin OPTIONS preflight
+// during free-tier wakeups. Backend still decodes JSON from the request body.
+async function requestPrivateRacecards(day,pin,timeoutMs){
+ const ac=new AbortController();
+ const timeout=setTimeout(()=>ac.abort(),timeoutMs);
+ try{
+  const response=await fetch(FEED_URL,{
+   method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},
+   body:JSON.stringify({day,pin}),signal:ac.signal,
+   cache:'no-store',referrerPolicy:'no-referrer'
+  });
+  let data;
+  try{data=await response.json()}
+  catch(_){
+   const err=Error('Unexpected response from data service');
+   err.httpStatus=response.status;throw err;
+  }
+  if(!response.ok||!data||!data.ok){
+   const err=Error(data?.error||'Unable to fetch racecards');
+   err.httpStatus=response.status;throw err;
+  }
+  return data;
+ }finally{clearTimeout(timeout)}
+}
 async function fetchLiveCards(day,pin){
  if(liveBusy)return;
- liveBusy=true;liveMessage='Connecting to PIF Racing data. Render may need about a minute to wake up…';render();
+ liveBusy=true;
+ liveMessage='Connecting to the private racing feed…';
+ render();
  try{
-  const ac=new AbortController(),timeout=setTimeout(()=>ac.abort(),115000);
-  let reply;try{reply=await fetch(FEED_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({day,pin}),signal:ac.signal,cache:'no-store',referrerPolicy:'no-referrer'})}finally{clearTimeout(timeout)}
-  const data=await reply.json();
-  if(!reply.ok||!data.ok)throw Error(data.error||'Unable to fetch racecards');
+  let data;
+  for(let attempt=0;attempt<2;attempt++){
+   if(attempt){
+    liveMessage='The first connection failed. Retrying the private racing feed… (2 of 2)';
+    render();
+    await new Promise(resolve=>setTimeout(resolve,2500));
+   }
+   try{
+    data=await requestPrivateRacecards(day,pin,attempt===0?45000:75000);
+    break;
+   }catch(err){
+    const canRetry=err.name==='AbortError'||err.name==='TypeError'
+      ||(Number(err.httpStatus)>=500&&Number(err.httpStatus)<600);
+    if(!canRetry||attempt===1)throw err;
+   }
+  }
   const n=mergeLiveCards(data);
   try{sessionStorage.setItem('pif-racing-pin',pin)}catch(_){}
-  liveMessage=n+' racecards loaded at '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' · Standard form, trainer stats and indicative odds. No calibrated winning probabilities yet.';
+  liveMessage=n+' racecards refreshed '+new Date().toLocaleTimeString('en-GB',
+   {hour:'2-digit',minute:'2-digit'})+
+   ' · Live speed trial checked. Prices indicative; no proven value.';
  }catch(err){
-  if(/incorrect[_ ]code/i.test(err.message))try{sessionStorage.removeItem('pif-racing-pin')}catch(_){}
-  const detail=err.name==='AbortError'?'Connection timed out. Try again.':err.message==='scanner_not_configured'?'Private scanner code has not yet been saved in the PIF Racing backend.':err.message==='incorrect_code'?'Incorrect private scanner code.':err.message;
-  liveMessage='Could not load racecards: '+detail;
+  if(/incorrect[_ ]code/i.test(err.message))
+   try{sessionStorage.removeItem('pif-racing-pin')}catch(_){}
+  // Never imply offline or previously loaded cards are fresh selections.
+  speedTrialData={status:'FEED_OFFLINE',candidate_count:0,candidates:[]};
+  const detail=err.name==='AbortError'
+   ?'The data service took too long to respond.'
+   :err.message==='scanner_not_configured'
+    ?'The private racing backend code has not been configured.'
+    :err.message==='incorrect_code'
+     ?'Incorrect scanner code.'
+     :err.name==='TypeError'
+      ?'The private data service could not be reached.'
+      :'The private feed returned '+String(err.message||'an error')+'.';
+  liveMessage=detail+' Previously loaded racecards may be out of date.'+
+    ' Please use Load today or Tomorrow to retry.';
  }finally{liveBusy=false;render()}
 }
 function mergeLiveCards(data){
