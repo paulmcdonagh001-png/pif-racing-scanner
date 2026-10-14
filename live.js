@@ -43,7 +43,7 @@ function researchProfile(r,h){
  const rank=sufficientlyRated&&own!==null?1+rated.filter(v=>v>own).length:null;
  const best=rated.length?Math.max(...rated):null;
  const price=h.market_betfair||h.market_bet365||'';
- const topThird=rank!==null&&rank<=Math.max(2,Math.ceil(active.length/3));
+ const topThird=rank!==null&&rank<=Math.max(2,Math.ceil(rated.length/3));
  const priority=basis.watch&&topThird&&Boolean(price);
  const issues=[];
  if(rank===null)issues.push('Too few comparable performance ratings');
@@ -97,7 +97,7 @@ function renderWatchRow(x,compact){
  return '<div class="headrow" style="padding:12px 0;border-top:1px solid #294357;align-items:flex-start">'+
   '<div style="min-width:0;flex:1"><strong style="color:'+
    (x.priority?'#80e0bb':'#d4e2ed')+'">'+e(h.name)+'</strong> '+
-  '<span class="tag">'+(x.priority?'FIELD-CHECKED':'PRELIMINARY')+'</span>'+
+  '<span class="tag">'+(x.priority?'RATING-CHECKED':'PRELIMINARY')+'</span>'+
   '<div class="small">'+e(r.time)+' · '+e(r.course)+' · '+e(r.distance||'')+
    ' · '+e(quote)+' indicative</div>'+
   '<div class="fine" style="margin-top:5px"><strong>Evidence:</strong> '+e(evidence.join(' · '))+'</div>'+
@@ -112,18 +112,18 @@ function renderWatchlist(){
  const intro='<section class="card" id="research-watchlist" style="margin-top:10px;border-color:#317d6b">'+
   '<div class="headrow"><div><h2 style="margin:0">PIF Research Shortlist</h2>'+
   '<div class="small">All upcoming UK &amp; Ireland races checked · '+
-  e(String(priority.length))+' field-checked candidates</div></div>'+
+  e(String(priority.length))+' rating-checked candidates</div></div>'+
   '<span class="tag">UNVALIDATED</span></div>'+
   '<div class="fine" style="margin-top:8px">First screens for recent form, trainer activity and fitness/course-distance flags; '+
   'then checks each horse against the published performance ratings of today’s field. '+
-  'Only horses in roughly the top third of a sufficiently rated field appear here. '+
+  'Only horses with a published rating in roughly the top third of rated runners appear here, where at least 75% of the field has a rating. '+
   '<strong>This is not a calibrated prediction, verified value, or advice to bet.</strong></div>';
  let result=intro;
  if(todayCards===0)result+='<div class="small" style="padding:16px 0">Load today to run the shortlist.</div>';
  else if(!priority.length)result+='<div class="small" style="padding:16px 0">No upcoming horses meet both the form screen and field-strength check. No selections forced.</div>';
  else result+=shown.map(x=>renderWatchRow(x,false)).join('');
  if(priority.length>5)result+='<div class="actions" style="margin:8px 0"><button class="btn" onclick="toggleWatchlist()">'+
-    (watchExpanded?'Show first five':'Show all '+priority.length+' field-checked candidates')+'</button></div>';
+    (watchExpanded?'Show first five':'Show all '+priority.length+' rating-checked candidates')+'</button></div>';
  if(others.length) {
    result+='<div style="border-top:1px solid #294357;padding-top:12px;margin-top:10px" class="fine">'+
        e(String(others.length))+' other horses met the basic form screen but failed or lacked field-strength evidence. '+
