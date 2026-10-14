@@ -30,6 +30,8 @@ function status(message,tone){
 }
 function setView(tab){
  view=tab;
+ $('main-heading').textContent=tab==='today'?'Today’s speed-qualified horses':
+   tab==='tomorrow'?'Tomorrow’s speed-qualified horses':'My trial & results';
  for(const btn of document.querySelectorAll('[data-view]')){
    const active=btn.getAttribute('data-view')===tab;
    btn.classList.toggle('selected',active);btn.setAttribute('aria-current',active?'page':'false');
