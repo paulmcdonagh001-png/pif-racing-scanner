@@ -78,7 +78,7 @@ function renderWatchlist(){
  return '<section class="card" id="research-watchlist" style="margin-top:10px;border-color:#317d6b">'+
   '<div class="headrow"><div><h2 style="margin:0">PIF Research Watchlist</h2>'+
   '<div class="small">Automatic across all upcoming UK &amp; Ireland meetings · '+
-  e(String(watches.length))+' horses flagged for review</div></div>'+
+  e(String(watches.length))+(watches.length===1?' horse':' horses')+' flagged for review</div></div>'+
   '<span class="tag">EXPERIMENTAL</span></div>'+
   '<div class="fine" style="margin-top:8px">Flags require strong recent finishing form plus at least two of: '+
   'active trainer (2+ wins from 10+ runners, 18%+), recent run (7–60 days), or previous course/distance winning form. '+
