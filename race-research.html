@@ -64,6 +64,22 @@ list=load();render();
       ];
       target.innerHTML='<div class="metrics">'+segments.map(pair=>'<div class="metric"><strong>'+pair[1]+'</strong><span>'+pair[0]+'</span></div>').join('')+'</div>'+
          '<p class="small">Performance diagnostics appear only after at least 100 evaluated snapshots within a comparable timing group. No PIF model win percentages are in use.</p>';
+      if(data.watch_trial){
+        const t=data.watch_trial;
+        const section=document.createElement('div');
+        section.className='note';
+        section.style.marginTop='12px';
+        section.textContent='PIF experimental shortlist (frozen V0.6): '+
+          value(t.locked)+' horses recorded before off across '+
+          value(t.different_races)+' races; '+value(t.evaluated)+
+          ' results fully matched. '+
+          (t.win_rate==null?
+             'Win-rate comparison will display after 100 matched horse results.':
+             'Observed win rate '+(100*t.win_rate).toFixed(1)+
+             '%; market-expected '+(100*t.market_expected_win_rate).toFixed(1)+
+             '%. Prices are indicative, not executable.');
+        target.appendChild(section);
+      }
       if(data.horizons?.length){
         const lines=data.horizons.map(h=>{
           const label=({'T15_45':'15–45 minutes before off','T45_120':'45–120 minutes before off','T120_240':'2–4 hours before off'})[h.horizon]||'Timing group';
