@@ -138,6 +138,11 @@ function showRaceDay(day){
    '<p>Racecards loaded, but the combined horse, jockey, trainer, course and performance model could not be verified. No substitute speed-only selections are shown.</p>'+
    '<button class="button" data-retry="'+e(day)+'">Retry</button></div>';return;
  }
+ if(scan.status==='WAITING_FIRST_SCAN'){
+  el.innerHTML='<div class="empty"><strong>Historical analysis is running.</strong>'+
+   '<p>The automatic collector has not yet saved tomorrow’s pre-race predictions. '+
+   'No fabricated shortlist is being shown. Check again after the next collection.</p></div>';return;
+ }
  const total=(data.races||[]).length;
  const candidates=Array.isArray(scan.leaders)?scan.leaders:[];
  const header='<div class="scan-meta">'+e(ukDate(day==='today'?0:1))+
@@ -194,7 +199,7 @@ function combinedCard(v){
    'No verified sectional times, market edge or executable odds. A model leader is not automatically a bet.</div>'+
   '<div class="horse-actions"><button class="button" data-track="'+encodeURIComponent(key)+'">'+
     (saved?'Saved to paper list':'Save to paper list')+'</button>'+
-    '<span class="hint">Frozen before the off for independent forward results testing.</span></div>'+
+    '<span class="hint">First pre-race snapshot preserved for forward testing.</span></div>'+
   '</article>';
 }
 async function fetchResults(){
