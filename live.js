@@ -6,6 +6,86 @@ const oldRenderRaces=renderRaces;
 function todayUK(){const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const o={};for(const x of parts)o[x.type]=x.value;return o.year+'-'+o.month+'-'+o.day}
 function ukClock(){return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date())}
 function pickUpcoming(rows){const today=todayUK(),clock=ukClock();const sorted=[...rows].sort((a,b)=>String(a.date+' '+a.time).localeCompare(String(b.date+' '+b.time)));return sorted.find(r=>r.date>today||r.date===today&&String(r.time)>=clock)||sorted[sorted.length-1]||null}
+// V0.5: explicit FACTUAL screening only. This is an unvalidated research
+// watchlist, not the retired historical win-probability model or a bet tip.
+// Keep the criteria visible in the UI and exclude all non-runners.
+let watchExpanded=false;
+function researchEvidence(h){
+ if(!h||h.is_non_runner)return {watch:false,signals:[],count:0};
+ const form=h.recent_form||{},shown=Number(form.shown)||0,wins=Number(form.wins)||0,places=Number(form.places)||0;
+ const signals=[];
+ const formPass=shown>=4&&((wins>=1&&places>=2)||places>=3);
+ if(formPass)signals.push('Recent form: '+wins+' win(s), '+places+' top-three in '+shown);
+ const tw=Number(h.trainer14_wins),tr=Number(h.trainer14_runs);
+ if(Number.isFinite(tw)&&Number.isFinite(tr)&&tr>=10&&tw>=2&&tw/tr>=0.18)
+   signals.push('Trainer: '+tw+'/'+tr+' wins in 14 days');
+ const days=Number(h.days);
+ if(h.days!==''&&Number.isFinite(days)&&days>=7&&days<=60)
+   signals.push('Ran '+days+' days ago');
+ const flags=Array.isArray(h.past_results_flags)?h.past_results_flags.map(x=>String(x).toUpperCase()):[];
+ if(flags.some(x=>x==='C'||x==='D'||x==='CD'||x==='DC'))
+   signals.push('Previous course/distance win flag');
+ return {watch:formPass&&signals.length>=3,signals,count:signals.length};
+}
+function researchWatches(){
+ const today=todayUK(),clock=ukClock();
+ const rows=[];
+ for(const r of state.races){
+   if(!String(r.id).startsWith('api_')||r.date!==today||String(r.time||'')<=clock)continue;
+   if(/abandon|cancel/i.test(String(r.status||'')))continue;
+   for(const h of r.runners||[]){
+      const check=researchEvidence(h);
+      if(check.watch)rows.push({race:r,runner:h,...check});
+   }
+ }
+ return rows.sort((a,b)=>b.count-a.count
+     ||String(a.race.time).localeCompare(String(b.race.time))
+     ||String(a.runner.name).localeCompare(String(b.runner.name)));
+}
+function openWatchRace(encodedRace,encodedRunner){
+ const id=decodeURIComponent(encodedRace),runnerId=decodeURIComponent(encodedRunner);
+ const r=state.races.find(x=>x.id===id);
+ if(!r)return;
+ meetingFilter=r.date+'|'+r.course;
+ currentRaceId=id;render();
+ setTimeout(()=>{
+   const element=document.getElementById('pifrunner-'+runnerId);
+   if(element)element.scrollIntoView({behavior:'smooth',block:'center'});
+ },50);
+}
+function toggleWatchlist(){watchExpanded=!watchExpanded;render()}
+function renderWatchlist(){
+ const watches=researchWatches();
+ const liveCount=state.races.filter(r=>String(r.id).startsWith('api_')&&r.date===todayUK()).length;
+ const shown=watchExpanded?watches:watches.slice(0,6);
+ const items=shown.map(x=>{
+   const r=x.race,h=x.runner;
+   const source=h.market_betfair?'Betfair indicative '+e(h.market_betfair):
+     h.market_bet365?'Bet365 indicative '+e(h.market_bet365):'No price available';
+   return '<div style="padding:12px 0;border-top:1px solid #294357" class="headrow">'+
+      '<div style="min-width:0"><div><strong style="color:#80e0bb">'+e(h.name)+'</strong> '+
+      '<span class="tag">'+e(String(x.count))+'/4 signals</span></div>'+
+      '<div class="small">'+e(r.time)+' · '+e(r.course)+' · '+e(r.distance||'')+' · '+e(source)+'</div>'+
+      '<div class="fine">'+x.signals.map(e).join(' · ')+'</div></div>'+
+      '<button type="button" class="btn" style="flex-shrink:0" onclick="openWatchRace(\''+
+       encodeURIComponent(r.id)+'\',\''+encodeURIComponent(h.id)+'\')">View race</button></div>';
+ }).join('');
+ const empty=liveCount===0
+   ?'No live racecards loaded yet. Load today to activate the automatic research screen.'
+   :'No upcoming runners currently meet the experimental research rules. Nothing is being forced.';
+ const more=watches.length>6?'<button class="btn" type="button" onclick="toggleWatchlist()">'+
+   (watchExpanded?'Show first six':'Show all '+watches.length)+'</button>':'';
+ return '<section class="card" id="research-watchlist" style="margin-top:10px;border-color:#317d6b">'+
+  '<div class="headrow"><div><h2 style="margin:0">PIF Research Watchlist</h2>'+
+  '<div class="small">Automatic across all upcoming UK &amp; Ireland meetings · '+
+  e(String(watches.length))+' horses flagged for review</div></div>'+
+  '<span class="tag">EXPERIMENTAL</span></div>'+
+  '<div class="fine" style="margin-top:8px">Flags require strong recent finishing form plus at least two of: '+
+  'active trainer (2+ wins from 10+ runners, 18%+), recent run (7–60 days), or previous course/distance winning form. '+
+  'These checks are <strong>not backtested for profit</strong>; no estimated winning chance or betting value is claimed.</div>'+
+  (watches.length?items:'<div class="small" style="padding:12px 0">'+empty+'</div>')+
+  (more?'<div class="actions" style="margin-top:8px">'+more+'</div>':'')+'</section>';
+}
 function selectMeeting(key){meetingFilter=key;currentRaceId=null;render()}
 renderRaces=function(){
  const today=todayUK();
@@ -22,7 +102,9 @@ renderRaces=function(){
  const chooser=groups.length?'<div class="field" style="margin:12px 0 0"><label>Meeting</label><select onchange="selectMeeting(this.value)">'+options+'</select></div>':'';
  const ui='<section class="card" style="margin-top:10px"><div class="headrow"><div><strong>UK & Ireland racecards</strong><div class="fine">Standard racecards · private access</div></div><span class="tag">STANDARD API</span></div><div class="actions" style="margin-top:12px"><button class="btn primary" '+(liveBusy?'disabled':'')+' onclick="loadLiveCards(\'today\')">'+(liveBusy?'Loading…':'Load today')+'</button><button class="btn" '+(liveBusy?'disabled':'')+' onclick="loadLiveCards(\'tomorrow\')">Tomorrow</button></div><div class="fine">'+e(liveMessage||'Enter your private scanner code to load Standard racecards. No API password is needed on your phone.')+'</div></section>';
  const firstEnd=inner.indexOf('</section>');
- return firstEnd<0?ui+chooser+inner:inner.slice(0,firstEnd+10)+ui+chooser+inner.slice(firstEnd+10);
+ const watch=renderWatchlist();
+ return firstEnd<0?watch+ui+chooser+inner:
+   inner.slice(0,firstEnd+10)+watch+ui+chooser+inner.slice(firstEnd+10);
 };
 function showLivePin(day){
  modal('<div class="headrow"><h2>Racing feed access</h2><button class="close" onclick="closeModal()">✕</button></div><div class="small">Enter your private scanner access code set in Render. <strong>Not</strong> your Racing API password. The code is kept only for this browser session.</div><form onsubmit="submitLivePin(event,\''+day+'\')"><div class="field"><label>Scanner access code</label><input name="pin" type="password" autocomplete="off" minlength="12" required></div><div class="actions"><button class="btn primary" type="submit">Load racecards</button></div></form>');
@@ -66,6 +148,7 @@ function mergeLiveCards(data){
     trainer14_pct:h.trainer14_pct||'',market_betfair:h.market_betfair||'',
     market_bet365:h.market_bet365||'',performance_rating:h.performance_rating||'',
     past_results_flags:Array.isArray(h.past_results_flags)?h.past_results_flags:[],
+    is_non_runner:h.is_non_runner===true,
     notes:prev.notes||'',odds:prev.odds||'',factors:changed?{}:(prev.factors||{})});
   }
   old.runners=runners;
