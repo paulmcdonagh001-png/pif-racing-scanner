@@ -1,7 +1,7 @@
-name: PIF Racing daily feed wake
+name: PIF Racing prospective data wake
 on:
   schedule:
-    - cron: "7 6,22 * * *"
+    - cron: "7 6,9,12,15,18,21,23 * * *"
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,5 +16,5 @@ jobs:
       - name: Wake private data service (no credentials sent)
         run: |
           curl --fail --silent --show-error --location --max-time 190 \
-            --retry 2 --retry-delay 15 \
+            --retry 3 --retry-delay 15 \
             https://pif-racing-paper.onrender.com/health > /dev/null
