@@ -64,6 +64,22 @@ list=load();render();
       ];
       target.innerHTML='<div class="metrics">'+segments.map(pair=>'<div class="metric"><strong>'+pair[1]+'</strong><span>'+pair[0]+'</span></div>').join('')+'</div>'+
          '<p class="small">Performance diagnostics appear only after at least 100 evaluated snapshots within a comparable timing group. No PIF model win percentages are in use.</p>';
+      if(data.speed_trial){
+        const t=data.speed_trial;
+        const section=document.createElement('div');
+        section.className='note';
+        section.style.marginTop='12px';
+        section.textContent='PIF SPEED forward trial ('+value(t.version)+'): '+
+          value(t.saved)+' horses frozen before the off across '+value(t.races)+
+          ' races, '+value(t.settled)+' settled ('+value(t.wins)+' wins). '+
+          (t.settled<100?
+            'Waiting for at least 100 genuinely prospective results before displaying performance rates.':
+            'Win rate '+(t.observed_win_rate*100).toFixed(1)+
+            '%; hypothetical equal-stake ROI at indicative quoted prices '+
+            (t.indicative_equal_stake_roi*100).toFixed(1)+
+            '%. These are not verified executable odds.');
+        target.appendChild(section);
+      }
       if(data.watch_trial){
         const t=data.watch_trial;
         const section=document.createElement('div');
