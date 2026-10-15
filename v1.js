@@ -397,19 +397,18 @@ function winEachWayPanel(v){
   '<p class="hint">These estimates were fitted on earlier historical model leaders and checked against later results. '+
    'They are preliminary, not proven against bookmakers; prediction errors vary by race type.</p>'+
   '<div class="bet-calculator" data-bet-key="'+key+'">'+
-   '<label>Decimal odds actually offered<input class="bet-odds" type="number" min="1.01" max="1000" step="0.01" placeholder="'+
+   '<label>Bookmaker odds (e.g. 5.30)<input class="bet-odds" type="number" min="1.01" max="1000" step="0.01" placeholder="'+
      e(v.quote?.decimal?nfmt(v.quote.decimal,2):'e.g. 4.50')+'" inputmode="decimal"></label>'+
-   '<label>Each-way places paid<select class="bet-places"><option value="">Select actual terms</option>'+
+   '<label>Places paid<select class="bet-places"><option value="">Select actual terms</option>'+
    '<option value="2">First 2 places</option><option value="3">First 3 places</option>'+
    '<option value="4">First 4 places</option><option value="5">First 5 places</option>'+
    '<option value="6">First 6 places</option></select></label>'+
-   '<label>Each-way place fraction<select class="bet-fraction"><option value="">Select actual terms</option>'+
+   '<label>Place payout<select class="bet-fraction"><option value="">Select actual terms</option>'+
    '<option value="0.2">1/5 odds</option><option value="0.25">1/4 odds</option></select></label>'+
-   '<button class="button secondary" data-compare-bet="'+key+'" type="button">Compare win vs each way</button>'+
+   '<button class="button secondary" data-compare-bet="'+key+'" type="button">Which looks better?</button>'+
    '<div class="bet-result" aria-live="polite"></div></div>'+
-   '<p class="hint">Each-way is two equal bets (win + place). The Racing API quote is indicative; '+
-    'the bookmaker’s offered price, number of places and place fraction must be checked. '+
-    'No validated value claim and no bet is placed here.</p></section>';
+   '<p class="hint">Win pays only for first place. Each-way splits your stake into a win bet and a place bet. '+
+    'Check the odds and place terms at the bookmaker. PIF does not place bets.</p></section>';
 }
 function compareBet(button){
  const panel=button.closest('.bet-calculator');
@@ -445,17 +444,28 @@ function compareBet(button){
  // Calculated expected net returns for a unit stake: win £1, EW £2 total.
  // This is research math, not reliable value until prospective calibration
  // and real prices are independently confirmed.
- const uncertain='These are exploratory model estimates, NOT proven bookmaker value.';
- let message='Neither win nor each way has a positive model-estimated return.';
- if(winEdge>0&&ewEdge<=0)message='The experimental figures favour WIN rather than each way.';
- else if(ewEdge>0&&ewEdge>winEdge)message='The experimental figures favour EACH WAY over win.';
- else if(winEdge>0&&ewEdge>0)message='Both show positive experimental estimates; WIN shows higher estimated return per pound.';
- else if(ewEdge>0)message='The experimental figures favour EACH WAY; win alone has no positive estimate.';
- box.innerHTML='<strong>'+e(message)+'</strong>'+
-  '<div>Win: estimated net return per £1 '+e((winEdge>=0?'+':'')+(100*winEdge).toFixed(1))+'% · '+
-  'Each way: estimated net return per £1 total stake '+e((ewEdge>=0?'+':'')+(100*ewEdge).toFixed(1))+'%</div>'+
-  '<small>Each-way place odds: '+e(ewPlaceOdds.toFixed(2))+
-  ' · PIF top-'+e(places)+' finish: '+e((place*100).toFixed(1))+'%. '+uncertain+'</small>';
+ // Keep all percentages out of the headline: calibration has not
+ // established an edge against offered bookmaker prices. This is a comparison
+ // of two experimental calculations, not advice to place either bet.
+ let headline='NO CLEAR MODEL ADVANTAGE';
+ let plain='At these odds, neither win nor each way looks better on the early PIF calculations.';
+ if(winEdge>0&&winEdge>=ewEdge){
+   headline='MODEL LEANS: WIN';
+   plain='At these odds, the model favours backing the horse to win rather than splitting the stake into win and place.';
+ }else if(ewEdge>0&&ewEdge>winEdge){
+   headline='MODEL LEANS: EACH WAY';
+   plain='At these odds and place terms, the model favours splitting the stake between win and place.';
+ }
+ box.innerHTML='<div class="bet-simple-verdict">'+
+   '<strong>'+e(headline)+'</strong>'+
+   '<p>'+e(plain)+'</p>'+
+   '<p class="bet-safety">Important: This is an experimental comparison, not proof that either bet is good value.</p>'+
+   '<details class="bet-why"><summary>What does this mean?</summary>'+
+   '<p><strong>Win</strong> pays only if the horse finishes first. '+
+   '<strong>Each-way</strong> consists of two equal bets: one to win and one to finish in the bookmaker’s paid places.</p>'+
+   '<p>The calculation compares rough historical win and place estimates against the offered odds. '+
+   'The model may be wrong, so it cannot reliably predict your profit.</p></details>'+
+   '</div>';
 }
 
 function combinedCard(v,qualified){
