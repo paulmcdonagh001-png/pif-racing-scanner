@@ -138,9 +138,9 @@ function researchWatchCandidates(data){
  return races.filter(r=>{
   const v=r.leader||{};
   const history=v.evidence||{};
-  return !r.qualified && v.preoff===true && v.coverage==='STRONG'
-   && Number(v.history_runs)>=5 && Number(v.model_gap)>=0.06
-   && Math.max(Number(history.distance_runs)||0,Number(history.going_runs)||0)>=2;
+  return !r.qualified && v.preoff===true && Number(v.history_runs)>=3
+   && Number(v.model_gap)>=0.03
+   && Math.max(Number(history.distance_runs)||0,Number(history.going_runs)||0)>=1;
  }).sort((a,b)=>Number(b.leader.model_gap)-Number(a.leader.model_gap));
 }
 function watchRaceCard(r){
@@ -184,29 +184,31 @@ function renderResearchShortlist(data,target){
    '<p>We will not substitute research leaders for actual qualifiers.</p></div>';return;
  }
  const qual=Array.isArray(scan.leaders)?scan.leaders:[];
- const candidates=researchWatchCandidates(data);
+ const candidates=researchWatchCandidates(data).slice(0,15);
  const allCount=full.total||full.races?.length||0;
  let head='<div class="quick-totals"><span><strong>'+e(qual.length)+
-  '</strong> strict qualifiers</span><span><strong>'+e(candidates.length)+
+  '</strong> trial qualifiers</span><span><strong>'+e(candidates.length)+
   '</strong> research watch</span><span><strong>'+e(allCount)+
   '</strong> races analysed</span></div>';
  const real=qual.length?
-  '<section class="brief-section"><h3>Passed the existing qualifier filter</h3>'+
+  '<section class="brief-section"><h3>PIF research qualifiers — all race types</h3>'+
   '<div class="qualifier-list">'+qual.map(x=>combinedCard(x,true)).join('')+'</div></section>':
-  '<p class="status-brief">No horses passed the strict handicap-hurdle filter. Other race types can still appear on the research watchlist below.</p>';
+  '<p class="status-brief">No horses met the all-race-type historical evidence gate today. The lower-evidence watchlist is below.</p>';
  const watch=candidates.length?
    '<section class="brief-section"><div class="section-head"><h3>Research watchlist</h3>'+
    '<span class="muted-text">Not qualifying bets</span></div>'+
    '<div class="qualifier-list">'+candidates.map(watchRaceCard).join('')+'</div></section>':
    '<div class="empty"><strong>No additional research-watch horses.</strong>'+
    '<p>No saved leader passed the exploratory history and relative-ranking screen.</p></div>';
- const details='<details class="methodology compact-method"><summary>What makes the research watchlist?</summary>'+
-  '<p>For all race types, this exploratory screen shows previously saved model leaders with at least '+
-  'five recorded runs, STRONG history coverage, at least two comparable distance or going runs, '+
-  'and a relative model ranking gap of at least 0.06. These cutoffs are for inspection only: '+
-  'they have <strong>not</strong> established profitable selections outside handicap hurdles.</p>'+
-  '<p class="hint">The stricter handicap-hurdle qualifier gate is tracked separately. '+
-  'A model gap is not a 6% win advantage.</p></details>';
+ const details='<details class="methodology compact-method"><summary>Why these horses are on the shortlist</summary>'+
+  '<p>All race types use the frozen 61-factor model. Experimental qualifiers need at least '+
+  'five earlier runs, STRONG historical evidence, two comparable distance or going starts, '+
+  'and a model ranking gap of at least 0.06.</p>'+
+  '<p>Research watch horses have 3+ earlier runs, at least one comparable conditions run, '+
+  'and a ranking gap of at least 0.03. These watch thresholds are exploratory only.</p>'+
+  '<p class="hint">Historical tests show that the same filter does not consistently '+
+  'beat the eventual starting-price favourite across Flat, all-weather or chase races. '+
+  'None of these figures proves value at early odds.</p></details>';
  target.innerHTML=head+real+watch+details+
   '<p class="hint">To examine every runner and the model evidence, choose All races above.</p>';
 }
@@ -381,9 +383,9 @@ function combinedCard(v,qualified){
    '<span class="muted-text">No reliable early price</span>';
  const runCount=ev.prior_races??v.history_runs??'—';
  const comparable=Math.max(Number(ev.distance_runs)||0,Number(ev.going_runs)||0);
- const badge=qualified?'<span class="qual-badge">RESEARCH QUALIFIER</span>':
+ const badge=qualified?'<span class="qual-badge">TRIAL QUALIFIER</span>':
    '<span class="watch-badge">RESEARCH ONLY</span>';
- const gate=qualified?'✓ 5+ runs · comparable going/trip · tested ranking separation':
+ const gate=qualified?'5+ recorded runs · comparable going/trip · experimental model separation':
   'Did not pass one or more suitability, coverage or model-separation gates';
  const detail=[
   'Horse: '+e(runCount)+' previous recorded starts; '+e(ev.course_runs??0)+' at this track',
