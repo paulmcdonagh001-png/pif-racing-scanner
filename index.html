@@ -188,6 +188,97 @@ footer a{color:var(--mint)}[hidden]{display:none!important}
 .top-probabilities.unavailable .prob-unavailable{font-size:12px}
 @media(max-width:520px){.qual-summary{row-gap:8px}.top-probabilities{gap:5px;padding-top:7px}.top-probability{padding:8px 2px}.top-probability strong{font-size:16px}.top-probability>span{font-size:10px}}
 
+
+/* Compact audit redesign 2026-10-15: scan 40 races without information overload. */
+.race-dashboard{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:12px 0}
+.race-dashboard>div{background:#112b3d;border:1px solid #304f61;border-radius:10px;padding:11px 12px;min-width:0}
+.race-dashboard strong{display:block;font-size:25px;line-height:1.13;font-variant-numeric:tabular-nums;color:#f3f8f9}
+.race-dashboard>div:first-child{border-color:#458b78;background:#12382f}
+.race-dashboard>div:first-child strong{color:#9ce9ce}
+.race-dashboard span{font-size:11px;color:#c4d5dc;display:block;margin-top:4px}
+.audit-overview-note{font-size:12px;line-height:1.55;color:#c5d7e0;margin:3px 0 11px}
+.audit-overview-note strong{color:#e5f0f2}
+.race-filter-bar{display:flex;flex-wrap:wrap;gap:9px;align-items:center;justify-content:space-between;margin:14px 0 8px}
+.race-filter-controls{display:flex;flex-wrap:wrap;gap:7px}
+.race-filter-btn{border:1px solid #416579;color:#dce9ef;background:#122d40;border-radius:8px;padding:9px 12px;font-size:12px;font-weight:700}
+.race-filter-btn.selected{background:#87ddc0;color:#0c2b27;border-color:#87ddc0}
+.race-filter-btn:hover:not(.selected){background:#21465a}
+.race-filter-btn:focus-visible,.race-audit>summary:focus-visible,.runner-review>summary:focus-visible,.race-evidence>summary:focus-visible{outline:2px solid #9ce9ce;outline-offset:2px}
+.race-visible-count{font-size:11px;color:#bdd0d8}
+.all-races-list{gap:7px}
+.all-races-list .race-audit[hidden],#race-filter-empty[hidden]{display:none!important}
+.race-audit{background:#102a3c;border-color:#355568}
+.race-audit.is-qualified{border-color:#5a9c84;box-shadow:inset 3px 0 0 #79d6b4}
+.race-audit>summary{display:grid;grid-template-columns:minmax(0,1fr) minmax(145px,31%) 16px;gap:13px;align-items:center;padding:12px 14px}
+.race-audit>summary::after{content:'⌄';font-size:21px;font-weight:700;line-height:1;color:#a9c6cf;transition:transform .15s}
+.race-audit[open]>summary::after{transform:rotate(180deg)}
+.race-audit-title{min-width:0;max-width:none;gap:2px}
+.race-audit-identity{display:flex;align-items:baseline;flex-wrap:wrap;gap:7px}
+.race-off{font-size:17px;line-height:1.2;color:#f1f8f9}
+.race-course{font-size:15px;color:#f1f8f9}
+.race-audit-title>.race-title{font-size:12px;font-weight:500;line-height:1.35;color:#d2e2e9}
+.race-audit-title>.race-conditions{font-size:11px;line-height:1.35;color:#9fb7c6}
+.race-audit-leader{max-width:none;gap:2px;align-items:flex-end;overflow-wrap:anywhere;line-height:1.3}
+.race-audit-leader>.qual-badge{font-size:9px;line-height:1.1;padding:3px 6px;margin-bottom:3px}
+.race-leader-horse{font-size:14px;color:#f7fafa}
+.race-audit-leader small{font-size:10px;color:#b3cbd6}
+.race-audit-inner{padding:13px 15px 16px}
+.audit-quickfacts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-bottom:13px}
+.audit-quickfacts>div{border:1px solid #2c5062;border-radius:7px;background:#183648;padding:8px 9px;min-width:0}
+.audit-quickfacts small{display:block;color:#aec6d1;font-size:10px;line-height:1.3}
+.audit-quickfacts strong{display:block;color:#ebf7f7;font-size:13px;font-weight:700;margin-top:3px;overflow-wrap:anywhere}
+.audit-no-score{font-size:12px;color:#bfccd8;margin:0 0 11px}
+.runner-section-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 15px;align-items:baseline;margin:12px 0 7px}
+.runner-section-head h4{font-size:14px;margin:0}
+.runner-section-head h4 small{font-size:11px;font-weight:400;color:#b2c6d0;margin-left:5px}
+.runner-section-head p{font-size:11px;color:#a5becb;margin:0}
+.runner-review{margin-top:5px;border-color:#2d4b5d;background:#0f2739}
+.runner-review.is-leader{border-color:#548e7b;background:#14352f}
+.runner-review>summary{padding:9px 12px;gap:10px}
+.runner-review[open]>summary{border-bottom:1px solid #315166}
+.runner-line{max-width:65%;gap:2px}
+.runner-line>strong{font-size:13px;line-height:1.3}
+.runner-line small{font-size:10px;line-height:1.3}
+.runner-line>.qual-badge{font-size:9px;margin-left:4px;display:inline-block}
+.runner-rank{max-width:35%;display:flex;flex-direction:column;align-items:flex-end;gap:1px;text-align:right}
+.runner-rank strong{color:#d7e9ed;font-size:12px}
+.runner-rank small{font-size:10px;color:#9dbdc6}
+.runner-facts{font-size:11px;line-height:1.6}
+.runner-review>.model-extra{padding-top:8px}
+.race-evidence{margin:15px 0 0;padding:0;border-color:#3b5d6a;background:#112d3e}
+.race-evidence>summary{display:flex;flex-direction:column;gap:3px;cursor:pointer;list-style:none;padding:12px 13px}
+.race-evidence>summary::-webkit-details-marker{display:none}
+.race-evidence>summary strong{font-size:13px}
+.race-evidence>summary small{font-size:11px;color:#b5cbd6}
+.race-evidence>summary::after{content:'Open evidence ▾';font-size:10px;color:#94dbc3}
+.race-evidence[open]>summary::after{content:'Close evidence ▴'}
+.race-evidence-body{padding:10px 13px 14px;border-top:1px solid #33586a}
+.race-evidence-body>.hint{font-size:11px;line-height:1.55}
+.race-evidence .formula-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.race-evidence .formula-fact{padding:8px 10px}
+.race-evidence .formula-fact strong{font-size:10px}
+@media(max-width:610px){
+ .race-dashboard{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ .race-dashboard>div{padding:9px 11px}
+ .race-dashboard strong{font-size:23px}
+ .race-filter-bar{align-items:flex-start;gap:7px}
+ .race-filter-controls{width:100%}
+ .race-filter-btn{flex:1}
+ .race-audit>summary{grid-template-columns:minmax(0,1fr) minmax(105px,37%) 12px;gap:7px;padding:11px 10px;align-items:start}
+ .race-audit-title{max-width:none}
+ .race-off{font-size:15px}
+ .race-course{font-size:13px}
+ .race-audit-leader{max-width:none}
+ .race-leader-horse{font-size:12px}
+ .race-audit-leader small{font-size:10px}
+ .race-audit-inner{padding:10px}
+ .audit-quickfacts{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .runner-line{max-width:61%}
+ .runner-rank{max-width:39%}
+ .runner-section-head h4 small{display:block;margin-left:0}
+ .race-evidence .formula-grid{grid-template-columns:1fr}
+}
+
 </style>
 <script src="./v1.js" defer></script>
 </head>
