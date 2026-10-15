@@ -141,6 +141,28 @@ footer a{color:var(--mint)}[hidden]{display:none!important}
 .watch-row[open]{border-color:#528a9b}
 .compact-method{margin-top:20px}
 @media(max-width:520px){.intro{padding:16px 0 2px}.intro h2{font-size:25px}.intro p{font-size:13px;line-height:1.45;margin-bottom:12px}.quick-totals span{font-size:11px;padding:10px 5px}.quick-totals strong{font-size:24px}.toolbar{margin-top:12px;margin-bottom:6px}.analysis-tools{margin-top:11px}.analysis-tools .button{flex:1}}
+
+/* Experimental Win / Each-way explainer — no automatic wagers. */
+.prob-row{display:flex;flex-direction:column;align-items:flex-end;gap:0;margin-top:3px;font-size:12px}
+.prob-row strong{color:var(--mint);font-size:15px;line-height:1.3}
+.prob-row small{font-size:10px;color:var(--muted);font-weight:400}
+.prob-unavailable{color:var(--muted);font-size:10px;margin-top:5px}
+.bet-model-section{margin-top:13px;padding:13px;background:#0e2b3c;border:1px solid #3b6675;border-radius:10px}
+.bet-model-section h4{margin:0 0 10px;font-size:16px}
+.prob-comparison{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.prob-comparison span{background:#183a4b;padding:10px 5px;border-radius:8px;text-align:center}
+.prob-comparison strong{font-size:20px;color:var(--mint);display:block}
+.prob-comparison small{font-size:11px;color:var(--muted)}
+.bet-calculator{margin:10px 0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.bet-calculator label{display:flex;flex-direction:column;font-size:12px;gap:5px}
+.bet-calculator input,.bet-calculator select{background:#102d41;border:1px solid #497087;border-radius:8px;color:var(--ink);padding:10px 7px;min-width:0;width:100%;font-size:13px}
+.bet-calculator button,.bet-calculator .bet-result{grid-column:1/-1}
+.bet-calculator .bet-result:not(:empty){padding:10px;border:1px solid #5b7b81;border-radius:8px;color:#d2e6f0;font-size:13px;line-height:1.65}
+.bet-calculator .bet-result strong{display:block;color:var(--mint)}
+.bet-calculator .bet-result small{display:block;color:var(--muted)}
+.bet-model-not-ready{border-left:3px solid #8ca5b2;margin-top:13px;padding:10px 13px;background:#172f43;font-size:13px}
+.bet-model-not-ready p{margin:4px 0;color:var(--muted)}
+@media(max-width:590px){.prob-row strong{font-size:14px}.prob-row small{font-size:9px}.bet-calculator{grid-template-columns:1fr}.prob-comparison strong{font-size:18px}.prob-comparison small{font-size:10px}}
 </style>
 <script src="./v1.js" defer></script>
 </head>
