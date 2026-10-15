@@ -639,6 +639,7 @@ document.addEventListener('click',ev=>{
  const b=ev.target.closest('button');if(!b)return;
  if(b.hasAttribute('data-view')){setView(b.getAttribute('data-view'));return;}
  if(b.hasAttribute('data-analysis-mode')){showMode(b.getAttribute('data-analysis-mode'));return;}
+ if(b.hasAttribute('data-race-filter')){setRaceFilter(b.getAttribute('data-race-filter'));return;}
  if(b.hasAttribute('data-retry')){loadDay(b.getAttribute('data-retry'));return;}
  if(b.hasAttribute('data-compare-bet')){compareBet(b);return;}
  if(b.hasAttribute('data-track')){track(b.getAttribute('data-track'));return;}
