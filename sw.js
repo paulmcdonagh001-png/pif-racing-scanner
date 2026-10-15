@@ -1,4 +1,4 @@
-const CACHE='pif-racing-v11-combined-model';
+const CACHE='pif-racing-v13-shortlist-first';
 const ASSETS=['./','./index.html','./v1.js','./advanced.html','./live.js','./manifest.webmanifest','./icon.svg'];
 self.addEventListener('install',event=>event.waitUntil(
  caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())
