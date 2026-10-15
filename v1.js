@@ -394,8 +394,7 @@ function winEachWayPanel(v){
    '<span><strong>'+e((100*p.top2).toFixed(1))+'%</strong><small>First 2</small></span>'+
    '<span><strong>'+e((100*p.top3).toFixed(1))+'%</strong><small>First 3</small></span>'+
    '<span><strong>'+e((100*p.top4).toFixed(1))+'%</strong><small>First 4</small></span></div>'+
-  '<p class="hint">These estimates were fitted on earlier historical model leaders and checked against later results. '+
-   'They are preliminary, not proven against bookmakers; prediction errors vary by race type.</p>'+
+  '<p class="hint">Early estimates only. We are still testing how reliable they are.</p>'+
   '<div class="bet-calculator" data-bet-key="'+key+'">'+
    '<label>Bookmaker odds (e.g. 5.30)<input class="bet-odds" type="number" min="1.01" max="1000" step="0.01" placeholder="'+
      e(v.quote?.decimal?nfmt(v.quote.decimal,2):'e.g. 4.50')+'" inputmode="decimal"></label>'+
