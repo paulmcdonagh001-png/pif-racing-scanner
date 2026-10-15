@@ -376,13 +376,17 @@ function showRaceDay(day){
   (qualified.length?'<div class="qualifier-list">'+qualified.map(x=>combinedCard(x,true)).join('')+'</div>':'')+
   watch;
 }
-function estimateSummary(v){
+function probabilityStrip(v){
  const p=v.probability||{};
- if(p.status!=='EXPERIMENTAL')return '<span class="prob-unavailable">PIF chance: awaiting suitable calibration</span>';
- return '<span class="prob-row"><strong>PIF win '+e((p.win*100).toFixed(1))+'%</strong>'+
-  '<span>Top 3 '+e((p.top3*100).toFixed(1))+'%</span>'+
-  '<small>Research estimate · not a guaranteed chance</small></span>';
+ if(p.status!=='EXPERIMENTAL')
+  return '<span class="top-probabilities unavailable"><span class="prob-unavailable">PIF win and place estimates unavailable for this race.</span></span>';
+ const entries=[['WIN',p.win],['TOP 2',p.top2],['TOP 3',p.top3],['TOP 4',p.top4]];
+ return '<span class="top-probabilities">'+
+  entries.map(([label,val])=>'<span class="top-probability"><strong>'+
+    e((100*val).toFixed(1))+'%</strong><span>'+e(label)+'</span></span>').join('')+
+  '<span class="top-prob-note">PIF research estimates · still being tested</span></span>';
 }
+
 function winEachWayPanel(v){
  const p=v.probability||{};
  if(p.status!=='EXPERIMENTAL')
@@ -390,11 +394,7 @@ function winEachWayPanel(v){
    '<p>The historical probability model does not yet match this horse’s scoring model or racing surface. No bet-type conclusion is justified.</p></div>';
  const key=encodeURIComponent(paperKey(v.race_id,v.horse_id));
  return '<section class="bet-model-section"><h4>Win or each way?</h4>'+
-  '<div class="prob-comparison"><span><strong>'+e((100*p.win).toFixed(1))+'%</strong><small>PIF win estimate</small></span>'+
-   '<span><strong>'+e((100*p.top2).toFixed(1))+'%</strong><small>First 2</small></span>'+
-   '<span><strong>'+e((100*p.top3).toFixed(1))+'%</strong><small>First 3</small></span>'+
-   '<span><strong>'+e((100*p.top4).toFixed(1))+'%</strong><small>First 4</small></span></div>'+
-  '<p class="hint">Early estimates only. We are still testing how reliable they are.</p>'+
+
   '<div class="bet-calculator" data-bet-key="'+key+'">'+
    '<label>Bookmaker odds (e.g. 5.30)<input class="bet-odds" type="number" min="1.01" max="1000" step="0.01" placeholder="'+
      e(v.quote?.decimal?nfmt(v.quote.decimal,2):'e.g. 4.50')+'" inputmode="decimal"></label>'+
@@ -493,7 +493,8 @@ function combinedCard(v,qualified){
     e(ukOff(v.off_utc))+' · '+e(v.course)+'</span>'+
     '<span class="qual-horse">'+e(v.horse)+'</span>'+
     '<span class="qual-meta">'+e(v.distance)+' · '+e(v.going)+' · '+e(v.field_size)+' runners</span></span>'+
-   '<span class="qual-right">'+badge+'<span class="qual-price">'+odds+'</span>'+estimateSummary(v)+'</span></summary>'+
+   '<span class="qual-right">'+badge+'<span class="qual-price">'+odds+'</span></span>'+
+    probabilityStrip(v)+'</summary>'+
    '<div class="qual-expanded"><p class="muted-text">'+e(v.race_name)+'</p>'+
     '<p class="qual-explanation">'+e(gate)+'.</p>'+
     '<div class="evidence"><strong>History, course, trainer, jockey and race conditions</strong>'+
