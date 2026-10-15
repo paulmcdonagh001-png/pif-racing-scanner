@@ -87,6 +87,46 @@ footer a{color:var(--mint)}[hidden]{display:none!important}
 .other-research>summary{cursor:pointer;font-weight:700;color:#b7cfdd}
 .other-research .qual-row{border-color:#354e5e}
 @media(max-width:500px){.qual-summary{padding:11px 12px;min-height:73px;gap:7px}.qual-horse{font-size:17px}.race-label{font-size:11px}.qual-price{font-size:11px}.qual-badge,.watch-badge{font-size:9px;padding:3px 5px}.qual-right{max-width:43%}.qual-summary:after{font-size:17px}.qual-expanded{padding:0 12px 13px}.toolbar{margin-top:13px}.view-buttons .button{font-size:13px}}
+
+/* Full meeting audit, all racecards and all available runner histories */
+.analysis-tools{display:flex;gap:9px;flex-wrap:wrap;margin:16px 0 7px}
+.analysis-tools .button{font-size:13px;padding:9px 13px}
+.analysis-tools .selected{background:#83dfc0;color:#082a28;border-color:#83dfc0}
+.all-races-list{display:flex;flex-direction:column;gap:9px;margin-top:12px}
+.race-audit{background:#11283b;border:1px solid #2b5062;border-radius:12px;overflow:hidden}
+.race-audit[open]{border-color:#5ab1a0}
+.race-audit>summary{display:flex;gap:10px;align-items:center;justify-content:space-between;cursor:pointer;padding:13px 15px;list-style:none}
+.race-audit>summary::-webkit-details-marker{display:none}
+.race-audit>summary:hover{background:#17364a}
+.race-audit-title{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.race-audit-title>span{font-size:13px;font-weight:550}
+.race-audit-title>small{font-size:11px;color:var(--muted)}
+.race-audit-leader{display:flex;flex-direction:column;align-items:flex-end;text-align:right;gap:4px;max-width:42%;font-size:13px}
+.race-audit-leader small{font-size:11px;color:var(--muted)}
+.race-audit-inner{border-top:1px solid var(--line);padding:10px 15px 16px}
+.race-audit-inner h4{margin:17px 0 8px}
+.race-evidence{border:1px solid #335967;background:#112b3f;border-radius:9px;padding:12px}
+.formula-grid,.model-extra{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.formula-fact{background:#1a394e;border-radius:7px;padding:7px 9px;font-size:12px}
+.formula-fact strong{display:block;font-size:11px;color:#bbd0d8}
+.formula-fact span{display:block;font-weight:600;overflow-wrap:anywhere}
+.runner-review{margin-top:7px;border:1px solid #315166;border-radius:9px;background:#102b3d}
+.runner-review>summary{cursor:pointer;list-style:none;display:flex;gap:8px;justify-content:space-between;align-items:center;padding:11px 12px}
+.runner-review>summary::-webkit-details-marker{display:none}
+.runner-line{display:flex;flex-direction:column;gap:1px;max-width:50%}
+.runner-line small{font-size:11px;color:#bbcbd6}
+.runner-rank{font-size:12px;color:#b9dae4;max-width:50%;text-align:right}
+.runner-facts{padding:9px 12px;font-size:12px;border-top:1px solid #315166;line-height:1.65;color:#c5d9e4}
+.runner-review>.model-extra,.runner-review>p{padding:0 12px 12px;margin:4px 0}
+.runner-review .model-extra .formula-fact{background:#1c3e51}
+.methodology{background:#10283b;border:1px solid #326054;border-radius:10px;margin:12px 0;padding:12px 14px}
+.methodology>summary{font-weight:750;cursor:pointer}
+.methodology>p,.methodology>ol{font-size:13px;color:var(--muted);line-height:1.55}
+.methodology ol{padding-left:21px}.methodology li{padding:3px 0}
+.gate-checks{display:flex;gap:6px;flex-wrap:wrap}
+.gate-check{padding:5px 8px;border-radius:6px;font-size:11px;border:1px solid #697382}
+.gate-check.pass{color:#a6e1c9;border-color:#3c8771}.gate-check.fail{color:#ffcbad;border-color:#825d57}
+@media(max-width:560px){.race-audit>summary{align-items:flex-start;padding:11px 10px}.race-audit-title{max-width:57%}.race-audit-title strong{font-size:12px}.race-audit-leader{max-width:43%;font-size:12px}.race-audit-inner{padding:9px}.formula-grid,.model-extra{grid-template-columns:1fr}.runner-rank{font-size:11px}.runner-line{max-width:57%}.runner-rank{max-width:43%}}
 </style>
 <script src="./v1.js" defer></script>
 </head>
@@ -96,8 +136,8 @@ footer a{color:var(--mint)}[hidden]{display:none!important}
  <div class="brand"><div class="brand-mark" aria-hidden="true">P</div><div><h1>PIF RACING</h1><div class="subtitle">V1 · COMBINED RACING SCANNER</div></div><span class="trial-marker">RESEARCH ONLY</span></div>
 </header>
 <main>
- <div class="intro"><h2 id="main-heading">Today’s PIF qualifiers</h2>
-  <p>One formula examining horses, trainers, jockeys, racecourses, speed and handicap conditions. Only evidence-qualified research horses appear above the fold.</p>
+ <div class="intro"><h2 id="main-heading">Today’s racing analysis</h2>
+  <p>All today's races, every runner and the evidence used by our 61-factor model. Qualifiers are a separate, stricter research shortlist.</p>
   <div id="connection-status" class="connection muted" role="status" aria-live="polite">Checking your private racing access…</div>
  </div>
  <section id="access-panel" class="panel">
@@ -117,6 +157,10 @@ footer a{color:var(--mint)}[hidden]{display:none!important}
    </div>
    <div class="actions"><button class="button secondary" id="reload-day" type="button">Refresh races</button>
    <button class="button secondary" id="signout" type="button">Lock</button></div>
+  </div>
+  <div id="race-display-modes" class="analysis-tools">
+    <button class="button selected" data-analysis-mode="all" id="analysis-all" type="button">All races</button>
+    <button class="button secondary" data-analysis-mode="qualifiers" id="analysis-qualifiers" type="button">Qualifiers only</button>
   </div>
   <div id="trial-view"><div id="as-of" class="muted-text">Awaiting verified data</div><div id="day-content"></div></div>
   <div id="results-view" hidden><div id="results-content"></div></div>
