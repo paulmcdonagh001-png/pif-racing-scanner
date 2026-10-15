@@ -213,14 +213,40 @@ function renderResearchShortlist(data,target){
   '<p class="hint">To examine every runner and the model evidence, choose All races above.</p>';
 }
 
+// Detailed audit view: compact overview first, original evidence on demand.
+let raceFilter='all';
+function setRaceFilter(mode){
+ raceFilter=mode==='qualifiers'?'qualifiers':'all';
+ document.querySelectorAll('#day-content [data-race-filter]').forEach(btn=>{
+  const active=btn.getAttribute('data-race-filter')===raceFilter;
+  btn.classList.toggle('selected',active);
+  btn.setAttribute('aria-pressed',String(active));
+ });
+ const rows=document.querySelectorAll('#day-content .race-audit');
+ let shown=0;
+ rows.forEach(row=>{
+  const visible=raceFilter==='all'||row.dataset.qualified==='1';
+  row.hidden=!visible;
+  if(visible)shown++;
+ });
+ const result=$('race-visible-count');
+ if(result)result.textContent='Showing '+shown+' of '+rows.length+' races';
+ const empty=$('race-filter-empty');
+ if(empty)empty.hidden=shown!==0;
+}
 function renderAllRaces(data,target){
  const full=data.all_races||{};
  const racecards=Array.isArray(full.races)?full.races:(data.races||[]);
  const sourceOK=full.status==='READY';
- const summary='<div class="scan-meta"><strong>'+e(racecards.length)+
-  ' races shown</strong> · '+e(full.model_scored||0)+' with a saved model leader · '+
-  e(full.full_runner_scored||0)+' with a complete frozen runner ranking · '+
-  e(full.qualified_races||0)+' research qualifiers</div>';
+ const qualified=Number(full.qualified_races??racecards.filter(r=>r.qualified).length);
+ const saved=Number(full.model_scored??racecards.filter(r=>r.leader?.preoff).length);
+ const complete=Number(full.full_runner_scored??0);
+ const summary='<div class="race-dashboard" aria-label="Race research totals">'+
+  '<div><strong>'+e(qualified)+'</strong><span>Research qualifiers</span></div>'+
+  '<div><strong>'+e(racecards.length)+'</strong><span>Total races</span></div>'+
+  '<div><strong>'+e(saved)+'</strong><span>Leaders saved</span></div>'+
+  '<div><strong>'+e(complete)+'</strong><span>Full rankings</span></div></div>'+
+  '<p class="audit-overview-note">Model leaders are research rankings, <strong>not betting selections or win probabilities.</strong> Choose a race to inspect its runners.</p>';
  const sourceNote=sourceOK?'':
   '<div class="empty error"><strong>Detailed evidence temporarily unavailable.</strong>'+
   '<p>These are current racecard facts; individual model scores cannot be verified on this load.</p></div>';
@@ -236,80 +262,95 @@ function renderAllRaces(data,target){
   ]).map(x=>'<li>'+e(x)+'</li>').join(''))+'</ol>'+
   '<p class="hint">'+e(formula.limitations||'Model not yet validated for profitable betting.')+'</p></details>';
  if(!racecards.length){
-  target.innerHTML=summary+'<div class="empty">No racecards available for this day.</div>'+method;return;
+  target.innerHTML=summary+sourceNote+'<div class="empty">No racecards available for this day.</div>'+method;return;
  }
+ const filters='<div class="race-filter-bar"><div class="race-filter-controls" role="group" aria-label="Filter race research">'+
+  '<button class="race-filter-btn" type="button" data-race-filter="all">All races</button>'+
+  '<button class="race-filter-btn" type="button" data-race-filter="qualifiers">Qualifiers only ('+e(qualified)+')</button>'+
+  '</div><span id="race-visible-count" class="race-visible-count"></span></div>';
  const groups=racecards.map(fullRace).join('');
- target.innerHTML=summary+sourceNote+
-  '<div class="all-races-list">'+groups+'</div>'+method+
-  '<p class="hint">All races are displayed whether or not a horse qualifies. '+
-  'An absent pre-off score is NOT evidence that the horse is weak; it means a verified model snapshot is unavailable.</p>';
+ target.innerHTML=summary+sourceNote+filters+
+  '<div class="all-races-list">'+groups+'</div>'+
+  '<div id="race-filter-empty" class="empty" hidden>No research qualifiers for this day. Select All races to see the remaining fields.</div>'+
+  method+'<p class="hint">If a pre-race score is missing, that means no verified snapshot was available; it does not mean the horse is weak.</p>';
+ setRaceFilter(raceFilter);
 }
 function fullRace(r){
  const leader=r.leader||null;
- const hasLeader=leader&&leader.preoff;
+ const hasLeader=Boolean(leader&&leader.preoff);
  const title=r.name||'Unnamed race';
- const reason=r.qualified?'<span class="qual-badge">RESEARCH QUALIFIER</span>':
-  hasLeader?'<span class="watch-badge">RESEARCH ONLY</span>':
-  '<span class="watch-badge">NO FROZEN MODEL</span>';
- const summary='<span class="race-audit-title"><strong>'+e(r.time)+' · '+e(r.course)+'</strong>'+
-  '<span>'+e(title)+'</span><small>'+e(r.type)+' · '+e(r.distance)+' · '+
-  e(r.going)+' · '+e(r.runner_count)+' runners</small></span>';
- const leadline=hasLeader?'<strong>'+e(leader.horse)+'</strong>'+
-  '<small>Model leader · gap '+e(nfmt(leader.model_gap,3))+'</small>':
-  '<span class="muted-text">No verified pre-off leader</span>';
- const evidence=hasLeader?modelEvidence(leader):
-  '<div class="empty"><strong>No saved pre-race model prediction for this race.</strong>'+
-   '<p>Runner and racecard facts remain available below. We never calculate a historical “prediction” after a race has started.</p></div>';
- const runnerTable=(r.runners||[]).map(h=>{
-   const scored=h.scored;
-   const cell=scored?
-    'Rank '+e(scored.rank)+' · relative share '+e(nfmt(scored.share,3))+
-     ' <span class="hint">(not a win chance)</span>':
-    '<span class="muted-text">Full model rank not captured</span>';
-   const p=h.private_history||{};
-   const hist=p.last12mo_recorded_runs===undefined?
-       'Recorded history unavailable':
-       e(p.last12mo_recorded_runs)+' recorded starts · '+
-       e(p.similar_distance_runs??'—')+' similar-distance · '+
-       e(p.same_going_runs??'—')+' same going';
-   const trainer=h.trainer14_runs? ' · trainer last 14d '+e(h.trainer14_wins)+'/'+e(h.trainer14_runs):'';
-   const detail=scored?'<div class="model-extra">'+
-     evidenceFact('Earlier horse runs',scored.evidence?.prior_races??'—')+
-     evidenceFact('Course record',String(scored.evidence?.course_wins??'—')+' wins / '+String(scored.evidence?.course_runs??'—')+' starts')+
-     evidenceFact('Trip record',String(scored.evidence?.distance_places??'—')+' places / '+String(scored.evidence?.distance_runs??'—')+' starts')+
-     evidenceFact('Going record',String(scored.evidence?.going_places??'—')+' places / '+String(scored.evidence?.going_runs??'—')+' starts')+
-     evidenceFact('History speed coverage',scored.evidence?.relevant_timed_runs??'—')+
-     evidenceFact('Trainer (30 days)',String(scored.evidence?.trainer30_wins??'—')+' wins / '+String(scored.evidence?.trainer30_runs??'—')+' runs')+
-     evidenceFact('Jockey (30 days)',scored.evidence?.jockey30_runs==null?'Not yet available':
-       String(scored.evidence.jockey30_runs)+' rides · '+nfmt(Number(scored.evidence.jockey30_win_rate)*100,1)+'% historical wins')+
-     evidenceFact('Trainer & jockey together',scored.evidence?.trainer_jockey_runs??'Not yet available')+
-     evidenceFact('Jockey at course',scored.evidence?.jockey_course_runs??'Not yet available')+
-     '</div>':'';
-   return '<details class="runner-review"><summary>'+
-     '<span class="runner-line"><strong>'+e(h.name)+'</strong>'+
-     (h.is_frozen_leader?' <span class="qual-badge">Model #1</span>':'')+
-     (h.is_non_runner?' <span class="watch-badge">NR</span>':'')+
-     '<small>'+e(h.jockey||'Jockey unknown')+' · '+e(h.trainer||'Trainer unknown')+
-     '</small></span><span class="runner-rank">'+cell+'</span></summary>'+
-     '<div class="runner-facts">Age '+e(h.age||'—')+' · OR '+e(h.or||'—')+
-     ' · weight '+e(h.weight||'—')+' lb · '+hist+' · form '+e(h.form||'—')+
-     trainer+
-     (h.market_bet365?' · Bet365 indicative '+e(h.market_bet365):'')+'</div>'+
-     (detail||'<p class="hint">The pre-race 61-factor runner ranking is not yet saved. Available racecard and previous-result evidence is shown above.</p>')+
-     '</details>';
+ const reason=r.qualified?'<span class="qual-badge">RESEARCH QUALIFIER</span>':'';
+ const summary='<span class="race-audit-title"><span class="race-audit-identity">'+
+  '<strong class="race-off">'+e(r.time)+'</strong><strong class="race-course">'+e(r.course)+'</strong></span>'+
+  '<span class="race-title">'+e(title)+'</span><small class="race-conditions">'+
+  e(r.type)+' · '+e(r.distance)+' · '+e(r.going)+' · '+e(r.runner_count)+' runners</small></span>';
+ const leadline=hasLeader?'<strong class="race-leader-horse">'+e(leader.horse)+'</strong>'+
+  '<small>Model #1 · gap '+e(nfmt(leader.model_gap,3))+'</small>':
+  '<span class="muted-text">No pre-race model leader</span>';
+ const quick=hasLeader?'<div class="audit-quickfacts">'+[
+   ['Prior runs',leader.evidence?.prior_races??'—'],
+   ['Going runs / places',String(leader.evidence?.going_runs??'—')+' / '+String(leader.evidence?.going_places??'—')],
+   ['Trainer last 30d',String(leader.evidence?.trainer30_wins??'—')+' / '+String(leader.evidence?.trainer30_runs??'—')+' wins / runs'],
+   ['Ranking gap',nfmt(leader.model_gap,3)]
+  ].map(([k,value])=>'<div><small>'+e(k)+'</small><strong>'+e(value)+'</strong></div>').join('')+
+  '</div>':
+  '<p class="audit-no-score">No saved pre-race model prediction. Racecard and runner details can still be inspected below.</p>';
+ const runners=Array.isArray(r.runners)?r.runners.slice():[];
+ runners.sort((a,b)=>{
+  const rank=h=>h.is_non_runner?Number.POSITIVE_INFINITY:
+    h.scored&&Number.isFinite(Number(h.scored.rank))?Number(h.scored.rank):Number.POSITIVE_INFINITY;
+  return rank(a)-rank(b);
+ });
+ const runnerTable=runners.map(h=>{
+  const scored=h.scored;
+  const cell=scored?'<strong>Rank '+e(scored.rank)+'</strong><small>Model share '+e(nfmt(scored.share,3))+'</small>':
+   '<span class="muted-text">No saved rank</span>';
+  const p=h.private_history||{};
+  const hist=p.last12mo_recorded_runs===undefined?'Recorded history unavailable':
+   e(p.last12mo_recorded_runs)+' recorded starts · '+
+   e(p.similar_distance_runs??'—')+' similar-distance · '+
+   e(p.same_going_runs??'—')+' same going';
+  const trainer=h.trainer14_runs?' · trainer last 14d '+e(h.trainer14_wins)+'/'+e(h.trainer14_runs):'';
+  const detail=scored?'<div class="model-extra">'+
+   evidenceFact('Earlier horse runs',scored.evidence?.prior_races??'—')+
+   evidenceFact('Course record',String(scored.evidence?.course_wins??'—')+' wins / '+String(scored.evidence?.course_runs??'—')+' starts')+
+   evidenceFact('Trip record',String(scored.evidence?.distance_places??'—')+' places / '+String(scored.evidence?.distance_runs??'—')+' starts')+
+   evidenceFact('Going record',String(scored.evidence?.going_places??'—')+' places / '+String(scored.evidence?.going_runs??'—')+' starts')+
+   evidenceFact('History speed coverage',scored.evidence?.relevant_timed_runs??'—')+
+   evidenceFact('Trainer (30 days)',String(scored.evidence?.trainer30_wins??'—')+' wins / '+String(scored.evidence?.trainer30_runs??'—')+' runs')+
+   evidenceFact('Jockey (30 days)',scored.evidence?.jockey30_runs==null?'Not yet available':
+    String(scored.evidence.jockey30_runs)+' rides · '+nfmt(Number(scored.evidence.jockey30_win_rate)*100,1)+'% historical wins')+
+   evidenceFact('Trainer & jockey together',scored.evidence?.trainer_jockey_runs??'Not yet available')+
+   evidenceFact('Jockey at course',scored.evidence?.jockey_course_runs??'Not yet available')+
+   '</div>':'';
+  return '<details class="runner-review'+(h.is_frozen_leader?' is-leader':'')+'"><summary>'+
+   '<span class="runner-line"><strong>'+e(h.name)+'</strong>'+
+   (h.is_frozen_leader?' <span class="qual-badge">MODEL #1</span>':'')+
+   (h.is_non_runner?' <span class="watch-badge">NR</span>':'')+
+   '<small>'+e(h.jockey||'Jockey unknown')+' · '+e(h.trainer||'Trainer unknown')+
+   '</small></span><span class="runner-rank">'+cell+'</span></summary>'+
+   '<div class="runner-facts">Age '+e(h.age??'—')+' · OR '+e(h.or??'—')+
+   ' · weight '+e(h.weight??'—')+' lb · '+hist+' · form '+e(h.form||'—')+
+   trainer+(h.market_bet365?' · Bet365 indicative '+e(h.market_bet365):'')+
+   (scored?' · Model share '+e(nfmt(scored.share,3))+' is not a win probability':'')+'</div>'+
+   (detail||'<p class="hint">The pre-race runner ranking is not saved. Available racecard and previous-result evidence is shown above.</p>')+
+   '</details>';
  }).join('');
- return '<details class="race-audit"><summary>'+summary+'<span class="race-audit-leader">'+
-  reason+leadline+'</span></summary>'+
-  '<div class="race-audit-inner"><p class="hint">Model winner is only the top-ranked runner; it is not a bet recommendation.</p>'+
-  evidence+'<h4>All runners and their evidence</h4>'+
-  runnerTable+'</div></details>';
+ const evidence=hasLeader?modelEvidence(leader):'';
+ return '<details class="race-audit'+(r.qualified?' is-qualified':'')+'" data-qualified="'+(r.qualified?'1':'0')+'">'+
+  '<summary>'+summary+'<span class="race-audit-leader">'+reason+leadline+'</span></summary>'+
+  '<div class="race-audit-inner">'+quick+
+  '<div class="runner-section-head"><h4>Runners <small>'+e(runners.length)+' in this race · model ranking first</small></h4>'+
+  '<p>Open any runner for form, history and ratings.</p></div>'+
+  (runnerTable||'<p class="hint">Runner details are not available.</p>')+evidence+
+  '</div></details>';
 }
 function modelEvidence(v){
  const x=v.evidence||{};
  const gate=v.gate_checks||{};
  const checks=Object.entries(gate).map(([name,ok])=>
-   '<span class="gate-check '+(ok?'pass':'fail')+'">'+(ok?'✓ ':'× ')+
-   e(name.replaceAll('_',' '))+'</span>').join('');
+  '<span class="gate-check '+(ok?'pass':'fail')+'">'+(ok?'✓ ':'× ')+
+  e(name.replaceAll('_',' '))+'</span>').join('');
  const cells=[
   ['Prior runs',x.prior_races],['Historical coverage',v.coverage],
   ['Course runs / wins',String(x.course_runs??'—')+' / '+String(x.course_wins??'—')],
@@ -318,17 +359,18 @@ function modelEvidence(v){
   ['Trainer last 30 days',String(x.trainer30_wins??'—')+' wins / '+String(x.trainer30_runs??'—')+' runs'],
   ['Available timing runs',x.raw_speed_evidence_count],['Official mark',x.horse_official_rating],
   ['Weight (lb)',x.horse_weight_lbs],
-  ['Opposition',String(v.field_size||'—')+' runners · next '+String(x.opponent_horse||'unknown')],
+  ['Opposition',String(v.field_size??'—')+' runners · next '+String(x.opponent_horse||'unknown')],
   ['Model ranking gap',nfmt(v.model_gap,3)]
  ].map(([k,value])=>evidenceFact(k,value??'—')).join('');
- return '<div class="race-evidence"><strong>Frozen combined model assessment</strong>'+
-  '<p class="hint">Recorded '+e(v.frozen_at||'unknown time')+
-  '. Rating lead and model share are relative scores, not fair odds.</p>'+
+ return '<details class="race-evidence"><summary><strong>Full frozen model evidence</strong>'+
+  '<small>Historical conditions, 61-factor inputs and qualification checks</small></summary>'+
+  '<div class="race-evidence-body"><p class="hint">Frozen '+e(v.frozen_at?ukOff(v.frozen_at):'time unavailable')+
+  '. Ranking lead and model share are relative scores, not fair odds.</p>'+
   '<div class="formula-grid">'+cells+'</div>'+
-  (checks?'<p class="hint">Why it did or did not qualify:</p><div class="gate-checks">'+checks+'</div>':
+  (checks?'<p class="hint">Qualification checks</p><div class="gate-checks">'+checks+'</div>':
    '<p class="hint">No saved qualification decision found for this race.</p>')+
   (v.gate_explanation?'<p class="hint">'+e(v.gate_explanation)+'</p>':'')+
-  '<p class="hint">These figures describe inputs to the formula, not individually proven causal contributions or model explanations.</p></div>';
+  '<p class="hint">These inputs are not individually proven causal explanations.</p></div></details>';
 }
 
 function showRaceDay(day){
