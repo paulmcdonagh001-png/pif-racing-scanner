@@ -7,7 +7,7 @@ const PAPER_KEY='pif-racing-v1-paper';
 const $=id=>document.getElementById(id);
 const e=x=>String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let pin='',view='today',dayData={today:null,tomorrow:null},dayReceived={today:0,tomorrow:0},
-    requests=0,busy=false,results=null,paper={},errorMessage='',lastActive='today',analysisMode='all';
+    requests=0,busy=false,results=null,paper={},errorMessage='',lastActive='today',analysisMode='shortlist';
 try{pin=sessionStorage.getItem(PIN_KEY)||'';}catch(_){}
 try{paper=JSON.parse(localStorage.getItem(PAPER_KEY)||'{}')||{};}catch(_){paper={};}
 
@@ -31,8 +31,8 @@ function status(message,tone){
 function setView(tab){
  view=tab;
  $('race-display-modes').hidden=tab==='results';
- $('main-heading').textContent=tab==='today'?'Today’s racing analysis':
-   tab==='tomorrow'?'Tomorrow’s racing analysis':'My trial & results';
+ $('main-heading').textContent=tab==='today'?'Today’s PIF Racing':
+   tab==='tomorrow'?'Tomorrow’s PIF Racing':'My trial & results';
  for(const btn of document.querySelectorAll('[data-view]')){
    const active=btn.getAttribute('data-view')===tab;
    btn.classList.toggle('selected',active);btn.setAttribute('aria-current',active?'page':'false');
@@ -123,16 +123,94 @@ async function loadDay(day){
  }finally{busy=false;}
 }
 function showMode(mode){
- analysisMode=mode==='qualifiers'?'qualifiers':'all';
+ analysisMode=mode==='all'?'all':'shortlist';
  const active=view==='tomorrow'?'tomorrow':'today';
  $('analysis-all').classList.toggle('selected',analysisMode==='all');
- $('analysis-qualifiers').classList.toggle('selected',analysisMode==='qualifiers');
+ $('analysis-qualifiers').classList.toggle('selected',analysisMode==='shortlist');
  if(view!=='results')showRaceDay(active);
 }
 function cleanNumber(x){const n=Number(x);return Number.isFinite(n)?String(n):'—';}
 function evidenceFact(label,contents){
  return '<div class="formula-fact"><strong>'+e(label)+'</strong><span>'+e(contents)+'</span></div>';
 }
+function researchWatchCandidates(data){
+ const races=data.all_races?.races||[];
+ return races.filter(r=>{
+  const v=r.leader||{};
+  const history=v.evidence||{};
+  return !r.qualified && v.preoff===true && v.coverage==='STRONG'
+   && Number(v.history_runs)>=5 && Number(v.model_gap)>=0.06
+   && Math.max(Number(history.distance_runs)||0,Number(history.going_runs)||0)>=2;
+ }).sort((a,b)=>Number(b.leader.model_gap)-Number(a.leader.model_gap));
+}
+function watchRaceCard(r){
+ const v=r.leader,ev=v.evidence||{},q=v.quote||null;
+ const validPrice=q?.decimal&&q.source?e(q.source)+' '+e(nfmt(q.decimal,2))+' indicative':'No verified early odds';
+ const key=paperKey(r.race_id,v.horse_id);
+ const expl='<div class="formula-grid">'+
+   evidenceFact('Prior horse runs',ev.prior_races??v.history_runs)+
+   evidenceFact('Comparable distance runs',ev.distance_runs??'—')+
+   evidenceFact('Comparable going runs',ev.going_runs??'—')+
+   evidenceFact('Racecourse runs',ev.course_runs??'—')+
+   evidenceFact('Trainer last 30 days',String(ev.trainer30_wins??'—')+' wins / '+String(ev.trainer30_runs??'—')+' runs')+
+   evidenceFact('Prior timed performances',ev.raw_speed_evidence_count??'—')+
+   evidenceFact('Handicap mark',ev.horse_official_rating??'—')+
+   evidenceFact('Weight (lb)',ev.horse_weight_lbs??'—')+'</div>';
+ return '<details class="qual-row watch-row">'+
+  '<summary class="qual-summary"><span class="qual-main">'+
+   '<span class="race-label">'+e(r.time)+' · '+e(r.course)+'</span>'+
+   '<span class="qual-horse">'+e(v.horse)+'</span>'+
+   '<span class="qual-meta">'+e(r.type)+' · '+e(r.distance)+' · '+e(r.going)+'</span></span>'+
+  '<span class="qual-right"><span class="watch-badge">RESEARCH WATCH</span>'+
+   '<span class="qual-price">'+validPrice+'</span></span></summary>'+
+  '<div class="qual-expanded"><p class="hint">'+e(r.name)+'</p>'+
+   '<p class="qual-explanation">Model leader with substantial previous history and a ranking gap of '+
+    e(nfmt(v.model_gap,3))+'. This is not an estimated win probability.</p>'+
+   expl+
+   '<p class="hint">Does not pass the existing handicap-hurdle-only qualifying rule. No independently proven early-price advantage. '+
+   'Additional history and race conditions remain uncertain.</p>'+
+   '<p class="hint">All other runners can be checked under All races.</p></div></details>';
+}
+function renderResearchShortlist(data,target){
+ const full=data.all_races||{};
+ const scan=data.combined_research||{};
+ if(full.status!=='READY'){
+  target.innerHTML='<div class="empty error"><strong>Race-by-race evidence unavailable.</strong>'+
+   '<p>No research watchlist can be verified. Refresh the races when the backend recovers.</p>'+
+   '<button class="button" data-retry="'+e(view==='tomorrow'?'tomorrow':'today')+'">Retry</button></div>';return;
+ }
+ if(!['FROZEN_PREOFF','NO_UPCOMING_RACES','WAITING_FIRST_SCAN'].includes(scan.status)){
+  target.innerHTML='<div class="empty error"><strong>Qualifier decision could not be checked.</strong>'+
+   '<p>We will not substitute research leaders for actual qualifiers.</p></div>';return;
+ }
+ const qual=Array.isArray(scan.leaders)?scan.leaders:[];
+ const candidates=researchWatchCandidates(data);
+ const allCount=full.total||full.races?.length||0;
+ let head='<div class="quick-totals"><span><strong>'+e(qual.length)+
+  '</strong> strict qualifiers</span><span><strong>'+e(candidates.length)+
+  '</strong> research watch</span><span><strong>'+e(allCount)+
+  '</strong> races analysed</span></div>';
+ const real=qual.length?
+  '<section class="brief-section"><h3>Passed the existing qualifier filter</h3>'+
+  '<div class="qualifier-list">'+qual.map(x=>combinedCard(x,true)).join('')+'</div></section>':
+  '<p class="status-brief">No horses passed the strict handicap-hurdle filter. Other race types can still appear on the research watchlist below.</p>';
+ const watch=candidates.length?
+   '<section class="brief-section"><div class="section-head"><h3>Research watchlist</h3>'+
+   '<span class="muted-text">Not qualifying bets</span></div>'+
+   '<div class="qualifier-list">'+candidates.map(watchRaceCard).join('')+'</div></section>':
+   '<div class="empty"><strong>No additional research-watch horses.</strong>'+
+   '<p>No saved leader passed the exploratory history and relative-ranking screen.</p></div>';
+ const details='<details class="methodology compact-method"><summary>What makes the research watchlist?</summary>'+
+  '<p>For all race types, this exploratory screen shows previously saved model leaders with at least '+
+  'five recorded runs, STRONG history coverage, at least two comparable distance or going runs, '+
+  'and a relative model ranking gap of at least 0.06. These cutoffs are for inspection only: '+
+  'they have <strong>not</strong> established profitable selections outside handicap hurdles.</p>'+
+  '<p class="hint">The stricter handicap-hurdle qualifier gate is tracked separately. '+
+  'A model gap is not a 6% win advantage.</p></details>';
+ target.innerHTML=head+real+watch+details+
+  '<p class="hint">To examine every runner and the model evidence, choose All races above.</p>';
+}
+
 function renderAllRaces(data,target){
  const full=data.all_races||{};
  const racecards=Array.isArray(full.races)?full.races:(data.races||[]);
@@ -145,7 +223,7 @@ function renderAllRaces(data,target){
   '<div class="empty error"><strong>Detailed evidence temporarily unavailable.</strong>'+
   '<p>These are current racecard facts; individual model scores cannot be verified on this load.</p></div>';
  const formula=full.formula||{};
- const method='<details class="methodology" open><summary>How the PIF racing formula works</summary>'+
+ const method='<details class="methodology"><summary>How the PIF racing formula works</summary>'+
   '<p>The model uses 61 linked historical inputs to rank runners against the actual field. '+
   'The learned combination is complex, not a simple total of arbitrary points. '+
   'Scores are <strong>not</strong> calibrated winning percentages.</p>'+
@@ -159,8 +237,8 @@ function renderAllRaces(data,target){
   target.innerHTML=summary+'<div class="empty">No racecards available for this day.</div>'+method;return;
  }
  const groups=racecards.map(fullRace).join('');
- target.innerHTML=summary+sourceNote+method+
-  '<div class="all-races-list">'+groups+'</div>'+
+ target.innerHTML=summary+sourceNote+
+  '<div class="all-races-list">'+groups+'</div>'+method+
   '<p class="hint">All races are displayed whether or not a horse qualifies. '+
   'An absent pre-off score is NOT evidence that the horse is weak; it means a verified model snapshot is unavailable.</p>';
 }
@@ -264,10 +342,11 @@ function showRaceDay(day){
   target.innerHTML='<div class="empty">Waiting for the combined historical scanner.</div>';return;
  }
  $('analysis-all').classList.toggle('selected',analysisMode==='all');
- $('analysis-qualifiers').classList.toggle('selected',analysisMode==='qualifiers');
+ $('analysis-qualifiers').classList.toggle('selected',analysisMode==='shortlist');
  if(analysisMode==='all'){
    renderAllRaces(data,target);return;
  }
+ renderResearchShortlist(data,target);return;
  const scan=data.combined_research||{};
  if(!scan.status||['MODEL_NOT_READY','MODEL_UNAVAILABLE','TIMING_HISTORY_LOADING'].includes(scan.status)){
    target.innerHTML='<div class="empty error"><strong>The qualifier formula could not be verified.</strong>'+
