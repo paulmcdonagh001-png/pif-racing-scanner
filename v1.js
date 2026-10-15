@@ -200,6 +200,10 @@ function fullRace(r){
      evidenceFact('Going record',String(scored.evidence?.going_places??'—')+' places / '+String(scored.evidence?.going_runs??'—')+' starts')+
      evidenceFact('History speed coverage',scored.evidence?.relevant_timed_runs??'—')+
      evidenceFact('Trainer (30 days)',String(scored.evidence?.trainer30_wins??'—')+' wins / '+String(scored.evidence?.trainer30_runs??'—')+' runs')+
+     evidenceFact('Jockey (30 days)',scored.evidence?.jockey30_runs==null?'Not yet available':
+       String(scored.evidence.jockey30_runs)+' rides · '+nfmt(Number(scored.evidence.jockey30_win_rate)*100,1)+'% historical wins')+
+     evidenceFact('Trainer & jockey together',scored.evidence?.trainer_jockey_runs??'Not yet available')+
+     evidenceFact('Jockey at course',scored.evidence?.jockey_course_runs??'Not yet available')+
      '</div>':'';
    return '<details class="runner-review"><summary>'+
      '<span class="runner-line"><strong>'+e(h.name)+'</strong>'+
