@@ -127,6 +127,20 @@ footer a{color:var(--mint)}[hidden]{display:none!important}
 .gate-check{padding:5px 8px;border-radius:6px;font-size:11px;border:1px solid #697382}
 .gate-check.pass{color:#a6e1c9;border-color:#3c8771}.gate-check.fail{color:#ffcbad;border-color:#825d57}
 @media(max-width:560px){.race-audit>summary{align-items:flex-start;padding:11px 10px}.race-audit-title{max-width:57%}.race-audit-title strong{font-size:12px}.race-audit-leader{max-width:43%;font-size:12px}.race-audit-inner{padding:9px}.formula-grid,.model-extra{grid-template-columns:1fr}.runner-rank{font-size:11px}.runner-line{max-width:57%}.runner-rank{max-width:43%}}
+
+/* Fast phone-first research shortlist — no expanded methodology by default. */
+.quick-totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:15px 0}
+.quick-totals span{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:12px 9px;text-align:center;font-size:12px;color:var(--muted)}
+.quick-totals strong{display:block;font-size:26px;line-height:1.1;color:var(--ink);font-variant-numeric:tabular-nums}
+.brief-section{margin-top:17px}
+.brief-section h3{font-size:17px;margin:0}
+.brief-section>.section-head{margin-bottom:7px}
+.brief-section .qualifier-list{margin-top:8px}
+.status-brief{font-size:13px;color:var(--muted);margin:10px 0 16px;padding:9px 12px;border-left:3px solid #627990;background:#132a3b;border-radius:0 7px 7px 0}
+.watch-row{border-color:#315264}
+.watch-row[open]{border-color:#528a9b}
+.compact-method{margin-top:20px}
+@media(max-width:520px){.intro{padding:16px 0 2px}.intro h2{font-size:25px}.intro p{font-size:13px;line-height:1.45;margin-bottom:12px}.quick-totals span{font-size:11px;padding:10px 5px}.quick-totals strong{font-size:24px}.toolbar{margin-top:12px;margin-bottom:6px}.analysis-tools{margin-top:11px}.analysis-tools .button{flex:1}}
 </style>
 <script src="./v1.js" defer></script>
 </head>
@@ -136,8 +150,8 @@ footer a{color:var(--mint)}[hidden]{display:none!important}
  <div class="brand"><div class="brand-mark" aria-hidden="true">P</div><div><h1>PIF RACING</h1><div class="subtitle">V1 · COMBINED RACING SCANNER</div></div><span class="trial-marker">RESEARCH ONLY</span></div>
 </header>
 <main>
- <div class="intro"><h2 id="main-heading">Today’s racing analysis</h2>
-  <p>All today's races, every runner and the evidence used by our 61-factor model. Qualifiers are a separate, stricter research shortlist.</p>
+ <div class="intro"><h2 id="main-heading">Today’s PIF Racing</h2>
+  <p>Today's shortlisted horses first. Open All races to inspect every runner and the combined historical evidence.</p>
   <div id="connection-status" class="connection muted" role="status" aria-live="polite">Checking your private racing access…</div>
  </div>
  <section id="access-panel" class="panel">
@@ -159,8 +173,8 @@ footer a{color:var(--mint)}[hidden]{display:none!important}
    <button class="button secondary" id="signout" type="button">Lock</button></div>
   </div>
   <div id="race-display-modes" class="analysis-tools">
-    <button class="button selected" data-analysis-mode="all" id="analysis-all" type="button">All races</button>
-    <button class="button secondary" data-analysis-mode="qualifiers" id="analysis-qualifiers" type="button">Qualifiers only</button>
+    <button class="button secondary" data-analysis-mode="all" id="analysis-all" type="button">All races</button>
+    <button class="button selected" data-analysis-mode="shortlist" id="analysis-qualifiers" type="button">Shortlist</button>
   </div>
   <div id="trial-view"><div id="as-of" class="muted-text">Awaiting verified data</div><div id="day-content"></div></div>
   <div id="results-view" hidden><div id="results-content"></div></div>
