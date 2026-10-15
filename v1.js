@@ -376,6 +376,88 @@ function showRaceDay(day){
   (qualified.length?'<div class="qualifier-list">'+qualified.map(x=>combinedCard(x,true)).join('')+'</div>':'')+
   watch;
 }
+function estimateSummary(v){
+ const p=v.probability||{};
+ if(p.status!=='EXPERIMENTAL')return '<span class="prob-unavailable">PIF chance: awaiting suitable calibration</span>';
+ return '<span class="prob-row"><strong>PIF win '+e((p.win*100).toFixed(1))+'%</strong>'+
+  '<span>Top 3 '+e((p.top3*100).toFixed(1))+'%</span>'+
+  '<small>Research estimate · not a guaranteed chance</small></span>';
+}
+function winEachWayPanel(v){
+ const p=v.probability||{};
+ if(p.status!=='EXPERIMENTAL')
+  return '<div class="bet-model-not-ready"><strong>Win / Each-way guidance unavailable</strong>'+
+   '<p>The historical probability model does not yet match this horse’s scoring model or racing surface. No bet-type conclusion is justified.</p></div>';
+ const key=encodeURIComponent(paperKey(v.race_id,v.horse_id));
+ return '<section class="bet-model-section"><h4>Win or each way?</h4>'+
+  '<div class="prob-comparison"><span><strong>'+e((100*p.win).toFixed(1))+'%</strong><small>PIF win estimate</small></span>'+
+   '<span><strong>'+e((100*p.top2).toFixed(1))+'%</strong><small>First 2</small></span>'+
+   '<span><strong>'+e((100*p.top3).toFixed(1))+'%</strong><small>First 3</small></span>'+
+   '<span><strong>'+e((100*p.top4).toFixed(1))+'%</strong><small>First 4</small></span></div>'+
+  '<p class="hint">These estimates were fitted on earlier historical model leaders and checked against later results. '+
+   'They are preliminary, not proven against bookmakers; prediction errors vary by race type.</p>'+
+  '<div class="bet-calculator" data-bet-key="'+key+'">'+
+   '<label>Decimal odds actually offered<input class="bet-odds" type="number" min="1.01" max="1000" step="0.01" placeholder="'+
+     e(v.quote?.decimal?nfmt(v.quote.decimal,2):'e.g. 4.50')+'" inputmode="decimal"></label>'+
+   '<label>Each-way places paid<select class="bet-places"><option value="">Select actual terms</option>'+
+   '<option value="2">First 2 places</option><option value="3">First 3 places</option>'+
+   '<option value="4">First 4 places</option><option value="5">First 5 places</option>'+
+   '<option value="6">First 6 places</option></select></label>'+
+   '<label>Each-way place fraction<select class="bet-fraction"><option value="">Select actual terms</option>'+
+   '<option value="0.2">1/5 odds</option><option value="0.25">1/4 odds</option></select></label>'+
+   '<button class="button secondary" data-compare-bet="'+key+'" type="button">Compare win vs each way</button>'+
+   '<div class="bet-result" aria-live="polite"></div></div>'+
+   '<p class="hint">Each-way is two equal bets (win + place). The Racing API quote is indicative; '+
+    'the bookmaker’s offered price, number of places and place fraction must be checked. '+
+    'No validated value claim and no bet is placed here.</p></section>';
+}
+function compareBet(button){
+ const panel=button.closest('.bet-calculator');
+ if(!panel)return;
+ const box=panel.querySelector('.bet-result');
+ const price=Number(panel.querySelector('.bet-odds').value);
+ const places=Number(panel.querySelector('.bet-places').value);
+ const fraction=Number(panel.querySelector('.bet-fraction').value);
+ if(!price||price<1.01||price>1000||!places||!fraction){
+   box.textContent='Enter the actual offered decimal odds and both each-way terms first.';return;
+ }
+ const key=decodeURIComponent(panel.getAttribute('data-bet-key'));
+ let selected=null;
+ for(const entry of Object.values(dayData)){
+  selected=(entry?.combined_research?.leaders||[]).find(r=>paperKey(r.race_id,r.horse_id)===key);
+  if(selected)break;
+ }
+ const p=selected?.probability;
+ if(!p||p.status!=='EXPERIMENTAL'){
+  box.textContent='No matching calibrated model available for this horse. Cannot compare.';return;
+ }
+ if(places>Number(selected.field_size)){
+  box.textContent='The number of paid places exceeds the recorded field size. Check actual bookmaker terms.';return;
+ }
+ const place=places===2?p.top2:places===3?p.top3:places===4?p.top4:null;
+ if(place===null){
+  box.textContent='We have not validated top-5 or top-6 place percentages. Each-way comparison unavailable for these terms.';return;
+ }
+ const winEdge=p.win*price-1;
+ const ewPlaceOdds=1+(price-1)*fraction;
+ const placeEdge=place*ewPlaceOdds-1;
+ const ewEdge=(winEdge+placeEdge)/2;
+ // Calculated expected net returns for a unit stake: win £1, EW £2 total.
+ // This is research math, not reliable value until prospective calibration
+ // and real prices are independently confirmed.
+ const uncertain='These are exploratory model estimates, NOT proven bookmaker value.';
+ let message='Neither win nor each way has a positive model-estimated return.';
+ if(winEdge>0&&ewEdge<=0)message='The experimental figures favour WIN rather than each way.';
+ else if(ewEdge>0&&ewEdge>winEdge)message='The experimental figures favour EACH WAY over win.';
+ else if(winEdge>0&&ewEdge>0)message='Both show positive experimental estimates; WIN shows higher estimated return per pound.';
+ else if(ewEdge>0)message='The experimental figures favour EACH WAY; win alone has no positive estimate.';
+ box.innerHTML='<strong>'+e(message)+'</strong>'+
+  '<div>Win: estimated net return per £1 '+e((winEdge>=0?'+':'')+(100*winEdge).toFixed(1))+'% · '+
+  'Each way: estimated net return per £1 total stake '+e((ewEdge>=0?'+':'')+(100*ewEdge).toFixed(1))+'%</div>'+
+  '<small>Each-way place odds: '+e(ewPlaceOdds.toFixed(2))+
+  ' · PIF top-'+e(places)+' finish: '+e((place*100).toFixed(1))+'%. '+uncertain+'</small>';
+}
+
 function combinedCard(v,qualified){
  const ev=v.evidence||{},q=v.quote||null;
  const key=paperKey(v.race_id,v.horse_id),saved=!!paper[key];
@@ -402,11 +484,12 @@ function combinedCard(v,qualified){
     e(ukOff(v.off_utc))+' · '+e(v.course)+'</span>'+
     '<span class="qual-horse">'+e(v.horse)+'</span>'+
     '<span class="qual-meta">'+e(v.distance)+' · '+e(v.going)+' · '+e(v.field_size)+' runners</span></span>'+
-   '<span class="qual-right">'+badge+'<span class="qual-price">'+odds+'</span></span></summary>'+
+   '<span class="qual-right">'+badge+'<span class="qual-price">'+odds+'</span>'+estimateSummary(v)+'</span></summary>'+
    '<div class="qual-expanded"><p class="muted-text">'+e(v.race_name)+'</p>'+
     '<p class="qual-explanation">'+e(gate)+'.</p>'+
     '<div class="evidence"><strong>History, course, trainer, jockey and race conditions</strong>'+
     detail.map(x=>'<div class="past-run">'+x+'</div>').join('')+'</div>'+
+    winEachWayPanel(v)+
     '<p class="hint">Research only. This model has not proved profitable early-odds value; no verified sectional times or fair odds. Historical coverage remains incomplete.</p>'+
     (qualified?'<button class="button" data-track="'+encodeURIComponent(key)+'">'+
       (saved?'Saved in my paper list':'Add to paper trial')+'</button>':'')+
@@ -505,6 +588,7 @@ document.addEventListener('click',ev=>{
  if(b.hasAttribute('data-view')){setView(b.getAttribute('data-view'));return;}
  if(b.hasAttribute('data-analysis-mode')){showMode(b.getAttribute('data-analysis-mode'));return;}
  if(b.hasAttribute('data-retry')){loadDay(b.getAttribute('data-retry'));return;}
+ if(b.hasAttribute('data-compare-bet')){compareBet(b);return;}
  if(b.hasAttribute('data-track')){track(b.getAttribute('data-track'));return;}
  if(b.hasAttribute('data-odds')){recordOdds(b.getAttribute('data-odds'));return;}
  if(b.hasAttribute('data-remove')){removePaper(b.getAttribute('data-remove'));return;}
