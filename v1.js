@@ -426,7 +426,7 @@ function probabilityStrip(v){
  return '<span class="top-probabilities">'+
   entries.map(([label,val])=>'<span class="top-probability"><strong>'+
     e((100*val).toFixed(1))+'%</strong><span>'+e(label)+'</span></span>').join('')+
-  '<span class="top-prob-note">PIF research estimates · still being tested</span></span>';
+  '<span class="top-prob-note">'+(p.specialist_hurdle?'Handicap-hurdle-specific model · experimental percentages':'PIF research estimates · still being tested')+'</span></span>';
 }
 
 function winEachWayPanel(v){
