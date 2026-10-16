@@ -2,13 +2,22 @@
 // PIF Racing V1: one public interface, private API and timing model remain server-side.
 // Experimental research only. No bets or transactions are placed by this software.
 const API='https://pif-racing-paper.onrender.com';
-const PIN_KEY='pif-racing-pin';
+const SESSION_KEY='pif-racing-remembered-v1';
+const OLD_PIN_KEY='pif-racing-pin';
 const PAPER_KEY='pif-racing-v1-paper';
 const $=id=>document.getElementById(id);
 const e=x=>String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let pin='',view='today',dayData={today:null,tomorrow:null},dayReceived={today:0,tomorrow:0},
+let sessionToken='',view='today',dayData={today:null,tomorrow:null},dayReceived={today:0,tomorrow:0},
     requests=0,busy=false,results=null,paper={},errorMessage='',lastActive='today',analysisMode='shortlist';
-try{pin=sessionStorage.getItem(PIN_KEY)||'';}catch(_){}
+// Only a revocable random session token is persisted, never the scanner PIN.
+try{
+ const saved=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');
+ const expiry=Date.parse(saved?.expires_at||'');
+ if(saved&&typeof saved.session_token==='string'&&Number.isFinite(expiry)&&expiry>Date.now()+30000)
+  sessionToken=saved.session_token;
+ else localStorage.removeItem(SESSION_KEY);
+}catch(_){sessionToken='';}
+try{sessionStorage.removeItem(OLD_PIN_KEY);}catch(_){}
 try{paper=JSON.parse(localStorage.getItem(PAPER_KEY)||'{}')||{};}catch(_){paper={};}
 
 function ukDate(offset){
@@ -43,51 +52,86 @@ function setView(tab){
  else {lastActive=tab;showRaceDay(tab);if(pin&&(!dayData[tab]||Date.now()-dayReceived[tab]>5*60000))loadDay(tab);}
 }
 function showSignIn(){
- $('access-panel').hidden=!!pin;
- $('app-panel').hidden=!pin;
- if(!pin){
+ $('access-panel').hidden=!!sessionToken;
+ $('app-panel').hidden=!sessionToken;
+ if(!sessionToken){
    $('access-error').textContent='';
-   status('Private racing data requires your scanner code.','muted');
+   status('Enter your private code to activate 30-day remembered login.','muted');
  }else{
    status('Ready to check live races.','muted');
  }
 }
-function signIn(ev){
+function clearLogin(){
+ sessionToken='';results=null;dayData={today:null,tomorrow:null};
+ dayReceived={today:0,tomorrow:0};errorMessage='';requests++;
+ try{localStorage.removeItem(SESSION_KEY);}catch(_){}
+ try{sessionStorage.removeItem(OLD_PIN_KEY);}catch(_){}
+ showSignIn();
+}
+function lostSession(){
+ clearLogin();
+ $('access-error').textContent='Your remembered login has expired. Enter your code again.';
+}
+async function signIn(ev){
  ev.preventDefault();
  const input=$('access-code');
  const entered=String(input.value||'').trim();
- if(entered.length<8){$('access-error').textContent='Enter your private PIF Racing scanner code.';return;}
- pin=entered;
- try{sessionStorage.setItem(PIN_KEY,pin)}catch(_){}
- input.value='';
- showSignIn();
- setView(lastActive);
+ if(entered.length<8){
+  $('access-error').textContent='Enter your private PIF Racing scanner code.';return;
+ }
+ const button=$('access-form').querySelector('button[type="submit"]');
+ button.disabled=true;
+ $('access-error').textContent='';
+ status('Signing in securely…','muted');
+ try{
+  const data=await apiCall('/session',{pin:entered});
+  if(typeof data.session_token!=='string'||!Number.isFinite(Date.parse(data.expires_at)))
+   throw Error('The login service returned an invalid session.');
+  sessionToken=data.session_token;
+  let remembered=true;
+  try{
+   localStorage.setItem(SESSION_KEY,JSON.stringify({
+    session_token:sessionToken,expires_at:data.expires_at
+   }));
+  }catch(_){remembered=false;}
+  input.value='';
+  showSignIn();
+  setView(lastActive);
+  if(!remembered)status('Browser storage is blocked: this login will not be remembered.','warn');
+ }catch(err){
+  $('access-error').textContent=String(err.message||'Could not sign in.');
+  status('Sign-in unsuccessful.','bad');
+ }finally{button.disabled=false;}
 }
 function signOut(){
- pin='';results=null;dayData={today:null,tomorrow:null};dayReceived={today:0,tomorrow:0};
- try{sessionStorage.removeItem(PIN_KEY)}catch(_){}
- showSignIn();
+ const old=sessionToken;
+ clearLogin();
+ if(old){
+  // Revoke this browser's token at the backend. Never retain or resend the PIN.
+  apiCall('/session/logout',{session_token:old}).catch(()=>{});
+ }
 }
-async function privateCall(path,body){
+async function apiCall(path,body){
  let lastError=null;
  for(let attempt=0;attempt<2;attempt++){
   if(attempt) await new Promise(resolve=>setTimeout(resolve,2200));
   const controller=new AbortController();
   const timeout=setTimeout(()=>controller.abort(),attempt?70000:40000);
   try{
-    // text/plain makes this a simple cross-origin request: avoids Render cold-start
-    // OPTIONS preflight. Server verifies exact Origin and private code.
+    // Plain-text POST avoids preflight; the backend still validates exact Origin.
     const res=await fetch(API+path,{
       method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},
-      body:JSON.stringify({pin,...body}),signal:controller.signal,
+      body:JSON.stringify(body),signal:controller.signal,
       cache:'no-store',referrerPolicy:'no-referrer'
     });
     let data;try{data=await res.json()}catch(_){throw Error('The data service returned an invalid response.');}
     if(!res.ok||!data.ok){
       const err=Error(data.error==='incorrect_code'?'Incorrect scanner code.':
+        data.error==='session_expired'?'Your remembered login expired.':
         data.error==='racecard_unavailable'?'Racecard provider unavailable.':
         data.error||'Backend returned HTTP '+res.status);
-      err.status=res.status;throw err;
+      err.status=res.status;
+      err.code=data.error;throw err;
     }
     return data;
   }catch(err){
@@ -97,6 +141,10 @@ async function privateCall(path,body){
   }finally{clearTimeout(timeout);}
  }
  throw lastError||Error('Connection unavailable.');
+}
+function privateCall(path,body){
+ if(!sessionToken)return Promise.reject(Error('Sign in to open the scanner.'));
+ return apiCall(path,{...body,session_token:sessionToken});
 }
 async function loadDay(day){
  if(!pin)return;
