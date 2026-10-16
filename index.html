@@ -205,6 +205,23 @@ footer a{color:var(--mint)}[hidden]{display:none!important}
 .race-filter-btn:hover:not(.selected){background:#21465a}
 .race-filter-btn:focus-visible,.race-audit>summary:focus-visible,.runner-review>summary:focus-visible,.race-evidence>summary:focus-visible{outline:2px solid #9ce9ce;outline-offset:2px}
 .race-visible-count{font-size:11px;color:#bdd0d8}
+/* Lightweight client-side course, time-window and order controls. */
+.browse-filters{display:grid;grid-template-columns:minmax(0,1.5fr) repeat(2,minmax(0,1fr));gap:10px;
+ margin:10px 0 12px;padding:11px;background:#10283a;border:1px solid #31566a;border-radius:12px}
+.browse-field{min-width:0;display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:#c3d7e2}
+.browse-field select{width:100%;min-width:0;max-width:100%;border:1px solid #476c80;background:#19384b;
+ color:#f2f8f9;border-radius:9px;font-size:14px;font-weight:600;min-height:42px;padding:9px 28px 9px 10px;
+ color-scheme:dark;cursor:pointer}
+.browse-field select:focus-visible{outline:2px solid #92ebcf;outline-offset:2px}
+.browse-count{margin:4px 0 12px;font-size:12px;color:#bdd0d8}
+[data-browse-row][hidden],[data-browse-section][hidden],#browse-filter-empty[hidden]{display:none!important}
+@media(max-width:610px){
+ .browse-filters{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px;margin:10px 0}
+ .browse-course{grid-column:1/-1}
+ .browse-field{font-size:11px}
+ .browse-field select{font-size:13px;min-height:44px;padding:9px 24px 9px 9px}
+}
+
 .all-races-list{gap:7px}
 .all-races-list .race-audit[hidden],#race-filter-empty[hidden]{display:none!important}
 .race-audit{background:#102a3c;border-color:#355568}
