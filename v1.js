@@ -48,8 +48,8 @@ function setView(tab){
  }
  $('trial-view').hidden=tab==='results';
  $('results-view').hidden=tab!=='results';
- if(tab==='results'){showResults();if(pin&&!results)fetchResults();}
- else {lastActive=tab;showRaceDay(tab);if(pin&&(!dayData[tab]||Date.now()-dayReceived[tab]>5*60000))loadDay(tab);}
+ if(tab==='results'){showResults();if(sessionToken&&!results)fetchResults();}
+ else {lastActive=tab;showRaceDay(tab);if(sessionToken&&(!dayData[tab]||Date.now()-dayReceived[tab]>5*60000))loadDay(tab);}
 }
 function showSignIn(){
  $('access-panel').hidden=!!sessionToken;
@@ -147,21 +147,22 @@ function privateCall(path,body){
  return apiCall(path,{...body,session_token:sessionToken});
 }
 async function loadDay(day){
- if(!pin)return;
+ if(!sessionToken)return;
  const seq=++requests;
  busy=true;errorMessage='';
  status('Fetching '+(day==='today'?'today’s':'tomorrow’s')+' live speed analysis…','muted');
  $('day-content').innerHTML='<div class="empty">Checking the racing feed and genuine historical times. Render may take up to a minute to wake.</div>';
  try{
   const data=await privateCall('/racecards',{day});
+  if(seq!==requests || !sessionToken)return;
   dayData[day]=data;dayReceived[day]=Date.now();
-  if(seq!==requests || view!==day)return;
+  if(view!==day)return;
   $('as-of').textContent='Racing API Standard · verified '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
   status('Live racecards verified. Combined PIF qualifier research is experimental.','good');
   showRaceDay(day);
  }catch(err){
   const detail=String(err.message||'Could not reach the racing service.');
-  if(/incorrect scanner code/i.test(detail)){signOut();$('access-error').textContent=detail;return;}
+  if(err.code==='session_expired'){lostSession();return;}
   errorMessage=detail;
   // A failed refresh invalidates that day's verification. Never reuse a cached
   // horse as a current qualifier if the live service is unavailable.
@@ -423,7 +424,7 @@ function modelEvidence(v){
 
 function showRaceDay(day){
  const target=$('day-content');
- if(!pin){target.innerHTML='';return;}
+ if(!sessionToken){target.innerHTML='';return;}
  const data=dayData[day];
  if(errorMessage&&!data){
    target.innerHTML='<div class="empty error"><strong>Could not complete a live scan.</strong><p>'+
@@ -596,7 +597,7 @@ function combinedCard(v,qualified){
     '</div></details>';
 }
 async function fetchResults(){
- if(!pin)return;
+ if(!sessionToken)return;
  $('results-content').innerHTML='<div class="empty">Loading recorded trial selections and outcomes…</div>';
  try{
   const data=await privateCall('/combined-results',{});
@@ -604,7 +605,7 @@ async function fetchResults(){
   status('Live trial results verified.','good');
   showResults();
  }catch(err){
-  if(/incorrect scanner code/i.test(String(err.message))){signOut();return;}
+  if(err.code==='session_expired'){lostSession();return;}
   $('results-content').innerHTML='<div class="empty error"><strong>Results unavailable.</strong>'+
    '<p>'+e(err.message)+'</p><button class="button" data-refresh-results="1">Retry results</button></div>';
   status('Trial results service could not be reached.','bad');
