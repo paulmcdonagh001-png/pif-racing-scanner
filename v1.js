@@ -205,7 +205,8 @@ function watchRaceCard(r){
    evidenceFact('Prior timed performances',ev.raw_speed_evidence_count??'—')+
    evidenceFact('Handicap mark',ev.horse_official_rating??'—')+
    evidenceFact('Weight (lb)',ev.horse_weight_lbs??'—')+'</div>';
- return '<details class="qual-row watch-row">'+
+ return '<details class="qual-row watch-row" data-browse-row data-course="'+e(String(r.course||'').trim())+
+   '" data-minute="'+raceMinutes(r)+'" data-qualified="0">'+
   '<summary class="qual-summary"><span class="qual-main">'+
    '<span class="race-label">'+e(r.time)+' · '+e(r.course)+'</span>'+
    '<span class="qual-horse">'+e(v.horse)+'</span>'+
@@ -240,13 +241,13 @@ function renderResearchShortlist(data,target){
   '</strong> research watch</span><span><strong>'+e(allCount)+
   '</strong> races analysed</span></div>';
  const real=qual.length?
-  '<section class="brief-section"><h3>PIF research qualifiers — all race types</h3>'+
-  '<div class="qualifier-list">'+qual.map(x=>combinedCard(x,true)).join('')+'</div></section>':
+  '<section class="brief-section" data-browse-section><h3>PIF research qualifiers — all race types</h3>'+
+  '<div class="qualifier-list" data-browse-list>'+qual.map(x=>combinedCard(x,true)).join('')+'</div></section>':
   '<p class="status-brief">No horses met the all-race-type historical evidence gate today. The lower-evidence watchlist is below.</p>';
  const watch=candidates.length?
-   '<section class="brief-section"><div class="section-head"><h3>Research watchlist</h3>'+
+   '<section class="brief-section" data-browse-section><div class="section-head"><h3>Research watchlist</h3>'+
    '<span class="muted-text">Not qualifying bets</span></div>'+
-   '<div class="qualifier-list">'+candidates.map(watchRaceCard).join('')+'</div></section>':
+   '<div class="qualifier-list" data-browse-list>'+candidates.map(watchRaceCard).join('')+'</div></section>':
    '<div class="empty"><strong>No additional research-watch horses.</strong>'+
    '<p>No saved leader passed the exploratory history and relative-ranking screen.</p></div>';
  const details='<details class="methodology compact-method"><summary>Why these horses are on the shortlist</summary>'+
@@ -258,8 +259,89 @@ function renderResearchShortlist(data,target){
   '<p class="hint">Historical tests show that the same filter does not consistently '+
   'beat the eventual starting-price favourite across Flat, all-weather or chase races. '+
   'None of these figures proves value at early odds.</p></details>';
- target.innerHTML=head+real+watch+details+
-  '<p class="hint">To examine every runner and the model evidence, choose All races above.</p>';
+ target.innerHTML=head+browseFilters(full.races||[])+
+   '<p id="shortlist-visible-count" class="browse-count"></p>'+
+   real+watch+
+   '<div id="browse-filter-empty" class="empty" hidden>No shortlisted horses match these course and time filters. Try another course or time.</div>'+
+   details+'<p class="hint">To examine every runner and the model evidence, choose All races above.</p>';
+ applyBrowseFilters();
+}
+
+
+/* Course/time controls operate on the already loaded verified racecards.
+   Never make another API call when the user changes a filter. */
+let browseCourse='all',browseTime='all',browseOrder='early';
+
+function raceMinutes(r){
+ const raw=String(r?.off_utc||'').trim();
+ if(raw){
+  const instant=new Date(raw);
+  if(Number.isFinite(instant.getTime())){
+   const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',
+     hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(instant);
+   const hh=Number(parts.find(p=>p.type==='hour')?.value);
+   const mm=Number(parts.find(p=>p.type==='minute')?.value);
+   if(Number.isInteger(hh)&&Number.isInteger(mm))return hh*60+mm;
+  }
+ }
+ const hit=String(r?.time||'').match(/(?:^|\D)([01]?\d|2[0-3]):([0-5]\d)(?!\d)/);
+ return hit?Number(hit[1])*60+Number(hit[2]):-1;
+}
+
+function browseFilters(dayRaces){
+ const courses=[...new Set((dayRaces||[]).map(r=>String(r.course||'').trim()).filter(Boolean))]
+   .sort((a,b)=>a.localeCompare(b,'en-GB',{sensitivity:'base'}));
+ if(browseCourse!=='all'&&!courses.includes(browseCourse))browseCourse='all';
+ const opts=courses.map(course=>'<option value="'+e(course)+'"'+
+    (course===browseCourse?' selected':'')+'>'+e(course)+'</option>').join('');
+ const options=(values,current)=>values.map(([value,label])=>
+  '<option value="'+e(value)+'"'+(value===current?' selected':'')+'>'+e(label)+'</option>').join('');
+ return '<div class="browse-filters" aria-label="Racecourse and time filters">'+
+   '<label class="browse-field browse-course">Course<select data-browse-course aria-label="Choose racecourse">'+
+     '<option value="all">All courses</option>'+opts+'</select></label>'+
+   '<label class="browse-field">Race time<select data-browse-time aria-label="Filter race time">'+
+     options([['all','Any time'],['before12','Before 12:00'],['12to15','12:00–15:00'],
+       ['15to18','15:00–18:00'],['after18','After 18:00']],browseTime)+'</select></label>'+
+   '<label class="browse-field">Sort by<select data-browse-order aria-label="Sort races">'+
+     options([['early','Earliest first'],['late','Latest first'],['course','Course A–Z']],browseOrder)+
+   '</select></label></div>';
+}
+
+function applyBrowseFilters(){
+ const main=$('day-content');
+ const rows=[...main.querySelectorAll('[data-browse-row]')];
+ for(const row of rows){
+  const time=Number(row.dataset.minute);
+  const allowedTime=browseTime==='all' ||
+   (Number.isFinite(time)&&time>=0&&(
+     (browseTime==='before12'&&time<720) ||
+     (browseTime==='12to15'&&time>=720&&time<900) ||
+     (browseTime==='15to18'&&time>=900&&time<1080) ||
+     (browseTime==='after18'&&time>=1080)));
+  row.hidden=!(allowedTime&&(browseCourse==='all'||row.dataset.course===browseCourse)&&
+    (analysisMode!=='all'||raceFilter==='all'||row.dataset.qualified==='1'));
+ }
+ for(const list of main.querySelectorAll('[data-browse-list]')){
+  const items=[...list.children].filter(el=>el.hasAttribute('data-browse-row'));
+  items.sort((a,b)=>{
+    const am=Number(a.dataset.minute),bm=Number(b.dataset.minute);
+    const av=am>=0?am:2000,bv=bm>=0?bm:2000;
+    if(browseOrder==='course')return a.dataset.course.localeCompare(
+      b.dataset.course,'en-GB',{sensitivity:'base'})||av-bv;
+    return browseOrder==='late'?(bv-av):(av-bv);
+  });
+  for(const item of items)list.appendChild(item);
+ }
+ const shown=rows.filter(row=>!row.hidden).length;
+ const count=$('race-visible-count');
+ if(count)count.textContent='Showing '+shown+' of '+rows.length+' races';
+ const shortCount=$('shortlist-visible-count');
+ if(shortCount)shortCount.textContent='Showing '+shown+' of '+rows.length+' horses';
+ const empty=$('browse-filter-empty');
+ if(empty)empty.hidden=shown!==0;
+ for(const section of main.querySelectorAll('[data-browse-section]')){
+  section.hidden=![...section.querySelectorAll('[data-browse-row]')].some(el=>!el.hidden);
+ }
 }
 
 // Detailed audit view: compact overview first, original evidence on demand.
@@ -271,17 +353,7 @@ function setRaceFilter(mode){
   btn.classList.toggle('selected',active);
   btn.setAttribute('aria-pressed',String(active));
  });
- const rows=document.querySelectorAll('#day-content .race-audit');
- let shown=0;
- rows.forEach(row=>{
-  const visible=raceFilter==='all'||row.dataset.qualified==='1';
-  row.hidden=!visible;
-  if(visible)shown++;
- });
- const result=$('race-visible-count');
- if(result)result.textContent='Showing '+shown+' of '+rows.length+' races';
- const empty=$('race-filter-empty');
- if(empty)empty.hidden=shown!==0;
+ applyBrowseFilters();
 }
 function renderAllRaces(data,target){
  const full=data.all_races||{};
@@ -318,9 +390,9 @@ function renderAllRaces(data,target){
   '<button class="race-filter-btn" type="button" data-race-filter="qualifiers">Qualifiers only ('+e(qualified)+')</button>'+
   '</div><span id="race-visible-count" class="race-visible-count"></span></div>';
  const groups=racecards.map(fullRace).join('');
- target.innerHTML=summary+sourceNote+filters+
-  '<div class="all-races-list">'+groups+'</div>'+
-  '<div id="race-filter-empty" class="empty" hidden>No research qualifiers for this day. Select All races to see the remaining fields.</div>'+
+ target.innerHTML=summary+sourceNote+filters+browseFilters(racecards)+
+  '<div class="all-races-list" data-browse-list>'+groups+'</div>'+
+  '<div id="browse-filter-empty" class="empty" hidden>No races match these course, time and qualification filters. Change a filter above to see more.</div>'+
   method+'<p class="hint">If a pre-race score is missing, that means no verified snapshot was available; it does not mean the horse is weak.</p>';
  setRaceFilter(raceFilter);
 }
@@ -386,7 +458,8 @@ function fullRace(r){
    '</details>';
  }).join('');
  const evidence=hasLeader?modelEvidence(leader):'';
- return '<details class="race-audit'+(r.qualified?' is-qualified':'')+'" data-qualified="'+(r.qualified?'1':'0')+'">'+
+ return '<details class="race-audit'+(r.qualified?' is-qualified':'')+'" data-browse-row data-course="'+e(String(r.course||'').trim())+
+   '" data-minute="'+raceMinutes(r)+'" data-qualified="'+(r.qualified?'1':'0')+'">'+
   '<summary>'+summary+'<span class="race-audit-leader">'+reason+leadline+'</span></summary>'+
   '<div class="race-audit-inner">'+quick+
   '<div class="runner-section-head"><h4>Runners <small>'+e(runners.length)+' in this race · model ranking first</small></h4>'+
@@ -579,7 +652,8 @@ function combinedCard(v,qualified){
   'Days since the most recent recorded race: '+e(ev.days_since_last_history??'—'),
   'Model ranking separation: '+e(nfmt(v.model_gap,3))+' (not a win probability)'
  ];
- return '<details class="qual-row">'+
+ return '<details class="qual-row" data-browse-row data-course="'+e(String(v.course||'').trim())+
+   '" data-minute="'+raceMinutes(v)+'" data-qualified="'+(qualified?'1':'0')+'">'+
    '<summary class="qual-summary"><span class="qual-main"><span class="race-label">'+
     e(ukOff(v.off_utc))+' · '+e(v.course)+'</span>'+
     '<span class="qual-horse">'+e(v.horse)+'</span>'+
@@ -684,6 +758,14 @@ function removePaper(encoded){
  if(!confirm('Remove this horse from your browser paper list?'))return;
  delete paper[key];savePaper();showResults();
 }
+document.addEventListener('change',ev=>{
+ const target=ev.target;
+ if(target.matches('[data-browse-course]'))browseCourse=target.value;
+ else if(target.matches('[data-browse-time]'))browseTime=target.value;
+ else if(target.matches('[data-browse-order]'))browseOrder=target.value;
+ else return;
+ applyBrowseFilters();
+});
 document.addEventListener('click',ev=>{
  const b=ev.target.closest('button');if(!b)return;
  if(b.hasAttribute('data-view')){setView(b.getAttribute('data-view'));return;}
