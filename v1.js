@@ -758,6 +758,30 @@ function removePaper(encoded){
  if(!confirm('Remove this horse from your browser paper list?'))return;
  delete paper[key];savePaper();showResults();
 }
+async function importHistoricalZip(){
+ if(!sessionToken){$('archive-upload-result').textContent='Sign in first.';return;}
+ const file=$('archive-zip').files?.[0];
+ if(!file||file.name!=='SFF_2025.zip'){
+  $('archive-upload-result').textContent='Select the original SFF_2025.zip file, not the 2026 archive.';return;
+ }
+ if(file.size<100||file.size>9000000){
+  $('archive-upload-result').textContent='Invalid file size for the original 2025 ZIP.';return;
+ }
+ const btn=$('archive-upload');btn.disabled=true;
+ $('archive-upload-result').textContent='Importing historical racing data to your private database…';
+ try{
+  const response=await fetch(API+'/archive-import',{
+   method:'POST',headers:{'Content-Type':'application/zip','X-PIF-Session':sessionToken},
+   body:file,cache:'no-store',referrerPolicy:'no-referrer'
+  });
+  const data=await response.json();
+  if(!response.ok||!data.ok)throw Error(data.error||'Server refused the archive.');
+  $('archive-upload-result').textContent='Historical archive staged: '+data.stored_archive_races+
+   ' older races in private storage ('+data.earliest+' to '+data.latest+
+   '). Model switch remains off until validation. No original file published.';
+ }catch(err){$('archive-upload-result').textContent='Import not confirmed: '+String(err.message||err);}
+ finally{btn.disabled=false;}
+}
 document.addEventListener('change',ev=>{
  const target=ev.target;
  if(target.matches('[data-browse-course]'))browseCourse=target.value;
@@ -782,6 +806,7 @@ window.addEventListener('DOMContentLoaded',()=>{
  $('access-form').addEventListener('submit',signIn);
  $('signout').addEventListener('click',signOut);
  $('reload-day').addEventListener('click',()=>loadDay(lastActive));
+ $('archive-upload').addEventListener('click',importHistoricalZip);
  showSignIn();
  setView('today');
 });
