@@ -761,7 +761,7 @@ function removePaper(encoded){
 async function importHistoricalZip(){
  if(!sessionToken){$('archive-upload-result').textContent='Sign in first.';return;}
  const file=$('archive-zip').files?.[0];
- if(!file||file.name!=='SFF_2025.zip'){
+ if(!file||!/sff[_ -]?2025(?:\s*\(\d+\))?\.zip$/i.test(file.name)){
   $('archive-upload-result').textContent='Select the original SFF_2025.zip file, not the 2026 archive.';return;
  }
  if(file.size<100||file.size>9000000){
