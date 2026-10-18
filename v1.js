@@ -151,7 +151,7 @@ async function loadDay(day){
  const seq=++requests;
  busy=true;errorMessage='';
  status('Fetching '+(day==='today'?'today’s':'tomorrow’s')+' live speed analysis…','muted');
- $('day-content').innerHTML='<div class="empty">Checking the racing feed and genuine historical times. Render may take up to a minute to wake.</div>';
+ $('day-content').innerHTML='<div class="empty">Loading racecards and the latest historical performance analysis…</div>';
  try{
   const data=await privateCall('/racecards',{day});
   if(seq!==requests || !sessionToken)return;
