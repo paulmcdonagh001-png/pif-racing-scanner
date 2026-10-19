@@ -192,7 +192,7 @@ function researchWatchCandidates(data){
    && Math.max(Number(history.distance_runs)||0,Number(history.going_runs)||0)>=1;
  }).sort((a,b)=>Number(b.leader.model_gap)-Number(a.leader.model_gap));
 }
-function watchRaceCard(r){
+function watchRaceCard(r,marketMap){
  const v=r.leader,ev=v.evidence||{},q=v.quote||null;
  const validPrice=q?.decimal&&q.source?e(q.source)+' '+e(nfmt(q.decimal,2))+' indicative':'No verified early odds';
  const key=paperKey(r.race_id,v.horse_id);
@@ -212,7 +212,7 @@ function watchRaceCard(r){
    '<span class="qual-horse">'+e(v.horse)+'</span>'+
    '<span class="qual-meta">'+e(r.type)+' · '+e(r.distance)+' · '+e(r.going)+'</span></span>'+
   '<span class="qual-right"><span class="watch-badge">RESEARCH WATCH</span>'+
-   '<span class="qual-price">'+validPrice+'</span></span></summary>'+
+   '<span class="qual-price">'+validPrice+'</span></span>'+marketStrip(marketMap.get(key))+'</summary>'+
   '<div class="qual-expanded"><p class="hint">'+e(r.name)+'</p>'+
    '<p class="qual-explanation">Model leader with substantial previous history and a ranking gap of '+
     e(nfmt(v.model_gap,3))+'. This is not an estimated win probability.</p>'+
@@ -236,18 +236,19 @@ function renderResearchShortlist(data,target){
  const qual=Array.isArray(scan.leaders)?scan.leaders:[];
  const candidates=researchWatchCandidates(data).slice(0,15);
  const allCount=full.total||full.races?.length||0;
+ const marketMap=buildMarketBenchmarks(data);
  let head='<div class="quick-totals"><span><strong>'+e(qual.length)+
   '</strong> trial qualifiers</span><span><strong>'+e(candidates.length)+
   '</strong> research watch</span><span><strong>'+e(allCount)+
   '</strong> races analysed</span></div>';
  const real=qual.length?
   '<section class="brief-section" data-browse-section><h3>PIF research qualifiers — all race types</h3>'+
-  '<div class="qualifier-list" data-browse-list>'+qual.map(x=>combinedCard(x,true)).join('')+'</div></section>':
+  '<div class="qualifier-list" data-browse-list>'+qual.map(x=>combinedCard(x,true,marketMap)).join('')+'</div></section>':
   '<p class="status-brief">No horses met the all-race-type historical evidence gate today. The lower-evidence watchlist is below.</p>';
  const watch=candidates.length?
    '<section class="brief-section" data-browse-section><div class="section-head"><h3>Research watchlist</h3>'+
    '<span class="muted-text">Not qualifying bets</span></div>'+
-   '<div class="qualifier-list" data-browse-list>'+candidates.map(watchRaceCard).join('')+'</div></section>':
+   '<div class="qualifier-list" data-browse-list>'+candidates.map(x=>watchRaceCard(x,marketMap)).join('')+'</div></section>':
    '<div class="empty"><strong>No additional research-watch horses.</strong>'+
    '<p>No saved leader passed the exploratory history and relative-ranking screen.</p></div>';
  const details='<details class="methodology compact-method"><summary>Why these horses are on the shortlist</summary>'+
@@ -402,7 +403,8 @@ function renderAllRaces(data,target){
   if(v&&v.race_id!=null&&v.horse_id!=null&&v.quote?.decimal&&v.quote?.source)
    quoteByHorse.set(paperKey(v.race_id,v.horse_id),v.quote);
  }
- const groups=racecards.map(r=>fullRace(r,probabilityByHorse,quoteByHorse)).join('');
+ const marketMap=buildMarketBenchmarks(data);
+ const groups=racecards.map(r=>fullRace(r,probabilityByHorse,quoteByHorse,marketMap)).join('');
  target.innerHTML=summary+sourceNote+filters+browseFilters(racecards)+
   '<div class="all-races-list" data-browse-list>'+groups+'</div>'+
   '<div id="browse-filter-empty" class="empty" hidden>No races match these course, time and qualification filters. Change a filter above to see more.</div>'+
@@ -420,7 +422,7 @@ function indicativeRunnerOdds(q,h){
  }
  return '';
 }
-function fullRace(r,probabilityByHorse,quoteByHorse){
+function fullRace(r,probabilityByHorse,quoteByHorse,marketMap){
  const leader=r.leader||null;
  const hasLeader=Boolean(leader&&leader.preoff);
  const fromRace=usableResearchProbability(leader?.probability);
@@ -429,8 +431,10 @@ function fullRace(r,probabilityByHorse,quoteByHorse){
  const leaderProbability=hasLeader?(fromRace||fromScan):null;
  const displayProbability=leaderProbability||
   (String(leader?.version||'').includes('-speedfirst50-')?{status:'SPEEDFIRST_UNCALIBRATED'}:null);
- const chances=hasLeader&&(displayProbability||r.qualified)?
-  '<span class="race-audit-chances">'+probabilityStrip({probability:displayProbability})+'</span>':'';
+ const market=hasLeader?marketMap.get(paperKey(r.race_id,leader.horse_id)):null;
+ const chances=hasLeader&&(displayProbability||r.qualified||market)?
+  '<span class="race-audit-chances">'+
+    showProbabilityWithBenchmark({probability:displayProbability},market)+'</span>':'';
  const title=r.name||'Unnamed race';
  const reason=r.qualified?'<span class="qual-badge">RESEARCH QUALIFIER</span>':'';
  const summary='<span class="race-audit-title"><span class="race-audit-identity">'+
@@ -583,6 +587,71 @@ function showRaceDay(day){
   (qualified.length?'<div class="qualifier-list">'+qualified.map(x=>combinedCard(x,true)).join('')+'</div>':'')+
   watch;
 }
+// Read-only market benchmark for studying the unchanged Speed-First V5 ranking.
+// Uses same-bookmaker win prices for every non-runner-excluded horse in the field.
+// These are not PIF predictions, bookmaker place offers or betting-value signals.
+function marketTopFour(prices,idx){
+ const n=prices.length;
+ if(n<4||n>40||idx<0||idx>=n)return null;
+ const weights=prices.map(v=>1/v),total=weights.reduce((a,b)=>a+b,0);
+ if(!Number.isFinite(total)||total<=0)return null;
+ let levels=[0,0,0,0],seen=new Set([idx]);
+ function recurse(depth,remaining,branch){
+  levels[depth]+=branch*weights[idx]/remaining;
+  if(depth>=3)return;
+  for(let i=0;i<n;i++)if(!seen.has(i)){
+   seen.add(i);
+   recurse(depth+1,remaining-weights[i],branch*weights[i]/remaining);
+   seen.delete(i);
+  }
+ }
+ recurse(0,total,1);
+ let cumulative=0;
+ levels=levels.map((p,i)=>{cumulative+=p;return Math.max(0,Math.min(1,cumulative));});
+ if(levels.some((v,i)=>!Number.isFinite(v)||(i>0&&v+1e-8<levels[i-1])))return null;
+ return {win:levels[0],top2:levels[1],top3:levels[2],top4:levels[3]};
+}
+function buildMarketBenchmarks(data){
+ const found=new Map();
+ const updated=Date.parse(data?.fetched_at||'');
+ if(!Number.isFinite(updated)||Date.now()-updated>30*60000||updated>Date.now()+60000)return found;
+ const races=Array.isArray(data?.all_races?.races)?data.all_races.races:[];
+ for(const race of races){
+  const leader=race.leader;
+  if(!leader?.preoff||!leader.horse_id||!race.race_id||
+     !(Date.parse(leader.off_utc)>Date.now()))continue;
+  const active=(race.runners||[]).filter(h=>!h.is_non_runner);
+  const ids=active.map(h=>String(h.horse_id||''));
+  if(active.length<4||active.length>40||ids.some(id=>!id)||
+     new Set(ids).size!==ids.length)continue;
+  const prices=active.map(h=>h.market_bet365===null||
+     h.market_bet365===undefined||h.market_bet365===''?NaN:Number(h.market_bet365));
+  if(prices.some(v=>!Number.isFinite(v)||v<=1.01||v>1000))continue;
+  const index=ids.indexOf(String(leader.horse_id));
+  const p=marketTopFour(prices,index);
+  if(p)found.set(paperKey(race.race_id,leader.horse_id),{...p,odds:prices[index]});
+ }
+ return found;
+}
+function marketStrip(value){
+ if(!value)return '';
+ const cols=[['WIN',value.win],['TOP 2',value.top2],
+             ['TOP 3',value.top3],['TOP 4',value.top4]];
+ return '<span class="top-probabilities market-reference">'+
+  cols.map(([label,p])=>'<span class="top-probability"><strong>'+
+   e((100*p).toFixed(1))+'%</strong><span>'+e(label)+'</span></span>').join('')+
+  '<span class="top-prob-note">MARKET-BASED ESTIMATES · Bet365 indicative odds '+
+   e(nfmt(value.odds,2))+'. Normalised win odds; mathematical place estimates. '+
+   'NOT PIF model predictions or bookmaker place quotes.</span></span>';
+}
+function showProbabilityWithBenchmark(v,market){
+ if(!market)return probabilityStrip(v);
+ const modelEstimate=usableResearchProbability(v.probability);
+ return (modelEstimate?probabilityStrip(v):
+  '<span class="pif-prob-status">PIF Speed-First Win/Place % not yet validated</span>')+
+  marketStrip(market);
+}
+
 function usableResearchProbability(p){
  if(!p||p.status!=='EXPERIMENTAL')return null;
  const values=[p.win,p.top2,p.top3,p.top4];
@@ -688,7 +757,7 @@ function compareBet(button){
    '</div>';
 }
 
-function combinedCard(v,qualified){
+function combinedCard(v,qualified,marketMap){
  const ev=v.evidence||{},q=v.quote||null;
  const key=paperKey(v.race_id,v.horse_id),saved=!!paper[key];
  const odds=q&&q.decimal ? e(q.source)+' · '+e(nfmt(q.decimal,2))+' <span class="hint">(indicative)</span>' :
@@ -716,7 +785,7 @@ function combinedCard(v,qualified){
     '<span class="qual-horse">'+e(v.horse)+'</span>'+
     '<span class="qual-meta">'+e(v.distance)+' · '+e(v.going)+' · '+e(v.field_size)+' runners</span></span>'+
    '<span class="qual-right">'+badge+'<span class="qual-price">'+odds+'</span></span>'+
-    probabilityStrip(v)+'</summary>'+
+    showProbabilityWithBenchmark(v,marketMap.get(key))+'</summary>'+
    '<div class="qual-expanded"><p class="muted-text">'+e(v.race_name)+'</p>'+
     '<p class="qual-explanation">'+e(gate)+'.</p>'+
     '<div class="evidence"><strong>History, course, trainer, jockey and race conditions</strong>'+
