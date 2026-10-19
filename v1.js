@@ -260,7 +260,9 @@ function racingDailyTreble(data,day){
   const raceMap=new Map((all.races||[]).map(r=>[String(r.race_id),r]));
   const used=new Set();
   for(const horse of Array.isArray(scan.leaders)?scan.leaders:[]){
-   if(horse?.preoff!==true||!horse.horse||!horse.horse_id||!horse.race_id||!horse.off_utc)continue;
+   // Frozen scan leaders are already backend-qualified; some do not carry a per-runner preoff flag.
+   // Reject an explicitly invalid snapshot, not an absent optional field.
+   if(horse?.preoff===false||!horse.horse||!horse.horse_id||!horse.race_id||!horse.off_utc)continue;
    const off=Date.parse(horse.off_utc);
    if(!Number.isFinite(off)||off<=Date.now()+60000||raceDay(horse.off_utc)!==expected)continue;
    const id=String(horse.race_id);
