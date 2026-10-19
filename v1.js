@@ -492,7 +492,7 @@ function fullRace(r,probabilityByHorse,quoteByHorse){
    (h.is_frozen_leader?' <span class="qual-badge">MODEL #1</span>':'')+
    (h.is_non_runner?' <span class="watch-badge">NR</span>':'')+
    '<small>'+e(h.jockey||'Jockey unknown')+' · '+e(h.trainer||'Trainer unknown')+
-   '</small>'+ ("(indicativeRunnerOdds(h.quote,h)?'<span class=\"qual-price\">'+indicativeRunnerOdds(h.quote,h)+'</span>':'')") +'</span><span class="runner-rank">'+cell+'</span></summary>'+
+   '</small>'+(indicativeRunnerOdds(h.quote,h)?'<span class="qual-price">'+indicativeRunnerOdds(h.quote,h)+'</span>':'')+'</span><span class="runner-rank">'+cell+'</span></summary>'+
    '<div class="runner-facts">Age '+e(h.age??'—')+' · OR '+e(h.or??'—')+
    ' · weight '+e(h.weight??'—')+' lb · '+hist+' · form '+e(h.form||'—')+
    trainer+(h.market_bet365?' · Bet365 indicative '+e(h.market_bet365):'')+
