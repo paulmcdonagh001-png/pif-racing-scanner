@@ -410,8 +410,10 @@ function fullRace(r,probabilityByHorse){
  const fromScan=hasLeader&&r.race_id!=null&&leader.horse_id!=null?
   usableResearchProbability(probabilityByHorse.get(paperKey(r.race_id,leader.horse_id))):null;
  const leaderProbability=hasLeader?(fromRace||fromScan):null;
- const chances=hasLeader&&(leaderProbability||r.qualified)?
-  '<span class="race-audit-chances">'+probabilityStrip({probability:leaderProbability})+'</span>':'';
+ const displayProbability=leaderProbability||
+  (String(leader?.version||'').includes('-speedfirst50-')?{status:'SPEEDFIRST_UNCALIBRATED'}:null);
+ const chances=hasLeader&&(displayProbability||r.qualified)?
+  '<span class="race-audit-chances">'+probabilityStrip({probability:displayProbability})+'</span>':'';
  const title=r.name||'Unnamed race';
  const reason=r.qualified?'<span class="qual-badge">RESEARCH QUALIFIER</span>':'';
  const summary='<span class="race-audit-title"><span class="race-audit-identity">'+
@@ -441,7 +443,7 @@ function fullRace(r,probabilityByHorse){
    (r.race_id!=null&&h.horse_id!=null?
     usableResearchProbability(probabilityByHorse.get(paperKey(r.race_id,h.horse_id))):null);
   const cell=scored?'<strong>Rank '+e(scored.rank)+'</strong><small>Model share '+e(nfmt(scored.share,3))+'</small>'+
-   (runnerProbability?'<small class="runner-chance">Win '+e((100*runnerProbability.win).toFixed(1))+'% · Top 3 '+e((100*runnerProbability.top3).toFixed(1))+'%</small>':''):
+   (runnerProbability?'<small class="runner-chance">Experimental · Win '+e((100*runnerProbability.win).toFixed(1))+'% · Top 3 '+e((100*runnerProbability.top3).toFixed(1))+'%</small>':''):
    '<span class="muted-text">No saved rank</span>';
   const p=h.private_history||{};
   const hist=p.last12mo_recorded_runs===undefined?'Recorded history unavailable':
@@ -567,8 +569,14 @@ function usableResearchProbability(p){
 }
 function probabilityStrip(v){
  const p=usableResearchProbability(v.probability);
- if(!p)
-  return '<span class="top-probabilities unavailable"><span class="prob-unavailable">PIF win and place estimates unavailable for this race.</span></span>';
+ if(!p){
+  const reason=v.probability?.status==='SPEEDFIRST_UNCALIBRATED'?
+   'Win / place % pending: the current Speed-First rankings do not have a tested probability calibration. Model share is not a win chance.':
+   v.probability?.status==='UNKNOWN_MODEL_VERSION'?
+   'Win / place % unavailable: this model version has no matching probability calibration.':
+   'PIF win and place estimates unavailable for this race.';
+  return '<span class="top-probabilities unavailable"><span class="prob-unavailable">'+e(reason)+'</span></span>';
+ }
  const entries=[['WIN',p.win],['TOP 2',p.top2],['TOP 3',p.top3],['TOP 4',p.top4]];
  return '<span class="top-probabilities">'+
   entries.map(([label,val])=>'<span class="top-probability"><strong>'+
