@@ -182,6 +182,24 @@ function cleanNumber(x){const n=Number(x);return Number.isFinite(n)?String(n):'�
 function evidenceFact(label,contents){
  return '<div class="formula-fact"><strong>'+e(label)+'</strong><span>'+e(contents)+'</span></div>';
 }
+// Counts are past-only observations from available imported results, not career totals.
+// Top-three finishes are NOT bookmaker each-way paid places.
+function jockeyCourseEvidence(ev){
+ const raw=ev?.jockey_course_runs;
+ if(raw==null)return 'Not yet available';
+ const rides=Number(raw);
+ if(!Number.isInteger(rides)||rides<0)return 'Not yet available';
+ if(ev?.jockey_course_stats_available===false)return 'Jockey or course identity unavailable';
+ if(ev?.jockey_course_wins==null||ev?.jockey_course_top_three==null)
+  return rides+' recorded earlier rides · results breakdown unavailable for this saved snapshot';
+ const wins=Number(ev.jockey_course_wins),top3=Number(ev.jockey_course_top_three);
+ if(!Number.isInteger(wins)||!Number.isInteger(top3)||wins<0||wins>top3||top3>rides)
+  return rides+' recorded earlier rides · result breakdown unavailable';
+ if(!rides)return 'No recorded earlier rides at this course';
+ return rides+' recorded earlier rides · '+wins+' wins ('+nfmt(wins*100/rides,1)+'%) · '+
+  top3+' top-three finishes ('+nfmt(top3*100/rides,1)+'%)'+
+  (rides<10?' · small sample':'');
+}
 function researchWatchCandidates(data){
  const races=data.all_races?.races||[];
  return races.filter(r=>{
@@ -489,7 +507,7 @@ function fullRace(r,probabilityByHorse,quoteByHorse,marketMap){
    evidenceFact('Jockey (30 days)',scored.evidence?.jockey30_runs==null?'Not yet available':
     String(scored.evidence.jockey30_runs)+' rides · '+nfmt(Number(scored.evidence.jockey30_win_rate)*100,1)+'% historical wins')+
    evidenceFact('Trainer & jockey together',scored.evidence?.trainer_jockey_runs??'Not yet available')+
-   evidenceFact('Jockey at course',scored.evidence?.jockey_course_runs??'Not yet available')+
+   evidenceFact('Jockey at course · recorded history',jockeyCourseEvidence(scored.evidence))+
    '</div>':'';
   return '<details class="runner-review'+(h.is_frozen_leader?' is-leader':'')+'"><summary>'+
    '<span class="runner-line"><strong>'+e(h.name)+'</strong>'+
