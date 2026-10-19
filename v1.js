@@ -239,6 +239,69 @@ function watchRaceCard(r,marketMap){
    'Additional history and race conditions remain uncertain.</p>'+
    '<p class="hint">All other runners can be checked under All races.</p></div></details>';
 }
+
+/* Read-only three-horse research treble. Uses only the private backend's
+   already-frozen qualifiers: it never changes ranking or qualification logic.
+   Do not imply independent value evidence or calibrated accumulator chances. */
+function racingDailyTreble(data,day){
+ const title=day==='tomorrow'?'Tomorrow’s research treble preview':'Today’s research treble';
+ const scan=data?.combined_research||{},all=data?.all_races||{};
+ const expected=ukDate(day==='tomorrow'?1:0);
+ const fmtDay=new Intl.DateTimeFormat('en-GB',{
+  timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'
+ });
+ const raceDay=raw=>{
+  const parts=fmtDay.formatToParts(new Date(raw)),found={};
+  for(const x of parts)found[x.type]=x.value;
+  return found.year+'-'+found.month+'-'+found.day;
+ };
+ let legs=[];
+ if(all.status==='READY'&&scan.status==='FROZEN_PREOFF'){
+  const raceMap=new Map((all.races||[]).map(r=>[String(r.race_id),r]));
+  const used=new Set();
+  for(const horse of Array.isArray(scan.leaders)?scan.leaders:[]){
+   if(horse?.preoff!==true||!horse.horse||!horse.horse_id||!horse.race_id||!horse.off_utc)continue;
+   const off=Date.parse(horse.off_utc);
+   if(!Number.isFinite(off)||off<=Date.now()+60000||raceDay(horse.off_utc)!==expected)continue;
+   const id=String(horse.race_id);
+   if(used.has(id))continue;
+   const race=raceMap.get(id);
+   if(race&&Array.isArray(race.runners)){
+    const runner=race.runners.find(h=>String(h.horse_id)===String(horse.horse_id));
+    if(runner?.is_non_runner)continue;
+   }
+   used.add(id);legs.push(horse);
+   if(legs.length===3)break;
+  }
+ }
+ const header='<div class="treble-title"><strong>'+e(title)+'</strong>'+
+  '<span class="watch-badge">WIN TREBLE · RESEARCH</span></div>';
+ const opening='<section class="racing-treble" aria-label="'+e(title)+'">'+header;
+ if(all.status!=='READY'||scan.status!=='FROZEN_PREOFF')
+  return opening+'<p class="hint">Not available until today’s pre-race qualifier scan has been verified. No substitute selections.</p></section>';
+ if(legs.length!==3)
+  return opening+'<p class="hint">No three-horse treble available: '+e(legs.length)+
+   ' upcoming qualifiers from different races. We do not fill gaps with lower-confidence watchlist horses.</p></section>';
+ let combined=1,allPriced=true;
+ const rows=legs.map((horse,i)=>{
+  const quote=horse.quote,price=Number(quote?.decimal);
+  const priced=Boolean(quote?.source&&Number.isFinite(price)&&price>1.01&&price<=1000);
+  if(priced)combined*=price;else allPriced=false;
+  return '<li><span class="treble-leg-number">'+(i+1)+'</span>'+
+   '<span class="treble-leg-info"><strong>'+e(horse.horse)+'</strong>'+
+   '<small>'+e(ukOff(horse.off_utc))+' · '+e(horse.course)+'</small></span>'+
+   '<span class="treble-leg-odds">'+(priced?e(nfmt(price,2)):'—')+'</span></li>';
+ }).join('');
+ const total=allPriced&&Number.isFinite(combined)?
+  'Indicative combined decimal odds: <strong>'+e(nfmt(combined,2))+'</strong>':
+  'Combined odds unavailable until all three have sourced win prices.';
+ return opening+'<ol class="treble-legs">'+rows+'</ol>'+
+  '<p class="treble-total">'+total+'</p>'+
+  '<p class="hint">Three existing pre-race research qualifiers, one per race, in scanner order. '+
+  'Prices are indicative and may change. This is a live preview, not a locked daily ticket or proven-value bet. '+
+  'All three must win; there is no validated treble win percentage.</p></section>';
+}
+
 function renderResearchShortlist(data,target){
  const full=data.all_races||{};
  const scan=data.combined_research||{};
@@ -278,7 +341,7 @@ function renderResearchShortlist(data,target){
   '<p class="hint">Historical tests show that the same filter does not consistently '+
   'beat the eventual starting-price favourite across Flat, all-weather or chase races. '+
   'None of these figures proves value at early odds.</p></details>';
- target.innerHTML=head+browseFilters(full.races||[])+
+ target.innerHTML=head+racingDailyTreble(data,view==='tomorrow'?'tomorrow':'today')+browseFilters(full.races||[])+
    '<p id="shortlist-visible-count" class="browse-count"></p>'+
    real+watch+
    '<div id="browse-filter-empty" class="empty" hidden>No shortlisted horses match these course and time filters. Try another course or time.</div>'+
