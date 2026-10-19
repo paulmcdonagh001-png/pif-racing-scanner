@@ -389,16 +389,29 @@ function renderAllRaces(data,target){
   '<button class="race-filter-btn" type="button" data-race-filter="all">All races</button>'+
   '<button class="race-filter-btn" type="button" data-race-filter="qualifiers">Qualifiers only ('+e(qualified)+')</button>'+
   '</div><span id="race-visible-count" class="race-visible-count"></span></div>';
- const groups=racecards.map(fullRace).join('');
+ const probabilityByHorse=new Map();
+ const combined=data.combined_research||{};
+ for(const v of [...(Array.isArray(combined.leaders)?combined.leaders:[]),
+                  ...(Array.isArray(combined.research_leaders)?combined.research_leaders:[])]){
+  if(v&&v.race_id!=null&&v.horse_id!=null&&usableResearchProbability(v.probability))
+   probabilityByHorse.set(paperKey(v.race_id,v.horse_id),v.probability);
+ }
+ const groups=racecards.map(r=>fullRace(r,probabilityByHorse)).join('');
  target.innerHTML=summary+sourceNote+filters+browseFilters(racecards)+
   '<div class="all-races-list" data-browse-list>'+groups+'</div>'+
   '<div id="browse-filter-empty" class="empty" hidden>No races match these course, time and qualification filters. Change a filter above to see more.</div>'+
   method+'<p class="hint">If a pre-race score is missing, that means no verified snapshot was available; it does not mean the horse is weak.</p>';
  setRaceFilter(raceFilter);
 }
-function fullRace(r){
+function fullRace(r,probabilityByHorse){
  const leader=r.leader||null;
  const hasLeader=Boolean(leader&&leader.preoff);
+ const fromRace=usableResearchProbability(leader?.probability);
+ const fromScan=hasLeader&&r.race_id!=null&&leader.horse_id!=null?
+  usableResearchProbability(probabilityByHorse.get(paperKey(r.race_id,leader.horse_id))):null;
+ const leaderProbability=hasLeader?(fromRace||fromScan):null;
+ const chances=hasLeader&&(leaderProbability||r.qualified)?
+  '<span class="race-audit-chances">'+probabilityStrip({probability:leaderProbability})+'</span>':'';
  const title=r.name||'Unnamed race';
  const reason=r.qualified?'<span class="qual-badge">RESEARCH QUALIFIER</span>':'';
  const summary='<span class="race-audit-title"><span class="race-audit-identity">'+
@@ -424,7 +437,11 @@ function fullRace(r){
  });
  const runnerTable=runners.map(h=>{
   const scored=h.scored;
-  const cell=scored?'<strong>Rank '+e(scored.rank)+'</strong><small>Model share '+e(nfmt(scored.share,3))+'</small>':
+  const runnerProbability=usableResearchProbability(h.probability||scored?.probability)||
+   (r.race_id!=null&&h.horse_id!=null?
+    usableResearchProbability(probabilityByHorse.get(paperKey(r.race_id,h.horse_id))):null);
+  const cell=scored?'<strong>Rank '+e(scored.rank)+'</strong><small>Model share '+e(nfmt(scored.share,3))+'</small>'+
+   (runnerProbability?'<small class="runner-chance">Win '+e((100*runnerProbability.win).toFixed(1))+'% · Top 3 '+e((100*runnerProbability.top3).toFixed(1))+'%</small>':''):
    '<span class="muted-text">No saved rank</span>';
   const p=h.private_history||{};
   const hist=p.last12mo_recorded_runs===undefined?'Recorded history unavailable':
@@ -460,7 +477,7 @@ function fullRace(r){
  const evidence=hasLeader?modelEvidence(leader):'';
  return '<details class="race-audit'+(r.qualified?' is-qualified':'')+'" data-browse-row data-course="'+e(String(r.course||'').trim())+
    '" data-minute="'+raceMinutes(r)+'" data-qualified="'+(r.qualified?'1':'0')+'">'+
-  '<summary>'+summary+'<span class="race-audit-leader">'+reason+leadline+'</span></summary>'+
+  '<summary>'+summary+'<span class="race-audit-leader">'+reason+leadline+'</span>'+chances+'</summary>'+
   '<div class="race-audit-inner">'+quick+
   '<div class="runner-section-head"><h4>Runners <small>'+e(runners.length)+' in this race · model ranking first</small></h4>'+
   '<p>Open any runner for form, history and ratings.</p></div>'+
@@ -540,9 +557,17 @@ function showRaceDay(day){
   (qualified.length?'<div class="qualifier-list">'+qualified.map(x=>combinedCard(x,true)).join('')+'</div>':'')+
   watch;
 }
+function usableResearchProbability(p){
+ if(!p||p.status!=='EXPERIMENTAL')return null;
+ const values=[p.win,p.top2,p.top3,p.top4];
+ if(values.some(x=>x===null||x===undefined||x===''||
+   !Number.isFinite(Number(x))||Number(x)<0||Number(x)>1))return null;
+ if(values.some((x,i)=>i>0&&Number(x)<Number(values[i-1])))return null;
+ return p;
+}
 function probabilityStrip(v){
- const p=v.probability||{};
- if(p.status!=='EXPERIMENTAL')
+ const p=usableResearchProbability(v.probability);
+ if(!p)
   return '<span class="top-probabilities unavailable"><span class="prob-unavailable">PIF win and place estimates unavailable for this race.</span></span>';
  const entries=[['WIN',p.win],['TOP 2',p.top2],['TOP 3',p.top3],['TOP 4',p.top4]];
  return '<span class="top-probabilities">'+
