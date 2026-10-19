@@ -396,14 +396,31 @@ function renderAllRaces(data,target){
   if(v&&v.race_id!=null&&v.horse_id!=null&&usableResearchProbability(v.probability))
    probabilityByHorse.set(paperKey(v.race_id,v.horse_id),v.probability);
  }
- const groups=racecards.map(r=>fullRace(r,probabilityByHorse)).join('');
+ const quoteByHorse=new Map();
+ for(const v of [...(Array.isArray(combined.leaders)?combined.leaders:[]),
+                  ...(Array.isArray(combined.research_leaders)?combined.research_leaders:[])]){
+  if(v&&v.race_id!=null&&v.horse_id!=null&&v.quote?.decimal&&v.quote?.source)
+   quoteByHorse.set(paperKey(v.race_id,v.horse_id),v.quote);
+ }
+ const groups=racecards.map(r=>fullRace(r,probabilityByHorse,quoteByHorse)).join('');
  target.innerHTML=summary+sourceNote+filters+browseFilters(racecards)+
   '<div class="all-races-list" data-browse-list>'+groups+'</div>'+
   '<div id="browse-filter-empty" class="empty" hidden>No races match these course, time and qualification filters. Change a filter above to see more.</div>'+
   method+'<p class="hint">If a pre-race score is missing, that means no verified snapshot was available; it does not mean the horse is weak.</p>';
  setRaceFilter(raceFilter);
 }
-function fullRace(r,probabilityByHorse){
+function indicativeRunnerOdds(q,h){
+ const quoted=Number(q?.decimal);
+ if(q?.source&&Number.isFinite(quoted)&&quoted>1)
+  return e(q.source)+' · '+e(nfmt(quoted,2))+' (indicative)';
+ for(const [source,raw] of [['Bet365',h?.market_bet365],['Betfair',h?.market_betfair]]){
+  const price=Number(raw);
+  if(raw!==null&&raw!==undefined&&raw!==''&&Number.isFinite(price)&&price>1)
+   return source+' · '+e(nfmt(price,2))+' (indicative)';
+ }
+ return '';
+}
+function fullRace(r,probabilityByHorse,quoteByHorse){
  const leader=r.leader||null;
  const hasLeader=Boolean(leader&&leader.preoff);
  const fromRace=usableResearchProbability(leader?.probability);
@@ -420,8 +437,15 @@ function fullRace(r,probabilityByHorse){
   '<strong class="race-off">'+e(r.time)+'</strong><strong class="race-course">'+e(r.course)+'</strong></span>'+
   '<span class="race-title">'+e(title)+'</span><small class="race-conditions">'+
   e(r.type)+' · '+e(r.distance)+' · '+e(r.going)+' · '+e(r.runner_count)+' runners</small></span>';
+ const leaderRunner=hasLeader?(Array.isArray(r.runners)?r.runners:[]).find(h=>
+  (h.horse_id!=null&&leader.horse_id!=null&&String(h.horse_id)===String(leader.horse_id))||
+  (h.name&&leader.horse&&h.name.trim().toLowerCase()===leader.horse.trim().toLowerCase())):null;
+ const leaderQuote=hasLeader&&r.race_id!=null&&leader.horse_id!=null?
+  quoteByHorse.get(paperKey(r.race_id,leader.horse_id)):null;
+ const leaderOdds=hasLeader?indicativeRunnerOdds(leaderQuote||leader.quote,leaderRunner):'';
  const leadline=hasLeader?'<strong class="race-leader-horse">'+e(leader.horse)+'</strong>'+
-  '<small>Model #1 · gap '+e(nfmt(leader.model_gap,3))+'</small>':
+  '<small>Model #1 · gap '+e(nfmt(leader.model_gap,3))+'</small>'+ 
+  (leaderOdds?'<span class="qual-price">'+leaderOdds+'</span>':''):
   '<span class="muted-text">No pre-race model leader</span>';
  const quick=hasLeader?'<div class="audit-quickfacts">'+[
    ['Prior runs',leader.evidence?.prior_races??'—'],
@@ -468,7 +492,7 @@ function fullRace(r,probabilityByHorse){
    (h.is_frozen_leader?' <span class="qual-badge">MODEL #1</span>':'')+
    (h.is_non_runner?' <span class="watch-badge">NR</span>':'')+
    '<small>'+e(h.jockey||'Jockey unknown')+' · '+e(h.trainer||'Trainer unknown')+
-   '</small></span><span class="runner-rank">'+cell+'</span></summary>'+
+   '</small>'+ ("(indicativeRunnerOdds(h.quote,h)?'<span class=\"qual-price\">'+indicativeRunnerOdds(h.quote,h)+'</span>':'')") +'</span><span class="runner-rank">'+cell+'</span></summary>'+
    '<div class="runner-facts">Age '+e(h.age??'—')+' · OR '+e(h.or??'—')+
    ' · weight '+e(h.weight??'—')+' lb · '+hist+' · form '+e(h.form||'—')+
    trainer+(h.market_bet365?' · Bet365 indicative '+e(h.market_bet365):'')+
