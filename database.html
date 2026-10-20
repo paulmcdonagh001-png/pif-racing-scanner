@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#081725">
+<meta name="robots" content="noindex,nofollow">
+<title>PIF Racing | Database Explorer</title>
+<style>
+:root{color-scheme:dark;--bg:#081725;--panel:#102b3c;--panel2:#163447;--ink:#f4f8fa;--muted:#b1c6d3;--line:#355366;--mint:#83dfc0;--warn:#ffd48a}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:14px/1.48 system-ui,-apple-system,Segoe UI,Arial,sans-serif}
+body{background:radial-gradient(ellipse at top,#18384b 0,#081725 65%)}a{color:var(--mint)}button,input,select{font:inherit}
+main{max-width:1060px;margin:0 auto;padding:16px 14px 70px}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:8px 0 18px}
+.logo{background:var(--mint);color:#062a27;border-radius:10px;font-weight:900;font-size:23px;width:42px;height:42px;display:grid;place-items:center}
+header h1{font-size:20px;line-height:1.2;margin:0}
+header small,.subtitle{color:var(--muted)}
+header nav{margin-left:auto;display:flex;gap:12px}
+h2{font-size:19px;margin:0 0 8px}h3{font-size:16px;margin:0 0 8px}
+.intro{padding:19px 0 8px}.intro p{color:var(--muted);margin:5px 0 12px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:14px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 10px}
+.stat strong{font-size:24px;display:block;color:var(--mint);font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:11px}
+.toolbar{display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+button,.button{cursor:pointer;border:1px solid #4b7b8c;background:#1b4154;color:var(--ink);border-radius:9px;padding:10px 14px;font-weight:650;text-decoration:none}
+button.primary{background:var(--mint);color:#082b27;border-color:var(--mint)}
+button.selected{background:#2b695f;border-color:var(--mint)}
+button:hover{filter:brightness(1.12)}
+input{border:1px solid #568399;background:#092437;color:#fff;border-radius:9px;padding:11px;min-width:0;flex:1}
+form{display:flex;gap:8px;margin-top:13px}
+.muted{color:var(--muted)}.fine{font-size:12px;color:var(--muted)}
+.data-row{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:11px 4px;border-bottom:1px solid var(--line)}
+.data-row:last-child{border-bottom:0}.data-row strong{display:block}.data-row small{display:block;color:var(--muted)}
+.data-row button{padding:7px 11px;flex-shrink:0}
+.table-scroll{overflow-x:auto}.tbl{border-collapse:collapse;width:100%;font-size:12px;min-width:620px}
+.tbl th,.tbl td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.tbl th{color:#b7e4d7;background:#193c4d}.tbl td button{padding:4px 8px;font-size:12px}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}.chip{padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:#18394b;font-size:12px}
+.notice{border-left:3px solid var(--warn);padding:10px 12px;margin:12px 0;background:#302d2b;color:#ffe2af}
+[hidden]{display:none!important}
+@media(max-width:660px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.stat strong{font-size:21px}header nav{margin-left:0;width:100%}.data-row{align-items:flex-start}.panel{padding:12px}form{flex-wrap:wrap}input{flex-basis:100%}}
+</style>
+</head>
+<body>
+<main>
+<header><div class="logo">P</div><div><h1>Racing Database</h1><small>PIF Racing · Private Owners Hub</small></div><nav><a href="./index.html">Today's scanner</a><a href="./race-research.html">Research notes</a></nav></header>
+<section class="intro"><h2>Explore the evidence behind the rankings</h2><p>Real historical results, horse form, jockey records, trainers, track performance and going conditions. Read-only; nothing here changes the scanner's formula.</p>
+<div id="status" role="status" aria-live="polite" class="fine">Checking your private scanner session…</div></section>
+<section class="panel" id="locked" hidden><h2>Private access required</h2><p class="muted">Open the main PIF Racing scanner and sign in using your existing code. Then return here. Your PIN is never stored on this page.</p><a class="button" href="./index.html">Open scanner login</a></section>
+<section id="content" hidden>
+ <section class="panel"><h2>Live database overview</h2><div id="stats" class="grid"><div class="fine">Loading verified counts…</div></div><p class="fine" id="freshness"></p></section>
+ <section class="panel"><h2>Find a horse, jockey, trainer or course</h2>
+ <div id="types" class="toolbar">
+ <button type="button" data-kind="horse" class="selected">Horses</button>
+ <button type="button" data-kind="jockey">Jockeys</button>
+ <button type="button" data-kind="trainer">Trainers</button>
+ <button type="button" data-kind="course">Racecourses</button>
+ </div>
+ <form id="search-form"><input id="search-input" autocomplete="off" maxlength="70" minlength="2" required placeholder="Search by name, e.g. Ascot"><button class="primary" type="submit">Search</button></form>
+ <div id="search-results" class="fine" style="margin-top:10px">Choose a category and enter at least two letters.</div>
+ </section>
+ <section class="panel" id="detail" hidden><div class="toolbar" style="justify-content:space-between"><h2 id="detail-title"></h2><button type="button" id="close-detail">Close</button></div><div id="detail-body"></div></section>
+ <section class="panel"><div class="toolbar" style="justify-content:space-between"><h2>Latest official race results</h2><button id="refresh" type="button">Refresh</button></div><div id="recent" class="fine">Loading latest races…</div></section>
+ <section class="panel"><h3>How to read these records</h3><p class="fine">Wins and top-three finishes are recorded outcomes, not predictive probabilities. The top-three figure is not the bookmaker's each-way place definition. Always check the number of runs and the date range before drawing conclusions. Jockey and trainer profiles use linked official race-result identifiers. Historical archive coverage does not guarantee every race or runner has been captured.</p></section>
+</section>
+</main>
+<script>
+'use strict';
+const API='https://pif-racing-paper.onrender.com/database-explorer';
+const KEY='pif-racing-remembered-v1';
+const el=id=>document.getElementById(id);
+const esc=v=>String(v??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const number=v=>Number(v??0).toLocaleString('en-GB');
+const percent=(wins,runs)=>Number(runs)>0?(100*Number(wins)/Number(runs)).toFixed(1)+'%':'—';
+let kind='horse',session='',searchResults=[],lastRace=[];
+function status(message){el('status').textContent=message}
+function auth(){
+ const v=JSON.parse(localStorage.getItem(KEY)||'null');
+ return v&&v.session_token&&Date.parse(v.expires_at)>Date.now()+30000?v.session_token:'';
+}
+async function api(payload){
+ const controller=new AbortController(), timeout=setTimeout(()=>controller.abort(),18000);
+ try{
+  const res=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},
+   body:JSON.stringify({...payload,session_token:session}),cache:'no-store',referrerPolicy:'no-referrer',signal:controller.signal});
+  const data=await res.json();
+  if(res.status===401){session='';el('content').hidden=true;el('locked').hidden=false;status('Login expired. Please sign in again.');throw Error('Session expired')}
+  if(!res.ok||!data.ok)throw Error(data.error||'Data request failed');
+  return data;
+ }finally{clearTimeout(timeout)}
+}
+function stats(data){
+ const tiles=[['Results in database',data.results],['Runner performances',data.performances],
+  ['Horses',data.horses],['Jockeys',data.jockeys],['Trainers',data.trainers],['Racecourses',data.courses]];
+ el('stats').innerHTML=tiles.map(x=>'<div class="stat"><strong>'+number(x[1])+'</strong><span>'+esc(x[0])+'</span></div>').join('');
+ el('freshness').textContent='Historical range: '+(data.earliest_date||'unknown')+' to '+(data.latest_date||'unknown')+
+  '. Last ingestion: '+(data.latest_ingestion||'not recorded')+'. Archived SFF race records: '+number(data.sff_races)+'.';
+}
+function table(headers,rows){
+ if(!rows.length)return '<p class="fine">No recorded results for this breakdown.</p>';
+ return '<div class="table-scroll"><table class="tbl"><thead><tr>'+headers.map(h=>'<th>'+esc(h)+'</th>').join('')+
+ '</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(x=>'<td>'+x+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+}
+function resultList(items){
+ searchResults=items;const x=el('search-results');
+ if(!items.length){x.textContent='No matching names in the currently indexed official results. Try a shorter search.';return}
+ x.innerHTML=items.map((it,i)=>'<div class="data-row"><div><strong>'+esc(it.name)+'</strong><small>'+
+  esc(it.sample_runs)+' matching historical appearances in the search source</small></div><button data-open="'+i+'">View record</button></div>').join('');
+}
+async function doSearch(ev){
+ if(ev)ev.preventDefault();
+ const q=el('search-input').value.trim();if(q.length<2)return;
+ el('search-results').textContent='Searching historical records…';
+ try{const d=await api({action:'search',kind,q});resultList(d.items||[])}catch(e){el('search-results').textContent='Could not search: '+e.message}
+}
+function breakdownRows(items,label){
+ return table([label,'Runs','Wins','Win %','Top 3','Top 3 %'],items.map(x=>[
+  esc(x.course||x.going||'Not recorded'),number(x.runs),number(x.wins),percent(x.wins,x.runs),number(x.top_three),percent(x.top_three,x.runs)]));
+}
+function showDetail(){el('detail').hidden=false;el('detail').scrollIntoView({behavior:'smooth',block:'start'})}
+async function openProfile(idx){
+ const item=searchResults[idx];if(!item)return;
+ el('detail-title').textContent=item.name;el('detail-body').textContent='Loading full recorded history…';showDetail();
+ try{const d=(await api({action:'profile',kind,id:item.id})).data;
+  if(!d.found){el('detail-body').textContent='No historical profile is available for this identifier.';return}
+  const metrics=[['Rides / runs',d.runs],['Wins',d.wins],['Top-three finishes',d.top_three],['Win rate',percent(d.wins,d.runs)],['Top-three rate',percent(d.top_three,d.runs)]];
+  let html='<div class="grid">'+metrics.map(x=>'<div class="stat"><strong>'+esc(typeof x[1]==='number'?number(x[1]):x[1])+'</strong><span>'+esc(x[0])+'</span></div>').join('')+'</div>';
+  html+='<p class="fine">Last recorded run: '+esc(d.last_run)+' · Identifier: '+esc(d.id)+
+       '. Percentages use this profile’s full recorded sample.</p>';
+  if(d.by_course.length)html+='<h3>Performance by racecourse</h3>'+breakdownRows(d.by_course,'Course');
+  if(d.by_going.length)html+='<h3>Performance by going</h3>'+breakdownRows(d.by_going,'Going');
+  html+='<h3>Recent recorded performances</h3>';
+  html+=table(['Date','Course','Going','Finish','Result'],(d.recent||[]).map(x=>[
+     esc(x.date),esc(x.course),esc(x.going),esc(x.finish),
+     '<button data-race="'+esc(x.race_id)+'">View race</button>']));
+  html+='<p class="fine">'+esc(d.note)+'</p>';
+  el('detail-body').innerHTML=html;
+ }catch(e){el('detail-body').textContent='Could not load this record: '+e.message}
+}
+function renderRecent(items){
+ lastRace=items;el('recent').innerHTML=items.length?table(['Date','Course','Time','Winner','Winning time','Details'],items.map(x=>[
+ esc(x.date),esc(x.course),esc(x.time),esc(x.winner||'Not recorded'),esc(x.winning_time||'Not recorded'),
+ '<button data-race="'+esc(x.id)+'">Full result</button>'])):'No official race results yet.';
+}
+async function loadRecent(){el('recent').textContent='Checking official results…';
+ try{renderRecent((await api({action:'recent'})).items||[])}catch(e){el('recent').textContent='Unavailable: '+e.message}}
+async function openRace(id){
+ el('detail-title').textContent='Official race result';el('detail-body').textContent='Loading result…';showDetail();
+ try{const d=(await api({action:'race',id})).data;
+  if(!d.found){el('detail-body').textContent='Race result not available.';return}
+  el('detail-title').textContent=(d.course||'Race')+' · '+(d.date||'');
+  el('detail-body').innerHTML='<p class="chips"><span class="chip">'+esc(d.title||'Race')+'</span><span class="chip">'+esc(d.going)+'</span><span class="chip">Class '+esc(d.class)+'</span><span class="chip">'+esc(d.distance)+'</span></p>'+
+  table(['Finish','Horse','Jockey','Trainer','Official time','SP'],(d.runners||[]).map(x=>[
+    esc(x.finish),esc(x.name),esc(x.jockey),esc(x.trainer),esc(x.time||'—'),esc(x.sp||'—')]));
+ }catch(e){el('detail-body').textContent='Could not load this result: '+e.message}
+}
+el('types').addEventListener('click',event=>{
+ const b=event.target.closest('[data-kind]');if(!b)return;
+ kind=b.dataset.kind;for(const t of el('types').querySelectorAll('button'))t.classList.toggle('selected',t===b);
+ el('search-results').textContent='Search '+kind+' names above.';el('detail').hidden=true;
+});
+el('search-form').addEventListener('submit',doSearch);
+el('search-results').addEventListener('click',e=>{const b=e.target.closest('[data-open]');if(b)openProfile(Number(b.dataset.open))});
+el('detail').addEventListener('click',e=>{const b=e.target.closest('[data-race]');if(b)openRace(b.dataset.race)});
+el('recent').addEventListener('click',e=>{const b=e.target.closest('[data-race]');if(b)openRace(b.dataset.race)});
+el('close-detail').addEventListener('click',()=>el('detail').hidden=true);
+el('refresh').addEventListener('click',loadRecent);
+(async()=>{try{session=auth()}catch(_){}
+ if(!session){el('locked').hidden=false;status('Sign in to your main scanner to access the live racing database.');return}
+ el('content').hidden=false;status('Authenticated · read-only access to live historical records');
+ try{stats((await api({action:'overview'})).data)}catch(e){el('stats').textContent='Database counts unavailable: '+e.message}
+ await loadRecent();
+})();
+</script></body></html>
