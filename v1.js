@@ -916,7 +916,9 @@ function showResults(){
    '<span>'+e(settled)+' settled</span>'+
    '<span>'+e(winners)+' winners</span>'+
    '<span><strong>'+e(strikeLabel)+'</strong> '+e(versionLabel)+' win strike rate · provisional</span></div>'+
-   '<p class="hint">Current qualifying version only; each horse/race counts once despite later model refreshes. '+
+   '<p class="hint"><strong>Qualifier model '+e(versionLabel)+'</strong> · Testing began '+
+   e(gate.started_at?ukOff(gate.started_at):'date unavailable')+'. '+
+   'Current qualifying version only; each horse/race counts once despite later model refreshes. '+
    'The percentage is an early observation, not a validated betting edge. Assess accuracy against the market with a much larger settled sample. '+
    'Non-runners are not counted as losses. Earlier unfiltered research records ('+e(overall.saved||0)+') are excluded.</p>';
   if(actual.length){
@@ -927,6 +929,44 @@ function showResults(){
     '<span>'+e(x.status==='SETTLED'?(x.won?'Won':'Lost'):x.status==='NON_RUNNER'?'Non-runner':'Pending')+'</span></div>').join('')+'</div>';
   }else html+='<div class="empty">The filter has not yet recorded any prospective qualifying horses. It will not backdate predictions.</div>';
  }
+ html+='</section>';
+ const rankOne=overall?.rank_one_trial||null;
+ html+='<section><h2>All races — Model #1 record</h2>';
+ if(rankOne){
+  const n=Number(rankOne.settled)||0, wins=Number(rankOne.wins)||0, top3=Number(rankOne.top3)||0;
+  const winPct=n?100*wins/n:0, placePct=n?100*top3/n:0;
+  html+='<p class="hint"><strong>'+e(rankOne.model_family||rankOne.model_version||'Current model')+
+   '</strong> · Started '+e(rankOne.started_at?ukOff(rankOne.started_at):'date unavailable')+
+   '. First frozen pre-race #1 horse in every scored race, regardless of qualification.</p>'+
+   '<div class="metrics summary-metrics">'+
+   '<span>'+e(rankOne.races||0)+' unique races</span>'+
+   '<span>'+e(n)+' settled</span>'+
+   '<span>'+e(wins)+' wins · <strong>'+e(n?winPct.toFixed(1)+'%':'—')+'</strong></span>'+
+   '<span>'+e(top3)+' top 3 · <strong>'+e(n?placePct.toFixed(1)+'%':'—')+'</strong></span>'+
+   '<span>'+e(rankOne.awaiting_results||0)+' awaiting results</span></div>'+
+   '<p class="hint">Top 3 includes winners. Non-runners are excluded from strike rates. '+
+   'Refreshes cannot duplicate races. Research rankings are not betting qualifiers.</p>';
+  if(rankOne.by_race_type?.length){
+   html+='<details class="methodology"><summary>Performance by race type</summary>'+
+     rankOne.by_race_type.map(x=>'<p class="hint"><strong>'+e(x.race_type)+'</strong>: '+
+      e(x.races)+' races · '+e(x.settled)+' settled · '+e(x.wins)+' won · '+
+      e(x.top3)+' top 3</p>').join('')+'</details>';
+  }
+  const topRows=Array.isArray(rankOne.results)?rankOne.results:[];
+  if(topRows.length){
+   html+='<details class="methodology"><summary>View recent number-one horses ('+
+    e(topRows.length)+')</summary><div class="result-table"><div class="result-row result-head">'+
+    '<span>Model #1 horse</span><span>Early quote</span><span>Result</span></div>'+
+    topRows.map(x=>'<div class="result-row"><span><strong>'+e(x.horse)+'</strong>'+
+     '<small>'+e(x.course)+' · '+e(ukOff(x.off_utc))+'</small>'+
+     '<small>'+e(x.race_type)+' · '+(x.qualified_at_first_snapshot?'Qualified':'Ranking only')+
+     '</small></span><span>'+e(x.first_quote?nfmt(x.first_quote,2):'Unavailable')+'</span>'+
+     '<span>'+e(x.status==='SETTLED'?(x.won?'Won':
+       x.top3?'Top 3 ('+x.finish_position+')':'Lost'):
+       x.status==='NON_RUNNER'?'Non-runner':'Pending')+'</span></div>').join('')+
+    '</div></details>';
+  }else html+='<p class="hint">No pre-race rankings recorded for the current model yet.</p>';
+ }else html+='<p class="hint">Awaiting the separate all-races research report from the racing service.</p>';
  html+='</section><section><div class="section-head"><h2>My paper notes — this device</h2>'+
   '<span class="muted-text">'+e(paperRows.length)+' saved</span></div>'+
   '<p class="hint">Your notes and actual odds are stored in this browser, not as audited system predictions. No bets are placed by the app.</p>';
