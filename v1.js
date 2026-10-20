@@ -894,6 +894,52 @@ async function fetchResults(){
   status('Trial results service could not be reached.','bad');
  }
 }
+let placeScenario='estimated';
+function pifPnl(x){
+ if(x.status!=='SETTLED')return null;
+ const odds=Number(x.first_quote);
+ if(x.first_quote==null||!Number.isFinite(odds)||odds<=1)return null;
+ const win=x.won===true?(odds-1)*0.98:-1;
+ const field=Number(x.field_size),pos=x.won===true?1:Number(x.finish_position);
+ let places=field>=16?4:field>=8?3:field>=5?2:0;
+ let fraction=field>=16?.25:field>=8?.20:field>=5?.25:0;
+ if(placeScenario!=='estimated'){
+  const pair=placeScenario.split(':');places=Number(pair[0]);fraction=Number(pair[1]);
+ }
+ const ew=places&&Number.isInteger(pos)&&pos>=1?
+   win+(pos<=places?(odds-1)*fraction*.98:-1):null;
+ return {win,ew};
+}
+function pifMoney(v){
+ return v==null?'—':(v<0?'−':'+')+'£'+Math.abs(v).toFixed(2);
+}
+function pifPnlSummary(rows){
+ let nw=0,ne=0,w=0,ew=0,unpriced=0;
+ for(const x of rows){
+  if(x.status!=='SETTLED')continue;
+  const p=pifPnl(x);
+  if(!p){unpriced++;continue;}
+  nw++;w+=p.win;
+  if(p.ew!=null){ne++;ew+=p.ew;}
+ }
+ const choices=[['estimated','Estimated from field size'],['2:0.25','¼ odds, 2 places'],
+  ['3:0.20','⅕ odds, 3 places'],['3:0.25','¼ odds, 3 places'],['4:0.25','¼ odds, 4 places']];
+ return '<div class="metrics summary-metrics">'+
+ '<span>£1 Win: '+e(nw)+' settled · £'+e(nw)+' staked · <strong>'+e(nw?pifMoney(w):'—')+' net</strong></span>'+
+ '<span>£1 Each-way (£2 total): '+e(ne)+' settled · £'+e(ne*2)+' staked · <strong>'+e(ne?pifMoney(ew):'—')+' net</strong></span></div>'+
+ '<div class="sim-settings"><label for="place-terms">Illustrative each-way terms: </label>'+
+ '<select id="place-terms" data-place-terms>'+choices.map(([v,label])=>
+ '<option value="'+v+'"'+(v===placeScenario?' selected':'')+'>'+e(label)+'</option>').join('')+
+ '</select></div><p class="hint">Paper returns only: 2% deducted from positive winnings on each leg; no actual wagers. '+
+ 'Estimated terms: 5–7 runners ¼ odds/2 places; 8–15 runners ⅕/3 places; 16+ runners ¼/4 places. '+
+ 'The feed does not confirm the bookmaker’s each-way terms. Missing odds ('+e(unpriced)+
+ ') and unsettled races are excluded. Totals cover the displayed rows only.</p>';
+}
+function pifPnlLine(x){
+ const p=pifPnl(x);
+ if(!p)return '';
+ return '<small>£1 Win '+e(pifMoney(p.win))+' · £1 EW '+e(pifMoney(p.ew))+'</small>';
+}
 function showResults(){
  if(view!=='results')return;
  const out=$('results-content');
@@ -920,11 +966,11 @@ function showResults(){
    e(gate.started_at?ukOff(gate.started_at):'date unavailable')+'. '+
    'Current qualifying version only; each horse/race counts once despite later model refreshes. '+
    'The percentage is an early observation, not a validated betting edge. Assess accuracy against the market with a much larger settled sample. '+
-   'Non-runners are not counted as losses. Earlier unfiltered research records ('+e(overall.saved||0)+') are excluded.</p>';
+   'Non-runners are not counted as losses. Earlier unfiltered research records ('+e(overall.saved||0)+') are excluded.</p>'+pifPnlSummary(actual);
   if(actual.length){
    html+='<div class="result-table"><div class="result-row result-head"><span>Qualified horse</span><span>Early quote</span><span>Result</span></div>'+
    actual.slice(0,70).map(x=>'<div class="result-row"><span><strong>'+e(x.horse)+'</strong>'+
-    '<small>'+e(x.course)+' · '+e(ukOff(x.off_utc))+'</small></span>'+
+    '<small>'+e(x.course)+' · '+e(ukOff(x.off_utc))+'</small>'+pifPnlLine(x)+'</span>'+
     '<span>'+e(x.first_quote?nfmt(x.first_quote,2):'Unavailable')+'</span>'+
     '<span>'+e(x.status==='SETTLED'?(x.won?'Won':'Lost'):x.status==='NON_RUNNER'?'Non-runner':'Pending')+'</span></div>').join('')+'</div>';
   }else html+='<div class="empty">The filter has not yet recorded any prospective qualifying horses. It will not backdate predictions.</div>';
@@ -945,7 +991,7 @@ function showResults(){
    '<span>'+e(top3)+' top 3 · <strong>'+e(n?placePct.toFixed(1)+'%':'—')+'</strong></span>'+
    '<span>'+e(rankOne.awaiting_results||0)+' awaiting results</span></div>'+
    '<p class="hint">Top 3 includes winners. Non-runners are excluded from strike rates. '+
-   'Refreshes cannot duplicate races. Research rankings are not betting qualifiers.</p>';
+   'Refreshes cannot duplicate races. Research rankings are not betting qualifiers.</p>'+pifPnlSummary(rankOne.results||[]);
   if(rankOne.by_race_type?.length){
    html+='<details class="methodology"><summary>Performance by race type</summary>'+
      rankOne.by_race_type.map(x=>'<p class="hint"><strong>'+e(x.race_type)+'</strong>: '+
@@ -960,7 +1006,7 @@ function showResults(){
     topRows.map(x=>'<div class="result-row"><span><strong>'+e(x.horse)+'</strong>'+
      '<small>'+e(x.course)+' · '+e(ukOff(x.off_utc))+'</small>'+
      '<small>'+e(x.race_type)+' · '+(x.qualified_at_first_snapshot?'Qualified':'Ranking only')+
-     '</small></span><span>'+e(x.first_quote?nfmt(x.first_quote,2):'Unavailable')+'</span>'+
+     '</small>'+pifPnlLine(x)+'</span><span>'+e(x.first_quote?nfmt(x.first_quote,2):'Unavailable')+'</span>'+
      '<span>'+e(x.status==='SETTLED'?(x.won?'Won':
        x.top3?'Top 3 ('+x.finish_position+')':'Lost'):
        x.status==='NON_RUNNER'?'Non-runner':'Pending')+'</span></div>').join('')+
@@ -1016,6 +1062,7 @@ function removePaper(encoded){
 }
 document.addEventListener('change',ev=>{
  const target=ev.target;
+ if(target.matches('[data-place-terms]')){placeScenario=target.value;showResults();return;}
  if(target.matches('[data-browse-course]'))browseCourse=target.value;
  else if(target.matches('[data-browse-time]'))browseTime=target.value;
  else if(target.matches('[data-browse-order]'))browseOrder=target.value;
