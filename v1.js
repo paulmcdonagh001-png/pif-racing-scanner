@@ -907,11 +907,18 @@ function showResults(){
    '<p>The combined model results have not loaded, or the filter has not yet been recorded.</p>'+
    '<button class="button" data-refresh-results="1">Refresh results</button></div>';
  }else{
-  html+='<div class="metrics summary-metrics"><span>'+e(gate.qualified||0)+' filtered pre-race entries</span>'+
-   '<span>'+e(gate.settled||0)+' settled</span>'+
-   '<span>'+e(gate.wins||0)+' winners</span></div>'+
-   '<p class="hint">The full model has '+e(overall.saved||0)+' earlier unfiltered research records; those are excluded from this trial. '+
-   'Win rates remain hidden until 100 genuinely settled filtered selections. Non-runners do not count as settled losses.</p>';
+  const settled=Number(gate.settled)||0;
+  const winners=Number(gate.wins)||0;
+  const versionMatch=String(gate.version||'').match(/-v([0-9]+)-/);
+  const versionLabel=versionMatch?'V'+versionMatch[1]:'current';
+  const strikeLabel=settled>0?nfmt(100*winners/settled,1)+'%':'—';
+  html+='<div class="metrics summary-metrics"><span>'+e(gate.qualified||0)+' unique pre-race qualifiers</span>'+
+   '<span>'+e(settled)+' settled</span>'+
+   '<span>'+e(winners)+' winners</span>'+
+   '<span><strong>'+e(strikeLabel)+'</strong> '+e(versionLabel)+' win strike rate · provisional</span></div>'+
+   '<p class="hint">Current qualifying version only; each horse/race counts once despite later model refreshes. '+
+   'The percentage is an early observation, not a validated betting edge. Assess accuracy against the market with a much larger settled sample. '+
+   'Non-runners are not counted as losses. Earlier unfiltered research records ('+e(overall.saved||0)+') are excluded.</p>';
   if(actual.length){
    html+='<div class="result-table"><div class="result-row result-head"><span>Qualified horse</span><span>Early quote</span><span>Result</span></div>'+
    actual.slice(0,70).map(x=>'<div class="result-row"><span><strong>'+e(x.horse)+'</strong>'+
