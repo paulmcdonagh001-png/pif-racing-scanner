@@ -126,6 +126,17 @@ def report(source,events,files,failures):
          "Newcastle|5|7-9","Wolverhampton|12|7-9","Newcastle|7|7-9",
          "Southwell|6|7-9","Wolverhampton|8|7-9"}]
        }
+    specials={
+        "exactly_5_runners":lambda r:r["n_runners"]==5,
+        "6f_5_runners":lambda r:r["distance"]==6 and r["n_runners"]==5,
+        "6f_2_to_6":lambda r:r["distance"]==6 and r["field"]=="2-6",
+        "7f_nonhandicap_7_to_9":lambda r:r["distance"]==7 and r["handicap"]=="other" and r["field"]=="7-9",
+        "7f_7_to_9":lambda r:r["distance"]==7 and r["field"]=="7-9",
+        "Newcastle_1m_2_to_6":lambda r:r["course"]=="Newcastle" and r["distance"]==8 and r["field"]=="2-6",
+        "Chelmsford_7f_7_to_9":lambda r:r["course"]=="Chelmsford City" and r["distance"]==7 and r["field"]=="7-9",
+        "Wolverhampton_1m_7_to_9":lambda r:r["course"]=="Wolverhampton" and r["distance"]==8 and r["field"]=="7-9",
+    }
+    s["specials_by_year"]={key:agg([r for r in rows if pred(r)],["year"],0,5) for key,pred in specials.items()}
     return s
 
 def main():
