@@ -109,7 +109,7 @@ def load_events(files):
 
 def field_band(count):
     if count <= 6:
-        return '4-6'
+        return '2-6'
     if count <= 9:
         return '7-9'
     if count <= 12:
