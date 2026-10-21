@@ -1,0 +1,37 @@
+name: PIF Racing provisional probability UI integrity
+on:
+  push:
+    branches: [main]
+    paths:
+      - v1.js
+      - index.html
+      - .github/workflows/racing-provisional-ui.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  syntax-and-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check scanner JavaScript syntax
+        run: node --check v1.js
+      - name: Confirm four probabilities and no hidden model substitution
+        run: |
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const js=fs.readFileSync('v1.js','utf8');
+          const html=fs.readFileSync('index.html','utf8');
+          for(const x of ["['WIN',p.win]","['TOP 2',p.top2]","['TOP 3',p.top3]","['TOP 4',p.top4]"]) {
+            if(!js.includes(x)) throw new Error('Missing '+x);
+          }
+          for(const x of ["PROVISIONAL_TRANSFER","provisional research","restored model not yet independently validated"]) {
+            if(!js.toLowerCase().includes(x.toLowerCase())) throw new Error('Missing '+x);
+          }
+          if(!js.includes("if(p.status!=='EXPERIMENTAL')")) throw new Error('Provisional betting guidance must remain disabled');
+          if(!html.includes("leader-provisional-20261021")) throw new Error('Browser cache bust missing');
+          console.log('Probability UI labels and guidance gate verified');
+          NODE
