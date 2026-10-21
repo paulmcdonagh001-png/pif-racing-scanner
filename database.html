@@ -179,6 +179,64 @@ function raceCards(items,courseOnly=false){
  }).join('')+'</div>';
 }
 
+
+function handicapCards(items){
+ const history=items.filter(x=>x.official_rating!==undefined||x.weight_lbs!==undefined);
+ if(!history.length)return '<p class="fine">Detailed historical weight and handicap-mark records are unavailable for these runs.</p>';
+ function valid(v){const n=Number(v);return (v!==null&&v!==''&&v!==undefined&&Number.isFinite(n))?n:null}
+ function stones(v){const n=valid(v);return n===null?'Not recorded':Math.floor(n/14)+'st '+(n%14)+'lb'}
+ function delta(a,b){const x=valid(a),y=valid(b);
+  if(x===null||y===null)return null;
+  const n=x-y;return (n>0?'+':'')+n+'lb from preceding recorded run';
+ }
+ return '<div class="record-list">'+history.slice(0,12).map((x,i)=>{
+  const prev=history[i+1];
+  const rating=valid(x.official_rating),weight=valid(x.weight_lbs);
+  const orMove=prev?delta(x.official_rating,prev.official_rating):null;
+  const weightMove=prev?delta(x.weight_lbs,prev.weight_lbs):null;
+  const claim=valid(x.jockey_claim_lbs);
+  return '<div class="record-card"><div class="record-top"><strong>'+esc(x.date)+' · '+esc(x.course)+'</strong>'+
+   '<small>'+(x.handicap?'Handicap':'Other race')+'</small></div>'+
+   '<div class="record-measures" style="margin-top:8px">'+
+     '<span class="record-measure">OR: <b>'+esc(rating===null?'—':rating)+'</b></span>'+
+     '<span class="record-measure">Listed weight: <b>'+esc(stones(x.weight_lbs))+'</b></span>'+
+     (claim!==null&&claim>0?'<span class="record-measure">Jockey claim: <b>'+claim+'lb</b></span>':'')+
+   '</div>'+
+   '<div class="record-sub">'+(orMove?'Rating '+esc(orMove)+'. ':'')+
+   (weightMove?'Weight '+esc(weightMove)+'. ':'')+'</div>'+
+   '<div class="record-action"><span class="fine">Finished '+esc(x.finish||'—')+'</span>'+
+   '<button type="button" data-race="'+esc(x.race_id)+'">Race</button></div></div>';
+ }).join('')+'</div>'+
+ '<p class="fine">Weight changes compare consecutive recorded runs, not necessarily comparable handicaps. A lower mark is not automatically a benefit: claims, race conditions, penalties, surface and opposition matter.</p>';
+}
+function drawCards(d){
+ const zones=(d.groups||[]).map(x=>'<div class="record-card">'+
+  '<div class="record-top"><strong>'+esc(x.zone)+' third</strong><small>'+
+  number(x.wins)+' winners / '+number(x.races)+' races</small></div>'+
+  '<div class="record-measures" style="margin-top:8px">'+
+  '<span class="record-measure"><b>'+esc(x.win_share_pct??'—')+'%</b> of race winners</span>'+
+  '<span class="record-measure">SP-expected: <b>'+esc(x.market_expected_pct??'—')+'%</b></span>'+
+  '</div></div>').join('');
+ const stallCards=(d.stalls||[]).map(x=>'<div class="record-card">'+
+  '<div class="record-top"><strong>Stall '+x.stall+'</strong><small>'+x.runners+' starts</small></div>'+
+  '<div class="record-measures" style="margin-top:6px"><span class="record-measure"><b>'+x.wins+'</b> wins · '+percent(x.wins,x.runners)+'</span></div></div>').join('');
+ return '<p class="fine">'+number(d.races)+' completed qualifying races · 8–25 runners with complete draw and SP information. '+
+ number(d.skipped_incomplete)+' records excluded for missing/incomplete information in the selected distance band.</p>'+
+ (d.races<60?'<p class="notice">Limited sample. These figures should not be treated as an established draw advantage.</p>':'')+
+ '<h3>Low, middle and high draws</h3><div class="record-list">'+zones+'</div>'+
+ '<h3>Results by individual stall number</h3><div class="record-list">'+
+ (stallCards||'<p class="fine">No stall has five qualifying starts recorded in this sample.</p>')+'</div>'+
+ '<p class="fine">Win share compares zones across races; stall win rate uses starts. SP-expected share accounts for how the market rated the runners after betting closed. This is historical description, not evidence that the model should automatically favour a stall.</p>';
+}
+async function loadDraw(course,band){
+ const pane=el('draw-evidence');if(!pane)return;
+ pane.textContent='Checking completed '+band+' races and stall positions…';
+ for(const x of el('detail').querySelectorAll('[data-draw-band]'))x.classList.toggle('selected',x.dataset.drawBand===band);
+ try{const d=(await api({action:'draw',course,band})).data;
+  if(el('draw-evidence'))el('draw-evidence').innerHTML=drawCards(d);
+ }catch(e){if(el('draw-evidence'))el('draw-evidence').textContent='Draw figures unavailable: '+e.message}
+}
+
 function showDetail(){el('detail').hidden=false;el('detail').scrollIntoView({behavior:'smooth',block:'start'})}
 
 async function openProfile(idx){
@@ -204,10 +262,17 @@ async function openProfile(idx){
   if(d.by_course.length)html+='<h3>Performance by racecourse</h3>'+breakdownRows(d.by_course,'Course');
   if(d.by_going.length)html+='<h3>Performance by going</h3>'+breakdownRows(d.by_going,'Going');
   if(isCourse){
+    if(item.name.toLowerCase().includes('(aw)')){
+      html+='<h3>All-weather draw statistics</h3><p class="fine">Different distances may favour different stall positions. Choose a distance to see real historical outcomes.</p>'+
+       '<div class="toolbar" style="margin:10px 0">'+
+       ['5-6f','7-8f','9-12f','13f+'].map((x,i)=>'<button type="button" data-draw-band="'+x+'" class="'+(i===0?'selected':'')+'">'+x+'</button>').join('')+
+       '</div><div id="draw-evidence" class="fine">Loading historical stall positions…</div>';
+    }
     html+='<h3>Recently completed races at '+esc(item.name)+'</h3>';
     html+='<div id="course-races" class="fine">Loading race winners and winning times…</div>';
     html+='<p class="fine">Runner starts count individual horses; race listings below show each race once.</p>';
     el('detail-body').innerHTML=html;
+    if(item.name.toLowerCase().includes('(aw)')) loadDraw(item.name,'5-6f');
     try{
       const raceData=await api({action:'recent',course:item.name});
       const container=el('course-races');
@@ -217,6 +282,11 @@ async function openProfile(idx){
       if(container)container.textContent='Course results unavailable: '+err.message;
     }
   }else{
+    if(selectedKind==='horse'){
+      html+='<h3>Handicap marks and listed weights</h3>'+
+        '<p class="fine">Official rating (OR) and listed race weight, with changes from the previous recorded start. This is historical context, not a standalone betting signal.</p>'+
+        handicapCards(d.recent||[]);
+    }
     html+='<h3>Recent recorded performances</h3>';
     html+=performanceCards(d.recent||[],selectedKind,item.name);
     html+='<p class="fine">'+esc(d.note)+'</p>';
@@ -266,7 +336,11 @@ el('types').addEventListener('click',event=>{
 });
 el('search-form').addEventListener('submit',doSearch);
 el('search-results').addEventListener('click',e=>{const b=e.target.closest('[data-open]');if(b)openProfile(Number(b.dataset.open))});
-el('detail').addEventListener('click',e=>{const b=e.target.closest('[data-race]');if(b)openRace(b.dataset.race)});
+el('detail').addEventListener('click',e=>{
+ const draw=e.target.closest('[data-draw-band]');
+ if(draw){loadDraw(el('detail-title').textContent,draw.dataset.drawBand);return}
+ const b=e.target.closest('[data-race]');if(b)openRace(b.dataset.race);
+});
 el('recent').addEventListener('click',e=>{const b=e.target.closest('[data-race]');if(b)openRace(b.dataset.race)});
 el('close-detail').addEventListener('click',()=>el('detail').hidden=true);
 el('refresh').addEventListener('click',loadRecent);
