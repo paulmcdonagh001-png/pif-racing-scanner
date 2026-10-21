@@ -228,7 +228,7 @@ function researchWatchCandidates(data){
    && Math.max(Number(history.distance_runs)||0,Number(history.going_runs)||0)>=1;
  }).sort((a,b)=>Number(b.leader.model_gap)-Number(a.leader.model_gap));
 }
-function watchRaceCard(r,marketMap){
+function watchRaceCard(r,marketMap,probabilityByHorse){
  const v=r.leader,ev=v.evidence||{},q=v.quote||null;
  const validPrice=q?.decimal&&q.source?e(q.source)+' '+e(nfmt(q.decimal,2))+' indicative':'No verified early odds';
  const key=paperKey(r.race_id,v.horse_id);
@@ -248,7 +248,7 @@ function watchRaceCard(r,marketMap){
    '<span class="qual-horse">'+e(v.horse)+'</span>'+
    '<span class="qual-meta">'+e(r.type)+' · '+e(r.distance)+' · '+e(r.going)+'</span></span>'+
   '<span class="qual-right"><span class="watch-badge">RESEARCH WATCH</span>'+
-   '<span class="qual-price">'+validPrice+'</span></span>'+showProbabilityWithBenchmark(v,marketMap.get(key))+'</summary>'+
+   '<span class="qual-price">'+validPrice+'</span></span>'+showProbabilityWithBenchmark({...v,probability:usableResearchProbability(v.probability)||probabilityByHorse.get(key)||v.probability},marketMap.get(key))+'</summary>'+
   '<div class="qual-expanded"><p class="hint">'+e(r.name)+'</p>'+
    '<p class="qual-explanation">Model leader with substantial previous history and a ranking gap of '+
     e(nfmt(v.model_gap,3))+'. This is not an estimated win probability.</p>'+
@@ -344,6 +344,12 @@ function renderResearchShortlist(data,target){
  const candidates=researchWatchCandidates(data).slice(0,15);
  const allCount=full.total||full.races?.length||0;
  const marketMap=buildMarketBenchmarks(data);
+ const probabilityByHorse=new Map();
+ for(const v of [...(Array.isArray(scan.leaders)?scan.leaders:[]),
+                  ...(Array.isArray(scan.research_leaders)?scan.research_leaders:[])]){
+  if(v?.race_id!=null&&v?.horse_id!=null&&usableResearchProbability(v.probability))
+   probabilityByHorse.set(paperKey(v.race_id,v.horse_id),v.probability);
+ }
  let head='<div class="quick-totals"><span><strong>'+e(qual.length)+
   '</strong> trial qualifiers</span><span><strong>'+e(candidates.length)+
   '</strong> research watch</span><span><strong>'+e(allCount)+
@@ -355,7 +361,7 @@ function renderResearchShortlist(data,target){
  const watch=candidates.length?
    '<section class="brief-section" data-browse-section><div class="section-head"><h3>Research watchlist</h3>'+
    '<span class="muted-text">Not qualifying bets</span></div>'+
-   '<div class="qualifier-list" data-browse-list>'+candidates.map(x=>watchRaceCard(x,marketMap)).join('')+'</div></section>':
+   '<div class="qualifier-list" data-browse-list>'+candidates.map(x=>watchRaceCard(x,marketMap,probabilityByHorse)).join('')+'</div></section>':
    '<div class="empty"><strong>No additional research-watch horses.</strong>'+
    '<p>No saved leader passed the exploratory history and relative-ranking screen.</p></div>';
  const details='<details class="methodology compact-method"><summary>Why these horses are on the shortlist</summary>'+
