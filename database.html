@@ -41,6 +41,33 @@ form{display:flex;gap:8px;margin-top:13px}
 .notice{border-left:3px solid var(--warn);padding:10px 12px;margin:12px 0;background:#302d2b;color:#ffe2af}
 [hidden]{display:none!important}
 @media(max-width:660px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.stat strong{font-size:21px}header nav{margin-left:0;width:100%}.data-row{align-items:flex-start}.panel{padding:12px}form{flex-wrap:wrap}input{flex-basis:100%}}
+
+/* Phone-first cards: show the complete result without horizontal scrolling. */
+.profile-metrics{grid-template-columns:repeat(4,minmax(0,1fr));margin:10px 0}
+.profile-metrics .stat{min-width:0}
+.profile-metrics .stat strong{overflow-wrap:anywhere}
+.record-list{display:grid;gap:7px;margin:9px 0 16px}
+.record-card{border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:11px 12px;min-width:0}
+.record-top{display:flex;justify-content:space-between;align-items:start;gap:10px}
+.record-top strong{font-size:14px;overflow-wrap:anywhere;line-height:1.35}
+.record-top small{white-space:nowrap;color:var(--muted);font-size:11px}
+.record-sub{font-size:12px;color:var(--muted);margin:3px 0 6px;line-height:1.45}
+.record-measures{display:flex;flex-wrap:wrap;gap:6px}
+.record-measure{border-radius:6px;background:#204458;padding:5px 7px;font-size:12px;white-space:nowrap}
+.record-measure b{color:var(--mint)}
+.record-action{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px}
+.record-action button{padding:7px 12px;font-size:12px;min-height:36px}
+.result-position{background:#285c54;border-radius:7px;color:#c2f7e3;font-weight:800;padding:4px 7px;white-space:nowrap}
+#detail-body h3{margin:20px 0 8px}
+#detail-body .grid{margin-top:8px}
+@media(max-width:660px){
+ .profile-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .profile-metrics .stat{padding:10px}
+ .profile-metrics .stat strong{font-size:21px}
+ .record-measure{font-size:11px}
+ .record-card{padding:10px}
+ #detail .toolbar h2{max-width:70%;overflow-wrap:anywhere}
+}
 </style>
 </head>
 <body>
@@ -115,47 +142,123 @@ async function doSearch(ev){
  el('search-results').textContent='Searching historical records…';
  try{const d=await api({action:'search',kind,q});resultList(d.items||[])}catch(e){el('search-results').textContent='Could not search: '+e.message}
 }
+
 function breakdownRows(items,label){
- return table([label,'Runs','Wins','Win %','Top 3','Top 3 %'],items.map(x=>[
-  esc(x.course||x.going||'Not recorded'),number(x.runs),number(x.wins),percent(x.wins,x.runs),number(x.top_three),percent(x.top_three,x.runs)]));
+ if(!items.length)return '<p class="fine">No recorded results for this breakdown.</p>';
+ return '<div class="record-list">'+items.map(x=>{
+  const name=x.course||x.going||'Not recorded';
+  return '<div class="record-card"><div class="record-top"><strong>'+esc(name)+'</strong><small>'+number(x.runs)+' recorded runs</small></div>'+
+   '<div class="record-measures" style="margin-top:7px">'+
+   '<span class="record-measure"><b>'+number(x.wins)+'</b> wins · '+percent(x.wins,x.runs)+'</span>'+
+   '<span class="record-measure"><b>'+number(x.top_three)+'</b> top 3 · '+percent(x.top_three,x.runs)+'</span>'+
+   '</div></div>';
+ }).join('')+'</div>';
 }
+function performanceCards(items,profileKind,profileName){
+ if(!items.length)return '<p class="fine">No recent individual performances in the recorded history.</p>';
+ return '<div class="record-list">'+items.map(x=>{
+  const horse=x.horse|| (profileKind==='horse'?profileName:'Horse name unavailable');
+  const place=(x.finish===null||x.finish===''||x.finish==='—')?'Unplaced/unknown':'Finished '+x.finish;
+  return '<div class="record-card">'+
+   '<div class="record-top"><strong>'+esc(horse)+'</strong><small>'+esc(x.date)+'</small></div>'+
+   '<div class="record-sub">'+esc(x.course)+' · '+esc(x.race_type)+' · '+esc(x.going)+'</div>'+
+   '<div class="record-action"><span class="fine">'+esc(place)+'</span><button type="button" data-race="'+esc(x.race_id)+'">View race</button></div></div>';
+ }).join('')+'</div>';
+}
+function raceCards(items,courseOnly=false){
+ if(!items.length)return '<p class="fine">No matching official race results are available.</p>';
+ return '<div class="record-list">'+items.map(x=>{
+  const identity=courseOnly?(x.time?'Race at '+esc(x.time):'Recorded race'):esc(x.course);
+  const sub=esc(x.date)+(courseOnly?' · '+esc(x.title||'Race'): ' · '+esc(x.time||'Time not recorded'));
+  return '<div class="record-card">'+
+   '<div class="record-top"><strong>'+identity+'</strong><small>'+esc(x.date)+'</small></div>'+
+   '<div class="record-sub">'+(courseOnly?esc(x.title||'Race')+' · ':'')+esc(x.going||'Going not recorded')+' · '+number(x.runners)+' runners</div>'+
+   '<div class="record-action"><span><b>Winner: '+esc(x.winner||'Not recorded')+'</b>'+
+   '<small style="display:block;color:var(--muted)">Winning time: '+esc(x.winning_time||'Not recorded')+'</small></span>'+
+   '<button type="button" data-race="'+esc(x.id)+'">Full result</button></div></div>';
+ }).join('')+'</div>';
+}
+
 function showDetail(){el('detail').hidden=false;el('detail').scrollIntoView({behavior:'smooth',block:'start'})}
+
 async function openProfile(idx){
- const item=searchResults[idx];if(!item)return;
- el('detail-title').textContent=item.name;el('detail-body').textContent='Loading full recorded history…';showDetail();
- try{const d=(await api({action:'profile',kind,id:item.id})).data;
+ const item=searchResults[idx], selectedKind=kind;
+ if(!item)return;
+ el('detail-title').textContent=item.name;
+ el('detail-body').textContent='Loading historical results…';
+ showDetail();
+ try{
+  const d=(await api({action:'profile',kind:selectedKind,id:item.id})).data;
   if(!d.found){el('detail-body').textContent='No historical profile is available for this identifier.';return}
-  const metrics=[['Rides / runs',d.runs],['Wins',d.wins],['Top-three finishes',d.top_three],['Win rate',percent(d.wins,d.runs)],['Top-three rate',percent(d.top_three,d.runs)]];
-  let html='<div class="grid">'+metrics.map(x=>'<div class="stat"><strong>'+esc(typeof x[1]==='number'?number(x[1]):x[1])+'</strong><span>'+esc(x[0])+'</span></div>').join('')+'</div>';
-  html+='<p class="fine">Last recorded run: '+esc(d.last_run)+' · Identifier: '+esc(d.id)+
-       '. Percentages use this profile’s full recorded sample.</p>';
+  const isCourse=selectedKind==='course';
+  const metrics=[
+   [isCourse?'Runner starts':'Rides / runs',number(d.runs)],
+   ['Wins · '+percent(d.wins,d.runs),number(d.wins)],
+   ['Top 3 · '+percent(d.top_three,d.runs),number(d.top_three)],
+   ['Last recorded',esc(d.last_run||'—')]
+  ];
+  let html='<div class="grid profile-metrics">'+metrics.map(x=>
+    '<div class="stat"><strong>'+x[1]+'</strong><span>'+esc(x[0])+'</span></div>').join('')+'</div>';
+  html+='<p class="fine">Identifier: '+esc(d.id)+
+    '. Win and top-three rates are historical outcomes, not win/place forecasts.</p>';
   if(d.by_course.length)html+='<h3>Performance by racecourse</h3>'+breakdownRows(d.by_course,'Course');
   if(d.by_going.length)html+='<h3>Performance by going</h3>'+breakdownRows(d.by_going,'Going');
-  html+='<h3>Recent recorded performances</h3>';
-  html+=table(['Date','Course','Going','Finish','Result'],(d.recent||[]).map(x=>[
-     esc(x.date),esc(x.course),esc(x.going),esc(x.finish),
-     '<button data-race="'+esc(x.race_id)+'">View race</button>']));
-  html+='<p class="fine">'+esc(d.note)+'</p>';
-  el('detail-body').innerHTML=html;
+  if(isCourse){
+    html+='<h3>Recently completed races at '+esc(item.name)+'</h3>';
+    html+='<div id="course-races" class="fine">Loading race winners and winning times…</div>';
+    html+='<p class="fine">Runner starts count individual horses; race listings below show each race once.</p>';
+    el('detail-body').innerHTML=html;
+    try{
+      const raceData=await api({action:'recent',course:item.name});
+      const container=el('course-races');
+      if(container)container.innerHTML=raceCards(raceData.items||[],true);
+    }catch(err){
+      const container=el('course-races');
+      if(container)container.textContent='Course results unavailable: '+err.message;
+    }
+  }else{
+    html+='<h3>Recent recorded performances</h3>';
+    html+=performanceCards(d.recent||[],selectedKind,item.name);
+    html+='<p class="fine">'+esc(d.note)+'</p>';
+    el('detail-body').innerHTML=html;
+  }
  }catch(e){el('detail-body').textContent='Could not load this record: '+e.message}
 }
+
+
 function renderRecent(items){
- lastRace=items;el('recent').innerHTML=items.length?table(['Date','Course','Time','Winner','Winning time','Details'],items.map(x=>[
- esc(x.date),esc(x.course),esc(x.time),esc(x.winner||'Not recorded'),esc(x.winning_time||'Not recorded'),
- '<button data-race="'+esc(x.id)+'">Full result</button>'])):'No official race results yet.';
+ lastRace=items;
+ el('recent').innerHTML=raceCards(items,false);
 }
+
 async function loadRecent(){el('recent').textContent='Checking official results…';
  try{renderRecent((await api({action:'recent'})).items||[])}catch(e){el('recent').textContent='Unavailable: '+e.message}}
+
 async function openRace(id){
- el('detail-title').textContent='Official race result';el('detail-body').textContent='Loading result…';showDetail();
- try{const d=(await api({action:'race',id})).data;
+ el('detail-title').textContent='Official race result';
+ el('detail-body').textContent='Loading result…';showDetail();
+ try{
+  const d=(await api({action:'race',id})).data;
   if(!d.found){el('detail-body').textContent='Race result not available.';return}
   el('detail-title').textContent=(d.course||'Race')+' · '+(d.date||'');
-  el('detail-body').innerHTML='<p class="chips"><span class="chip">'+esc(d.title||'Race')+'</span><span class="chip">'+esc(d.going)+'</span><span class="chip">Class '+esc(d.class)+'</span><span class="chip">'+esc(d.distance)+'</span></p>'+
-  table(['Finish','Horse','Jockey','Trainer','Official time','SP'],(d.runners||[]).map(x=>[
-    esc(x.finish),esc(x.name),esc(x.jockey),esc(x.trainer),esc(x.time||'—'),esc(x.sp||'—')]));
+  const info='<div class="chips"><span class="chip">'+esc(d.title||'Race')+'</span>'+
+    '<span class="chip">'+esc(d.going)+'</span>'+
+    '<span class="chip">Class '+esc(d.class)+'</span>'+
+    '<span class="chip">'+esc(d.distance)+'</span></div>';
+  const results=(d.runners||[]).map(x=>
+    '<div class="record-card"><div class="record-top"><strong>'+esc(x.name)+'</strong>'+
+    '<span class="result-position">'+esc(x.finish)+'</span></div>'+
+    '<div class="record-sub">'+esc(x.jockey||'Jockey not recorded')+
+    ' · '+esc(x.trainer||'Trainer not recorded')+'</div>'+
+    '<div class="record-measures">'+
+    '<span class="record-measure">SP: <b>'+esc(x.sp||'—')+'</b></span>'+
+    '<span class="record-measure">Time: <b>'+esc(x.time||'—')+'</b></span>'+
+    '</div></div>').join('');
+  el('detail-body').innerHTML=info+'<h3>Finishing order</h3><div class="record-list">'+
+      (results||'<p class="fine">No runners recorded.</p>')+'</div>';
  }catch(e){el('detail-body').textContent='Could not load this result: '+e.message}
 }
+
 el('types').addEventListener('click',event=>{
  const b=event.target.closest('[data-kind]');if(!b)return;
  kind=b.dataset.kind;for(const t of el('types').querySelectorAll('button'))t.classList.toggle('selected',t===b);
