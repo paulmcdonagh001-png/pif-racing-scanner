@@ -180,6 +180,27 @@ function raceCards(items,courseOnly=false){
 }
 
 
+function speedCards(items){
+ const recent=(items||[]).filter(x=>x.race_winning_time||x.reported_runner_time||x.provider_speed_rating||x.provider_performance_rating).slice(0,12);
+ const recorded=v=>v!==null&&v!==undefined&&String(v).trim()!==''&&String(v).trim()!=='-'&&String(v).trim()!=='–';
+ if(!recent.length)return '<p class="fine">No source race-time evidence available for this horse’s recent recorded starts.</p>';
+ return '<div class="record-list">'+recent.map(x=>
+  '<div class="record-card">'+
+   '<div class="record-top"><strong>'+esc(x.date)+' · '+esc(x.course)+'</strong><small>Finished '+esc(x.finish)+'</small></div>'+
+   '<div class="record-sub">'+esc(x.distance||'Distance not recorded')+' · '+esc(x.going||'Going not recorded')+'</div>'+
+   '<div class="record-measures">'+
+    '<span class="record-measure">Race winning time: <b>'+esc(recorded(x.race_winning_time)?x.race_winning_time:'—')+'</b></span>'+
+    '<span class="record-measure">Runner time (provider): <b>'+esc(recorded(x.reported_runner_time)?x.reported_runner_time:'—')+'</b></span>'+
+    '<span class="record-measure">Beaten lengths: <b>'+esc(recorded(x.beaten_lengths)?x.beaten_lengths:'—')+'</b></span>'+
+    (recorded(x.provider_speed_rating)?'<span class="record-measure">Provider speed: <b>'+esc(x.provider_speed_rating)+'</b></span>':'')+
+    (recorded(x.provider_performance_rating)?'<span class="record-measure">Provider performance: <b>'+esc(x.provider_performance_rating)+'</b></span>':'')+
+   '</div>'+
+   '<div class="record-action"><span class="fine">Race-source history</span><button type="button" data-race="'+esc(x.race_id)+'">Full result</button></div>'+
+  '</div>'
+ ).join('')+'</div>'+
+ '<p class="fine">The race-winning clock is the result for the entire race, not this horse’s own independently timed run. Reported runner times may be calculated by the data provider from the winner’s time and beaten lengths. Any provider speed/performance rating is separate from PIF’s own speed-first ranking. PIF normalises historical performance against comparable course, distance, going and race-strength evidence when producing pre-race rankings; its internal adjusted score is not a stored per-run rating in this historical view.</p>';
+}
+
 function handicapCards(items){
  const history=items.filter(x=>x.official_rating!==undefined||x.weight_lbs!==undefined);
  if(!history.length)return '<p class="fine">Detailed historical weight and handicap-mark records are unavailable for these runs.</p>';
@@ -283,6 +304,9 @@ async function openProfile(idx){
     }
   }else{
     if(selectedKind==='horse'){
+      html+='<h3>Speed and race times</h3>'+
+        '<p class="fine">Actual race-winning clocks, provider-reported runner times and recorded speed/performance ratings. These are source observations, not fabricated PIF speed points.</p>'+
+        speedCards(d.recent||[]);
       html+='<h3>Handicap marks and listed weights</h3>'+
         '<p class="fine">Official rating (OR) and listed race weight, with changes from the previous recorded start. This is historical context, not a standalone betting signal.</p>'+
         handicapCards(d.recent||[]);
