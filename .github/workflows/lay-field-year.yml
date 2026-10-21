@@ -1,0 +1,28 @@
+name: Lay the Field - Latest Year Research
+on:
+  push:
+    branches: [research/lay-field-two-point-zero]
+    paths:
+      - 'research/lay_field_year_scan.py'
+      - '.github/workflows/lay-field-year.yml'
+  workflow_dispatch:
+jobs:
+  historical-study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download and analyse UK and Irish Flat WIN prices
+        run: python research/lay_field_year_scan.py --start 2025-10-21 --end 2026-10-20 --workers 12 --output lay_field_latest_year_report.json
+      - name: Preserve research report, including partial results when available
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lay-field-latest-year-aggregates
+          path: lay_field_latest_year_report.json
+          if-no-files-found: warn
