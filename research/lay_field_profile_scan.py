@@ -37,7 +37,7 @@ def collect(source,dates):
     probe=[dates[i] for i in sorted(set([0,len(dates)//6,len(dates)//3,len(dates)//2,2*len(dates)//3,5*len(dates)//6,len(dates)-1]))]
     url_fn=betfair_url if source=="Betfair" else mirror_url
     probes=[(d,*get(url_fn(d))) for d in probe]
-    available=[(d,s) for d,s,e in probes if s and "EVENT_ID" in s[:160]]
+    available=[(d,s) for d,s,e in probes if s and "EVENT_ID" in s[:160].upper()]
     print("PROBE",source,"success",len(available),"of",len(probes),"errors",[(d.isoformat(),err) for d,body,err in probes if err][:3],flush=True)
     if not available:
         return {},len(probes),0
@@ -48,13 +48,14 @@ def collect(source,dates):
         for fut in as_completed(f):
             d=f[fut]
             s,err=fut.result()
-            if s and "EVENT_ID" in s[:160]:
+            if s and "EVENT_ID" in s[:160].upper():
                 collected[d]=s
             else:failures+=1
     print("FETCH",source,"files",len(collected),"failures",failures,flush=True)
     events={}
     for d,s in collected.items():
-        for row in csv.DictReader(io.StringIO(s)):
+        for raw in csv.DictReader(io.StringIO(s)):
+            row={str(k).strip().upper():v for k,v in raw.items() if k}
             eid=(row.get("EVENT_ID") or "").strip()
             dt=(row.get("EVENT_DT") or "").strip()
             sid=(row.get("SELECTION_ID") or "").strip()
