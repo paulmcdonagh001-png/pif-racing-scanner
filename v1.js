@@ -793,7 +793,7 @@ function probabilityStrip(v){
  return '<span class="top-probabilities">'+
   entries.map(([label,val])=>'<span class="top-probability"><strong>'+
     e((100*val).toFixed(1))+'%</strong><span>'+e(label)+'</span></span>').join('')+
-  '<span class="top-prob-note">'+(p.status==='PROVISIONAL_TRANSFER'?'PROVISIONAL PIF 61-factor leader estimates · prior historical calibration transferred; restored model not yet independently validated. No demonstrated betting value.':(p.specialist_hurdle?'Handicap-hurdle-specific model · experimental percentages':'PIF research estimates · still being tested'))+'</span></span>';
+  '<span class="top-prob-note">'+(p.status==='PROVISIONAL_TRANSFER'?'PIF ESTIMATED % · Restored 61-factor ranking with historical win/place calibration. Accuracy for this restored version is still being checked; not guaranteed betting value.':(p.specialist_hurdle?'Handicap-hurdle-specific model · experimental percentages':'PIF research estimates · still being tested'))+'</span></span>';
 }
 
 function winEachWayPanel(v){
