@@ -119,11 +119,12 @@ def field_band(count):
     return '15+'
 
 
-def summarize(events, metadata=None, price=2.0, stake=1.0, commission=0.02):
+def summarize(events, metadata=None, price=2.0, stake=1.0, commission=0.02, flat_only=True):
     if price <= 1.0 or stake <= 0 or not (0 <= commission < 1):
         raise ValueError('Invalid price/stake/commission')
     metadata = metadata or {}
     accepted, rejected = [], []
+    excluded = {'jumps_or_bumpers': 0, 'distance_missing_or_over_20f': 0}
     for (event_id, event_dt), runners in sorted(events.items()):
         winners = [r for r in runners if r['winner']]
         selections = [r['selection_id'] for r in runners]
@@ -132,6 +133,14 @@ def summarize(events, metadata=None, price=2.0, stake=1.0, commission=0.02):
             continue
         meta = metadata.get(event_id, {})
         distance = meta.get('distance_furlongs') or distance_furlongs(runners[0]['event_name'])
+        race_name = runners[0]['event_name']
+        if flat_only:
+            if re.search(r'\b(?:hrd|hurdle|chase|chases|chs|nhf|nh\s*flat|bumper|hunters?|steeple)\b', race_name, re.I):
+                excluded['jumps_or_bumpers'] += 1
+                continue
+            if distance is None or distance > 20:
+                excluded['distance_missing_or_over_20f'] += 1
+                continue
         touched = [r for r in runners if r['ipmin'] is not None and r['ipmin'] <= price]
         winner_touched = any(r['winner'] for r in touched)
         loser_touches = sum(not r['winner'] for r in touched)
@@ -166,7 +175,7 @@ def summarize(events, metadata=None, price=2.0, stake=1.0, commission=0.02):
     return {
         'definition': 'IPMIN <= lay price: filtered price touch, NOT confirmed fills or ROI',
         'price': price, 'stake': stake, 'illustrative_commission': commission,
-        'valid_races': len(accepted), 'rejected_races': rejected,
+        'valid_races': len(accepted), 'rejected_races': rejected, 'excluded_from_flat_analysis': excluded,
         'races_with_2_plus': sum(r['touched'] >= 2 for r in accepted),
         'races_with_3_plus': sum(r['touched'] >= 3 for r in accepted),
         'hypothetical_total_net': round(sum(r['hypothetical_net'] for r in accepted), 2),
@@ -186,9 +195,11 @@ def main():
     p.add_argument('--price', type=float, default=2.0)
     p.add_argument('--stake', type=float, default=1.0)
     p.add_argument('--commission', type=float, default=0.02)
+    p.add_argument('--include-jumps', action='store_true', help='Include jump and bumper races; default is flat-only')
     p.add_argument('--output-json', help='Write full diagnostics, no betting actions')
     args = p.parse_args()
-    report = summarize(load_events(args.bsp), load_metadata(args.metadata), args.price, args.stake, args.commission)
+    report = summarize(load_events(args.bsp), load_metadata(args.metadata), args.price, args.stake, args.commission,
+                       flat_only=not args.include_jumps)
     if args.output_json:
         Path(args.output_json).write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
     print(json.dumps({k: v for k, v in report.items() if k != 'races'}, indent=2))
