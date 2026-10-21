@@ -110,14 +110,22 @@ def report(source,events,files,failures):
     rows,rejected=parse_events(events)
     s={"source":source,"days_loaded":files,"failed_days":failures,"races":len(rows),
        "total_2plus":sum(x["two"] for x in rows),"total_3plus":sum(x["three"] for x in rows),"total_4plus":sum(x["four"] for x in rows),"missing_IPMIN":sum(x["missing"] for x in rows),"rejected":rejected,
-       "field":agg(rows,["field"],0,12),"distance":agg(rows,["distance"],50,20),
+       "field":agg(rows,["field"],0,12),"exact_runners":agg(rows,["n_runners"],25,25),"distance":agg(rows,["distance"],50,20),
        "course":agg(rows,["course"],45,35),
        "handicap":agg(rows,["handicap"],0,4),
        "distance_field":agg(rows,["distance","field"],35,25),
+       "distance_exact_runners":agg(rows,["distance","n_runners"],40,25),
+       "race_type_distance_field":agg(rows,["handicap","distance","field"],35,30),
        "course_distance":agg(rows,["course","distance"],35,30),
        "course_distance_field":agg(rows,["course","distance","field"],20,30),
        "course_field":agg(rows,["course","field"],35,35),
-       "by_year":agg(rows,["year"],0,8)}
+       "by_year":agg(rows,["year"],0,8),
+       "candidate_by_year":[e for e in agg(rows,["year","course","distance","field"],0,10000) if "|".join(e["profile"].split("|")[1:]) in {
+         "Newcastle|8|2-6","Beverley|7|7-9","Newmarket|8|7-9","Windsor|6|10-12",
+         "Newcastle|12|7-9","Lingfield|10|2-6","Chelmsford City|7|7-9",
+         "Newcastle|5|7-9","Wolverhampton|12|7-9","Newcastle|7|7-9",
+         "Southwell|6|7-9","Wolverhampton|8|7-9"}]
+       }
     return s
 
 def main():
