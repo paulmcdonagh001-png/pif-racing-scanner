@@ -487,7 +487,7 @@ function renderAllRaces(data,target){
   '<div><strong>'+e(racecards.length)+'</strong><span>Total races</span></div>'+
   '<div><strong>'+e(saved)+'</strong><span>Leaders saved</span></div>'+
   '<div><strong>'+e(complete)+'</strong><span>Full rankings</span></div></div>'+
-  '<p class="audit-overview-note">Model leaders are research rankings, <strong>not betting selections or win probabilities.</strong> Choose a race to inspect its runners.</p>';
+  '<p class="audit-overview-note">The 61-factor model ranks each field; the separately tested Win and Top 2/3/4 estimates describe the <strong>first-ranked horse</strong>. Neither proves profitable betting value. Choose a race to inspect its runners.</p>';
  const sourceNote=sourceOK?'':
   '<div class="empty error"><strong>Detailed evidence temporarily unavailable.</strong>'+
   '<p>These are current racecard facts; individual model scores cannot be verified on this load.</p></div>';
@@ -793,7 +793,7 @@ function probabilityStrip(v){
  return '<span class="top-probabilities">'+
   entries.map(([label,val])=>'<span class="top-probability"><strong>'+
     e((100*val).toFixed(1))+'%</strong><span>'+e(label)+'</span></span>').join('')+
-  '<span class="top-prob-note">'+(p.status==='PROVISIONAL_TRANSFER'?'PIF ESTIMATED % · Restored 61-factor ranking with historical win/place calibration. Accuracy for this restored version is still being checked; not guaranteed betting value.':(p.specialist_hurdle?'Handicap-hurdle-specific model · experimental percentages':'PIF research estimates · still being tested'))+'</span></span>';
+  '<span class="top-prob-note">'+(p.status==='PROVISIONAL_TRANSFER'?'PIF ESTIMATED % · Restored 61-factor model. Earlier calibration checked on 2,731 leader results; 70 recent SFF-backed leader results also checked. Estimates, not guarantees.':(p.specialist_hurdle?'Handicap-hurdle-specific model · experimental percentages':'PIF research estimates · still being tested'))+'</span></span>';
 }
 
 function winEachWayPanel(v){
