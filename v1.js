@@ -248,7 +248,7 @@ function watchRaceCard(r,marketMap){
    '<span class="qual-horse">'+e(v.horse)+'</span>'+
    '<span class="qual-meta">'+e(r.type)+' · '+e(r.distance)+' · '+e(r.going)+'</span></span>'+
   '<span class="qual-right"><span class="watch-badge">RESEARCH WATCH</span>'+
-   '<span class="qual-price">'+validPrice+'</span></span>'+marketStrip(marketMap.get(key))+'</summary>'+
+   '<span class="qual-price">'+validPrice+'</span></span>'+showProbabilityWithBenchmark(v,marketMap.get(key))+'</summary>'+
   '<div class="qual-expanded"><p class="hint">'+e(r.name)+'</p>'+
    '<p class="qual-explanation">Model leader with substantial previous history and a ranking gap of '+
     e(nfmt(v.model_gap,3))+'. This is not an estimated win probability.</p>'+
@@ -584,7 +584,7 @@ function fullRace(r,probabilityByHorse,quoteByHorse,marketMap){
    (r.race_id!=null&&h.horse_id!=null?
     usableResearchProbability(probabilityByHorse.get(paperKey(r.race_id,h.horse_id))):null);
   const cell=scored?'<strong>Rank '+e(scored.rank)+'</strong><small>Model share '+e(nfmt(scored.share,3))+'</small>'+
-   (runnerProbability?'<small class="runner-chance">Experimental · Win '+e((100*runnerProbability.win).toFixed(1))+'% · Top 3 '+e((100*runnerProbability.top3).toFixed(1))+'%</small>':''):
+   (runnerProbability?'<small class="runner-chance">'+(runnerProbability.status==='PROVISIONAL_TRANSFER'?'Provisional':'Experimental')+' · Win '+e((100*runnerProbability.win).toFixed(1))+'% · Top 3 '+e((100*runnerProbability.top3).toFixed(1))+'%</small>':''):
    '<span class="muted-text">No saved rank</span>';
   const p=h.private_history||{};
   const hist=p.last12mo_recorded_runs===undefined?'Recorded history unavailable':
@@ -761,12 +761,12 @@ function showProbabilityWithBenchmark(v,market){
  if(!market)return probabilityStrip(v);
  const modelEstimate=usableResearchProbability(v.probability);
  return (modelEstimate?probabilityStrip(v):
-  '<span class="pif-prob-status">PIF Speed-First Win/Place % not yet validated</span>')+
+  '<span class="pif-prob-status">PIF Win/Place % unavailable for this model</span>')+
   marketStrip(market);
 }
 
 function usableResearchProbability(p){
- if(!p||p.status!=='EXPERIMENTAL')return null;
+ if(!p||!['EXPERIMENTAL','PROVISIONAL_TRANSFER'].includes(p.status))return null;
  const values=[p.win,p.top2,p.top3,p.top4];
  if(values.some(x=>x===null||x===undefined||x===''||
    !Number.isFinite(Number(x))||Number(x)<0||Number(x)>1))return null;
@@ -787,7 +787,7 @@ function probabilityStrip(v){
  return '<span class="top-probabilities">'+
   entries.map(([label,val])=>'<span class="top-probability"><strong>'+
     e((100*val).toFixed(1))+'%</strong><span>'+e(label)+'</span></span>').join('')+
-  '<span class="top-prob-note">'+(p.specialist_hurdle?'Handicap-hurdle-specific model · experimental percentages':'PIF research estimates · still being tested')+'</span></span>';
+  '<span class="top-prob-note">'+(p.status==='PROVISIONAL_TRANSFER'?'PROVISIONAL PIF 61-factor leader estimates · prior historical calibration transferred; restored model not yet independently validated. No demonstrated betting value.':(p.specialist_hurdle?'Handicap-hurdle-specific model · experimental percentages':'PIF research estimates · still being tested'))+'</span></span>';
 }
 
 function winEachWayPanel(v){
