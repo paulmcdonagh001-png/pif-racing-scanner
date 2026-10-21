@@ -20,8 +20,8 @@
     "rows": 2411,
     "invalid": 0,
     "skipJump": 135,
-    "unknownDistance": 0,
-    "flat": 119,
+    "unknownDistance": 1,
+    "flat": 118,
     "missingIpmin": 0,
     "three": 2,
     "completedEvents": 254
@@ -47,12 +47,12 @@
         "gross": -18
       },
       "2-6": {
-        "races": 11,
-        "two": 8,
+        "races": 10,
+        "two": 7,
         "three": 1,
         "four": 0,
-        "loserTouches": 9,
-        "winnerTouches": 11,
+        "loserTouches": 8,
+        "winnerTouches": 10,
         "gross": -2
       },
       "13-14": {
@@ -173,15 +173,6 @@
         "loserTouches": 0,
         "winnerTouches": 1,
         "gross": -1
-      },
-      "24f": {
-        "races": 1,
-        "two": 1,
-        "three": 0,
-        "four": 0,
-        "loserTouches": 1,
-        "winnerTouches": 1,
-        "gross": 0
       }
     },
     "course": {
@@ -222,12 +213,12 @@
         "gross": -16
       },
       "Kempton": {
-        "races": 19,
-        "two": 5,
+        "races": 18,
+        "two": 4,
         "three": 0,
         "four": 0,
-        "loserTouches": 5,
-        "winnerTouches": 19,
+        "loserTouches": 4,
+        "winnerTouches": 18,
         "gross": -14
       },
       "Chelmsford City": {
@@ -269,12 +260,12 @@
         "gross": -49
       },
       "nonhandicap": {
-        "races": 48,
-        "two": 19,
+        "races": 47,
+        "two": 18,
         "three": 2,
         "four": 0,
-        "loserTouches": 21,
-        "winnerTouches": 47,
+        "loserTouches": 20,
+        "winnerTouches": 46,
         "gross": -26
       }
     },
@@ -575,15 +566,6 @@
         "loserTouches": 0,
         "winnerTouches": 1,
         "gross": -1
-      },
-      "24f|2-6": {
-        "races": 1,
-        "two": 1,
-        "three": 0,
-        "four": 0,
-        "loserTouches": 1,
-        "winnerTouches": 1,
-        "gross": 0
       }
     }
   },
