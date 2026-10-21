@@ -42,5 +42,21 @@ class LayFieldTest(unittest.TestCase):
         self.assertEqual(r['races_with_2_plus'], 0)
 
 
+    def test_rejects_nh_flat_bumper(self):
+        data = {
+            ('flat','date'):[
+                {'event_id':'flat','event_dt':'date','selection_id':'a','event_name':'6f Hcap','menu_hint':'Newcastle','winner':True,'ipmin':1.01},
+                {'event_id':'flat','event_dt':'date','selection_id':'b','event_name':'6f Hcap','menu_hint':'Newcastle','winner':False,'ipmin':1.50},
+            ],
+            ('nh','date'):[
+                {'event_id':'nh','event_dt':'date','selection_id':'x','event_name':'2m NHF','menu_hint':'Sedgefield','winner':True,'ipmin':1.01},
+                {'event_id':'nh','event_dt':'date','selection_id':'y','event_name':'2m NHF','menu_hint':'Sedgefield','winner':False,'ipmin':1.50},
+            ],
+        }
+        result = summarize(data)
+        self.assertEqual(result['valid_races'], 1)
+        self.assertEqual(result['excluded_from_flat_analysis']['jumps_or_bumpers'], 1)
+        self.assertEqual(summarize(data, flat_only=False)['valid_races'], 2)
+
 if __name__ == '__main__':
     unittest.main()
