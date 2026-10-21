@@ -1,0 +1,606 @@
+{
+  "source": "EonHorizons/betfair_sp",
+  "month": "2023-11",
+  "days_requested": [
+    1,
+    4,
+    7,
+    10,
+    13,
+    16,
+    19,
+    22,
+    25,
+    28
+  ],
+  "days_loaded": 10,
+  "failures": [],
+  "stats": {
+    "files": 10,
+    "rows": 2411,
+    "invalid": 0,
+    "skipJump": 135,
+    "unknownDistance": 0,
+    "flat": 119,
+    "missingIpmin": 0,
+    "three": 2,
+    "completedEvents": 254
+  },
+  "groups": {
+    "field": {
+      "10-12": {
+        "races": 67,
+        "two": 21,
+        "three": 1,
+        "four": 0,
+        "loserTouches": 22,
+        "winnerTouches": 67,
+        "gross": -45
+      },
+      "7-9": {
+        "races": 30,
+        "two": 11,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 11,
+        "winnerTouches": 29,
+        "gross": -18
+      },
+      "2-6": {
+        "races": 11,
+        "two": 8,
+        "three": 1,
+        "four": 0,
+        "loserTouches": 9,
+        "winnerTouches": 11,
+        "gross": -2
+      },
+      "13-14": {
+        "races": 8,
+        "two": 0,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 0,
+        "winnerTouches": 8,
+        "gross": -8
+      },
+      "15+": {
+        "races": 3,
+        "two": 1,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 1,
+        "winnerTouches": 3,
+        "gross": -2
+      }
+    },
+    "distance": {
+      "10f": {
+        "races": 10,
+        "two": 3,
+        "three": 1,
+        "four": 0,
+        "loserTouches": 4,
+        "winnerTouches": 10,
+        "gross": -6
+      },
+      "8f": {
+        "races": 27,
+        "two": 12,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 12,
+        "winnerTouches": 27,
+        "gross": -15
+      },
+      "6f": {
+        "races": 25,
+        "two": 7,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 7,
+        "winnerTouches": 25,
+        "gross": -18
+      },
+      "7f": {
+        "races": 20,
+        "two": 7,
+        "three": 1,
+        "four": 0,
+        "loserTouches": 8,
+        "winnerTouches": 19,
+        "gross": -11
+      },
+      "16f": {
+        "races": 5,
+        "two": 1,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 1,
+        "winnerTouches": 5,
+        "gross": -4
+      },
+      "5f": {
+        "races": 13,
+        "two": 3,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 3,
+        "winnerTouches": 13,
+        "gross": -10
+      },
+      "12f": {
+        "races": 10,
+        "two": 4,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 4,
+        "winnerTouches": 10,
+        "gross": -6
+      },
+      "14f": {
+        "races": 2,
+        "two": 1,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 1,
+        "winnerTouches": 2,
+        "gross": -1
+      },
+      "9f": {
+        "races": 3,
+        "two": 2,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 2,
+        "winnerTouches": 3,
+        "gross": -1
+      },
+      "11f": {
+        "races": 2,
+        "two": 0,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 0,
+        "winnerTouches": 2,
+        "gross": -2
+      },
+      "13f": {
+        "races": 1,
+        "two": 0,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 0,
+        "winnerTouches": 1,
+        "gross": -1
+      },
+      "24f": {
+        "races": 1,
+        "two": 1,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 1,
+        "winnerTouches": 1,
+        "gross": 0
+      }
+    },
+    "course": {
+      "Newcastle": {
+        "races": 27,
+        "two": 10,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 10,
+        "winnerTouches": 27,
+        "gross": -17
+      },
+      "Catterick": {
+        "races": 5,
+        "two": 5,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 5,
+        "winnerTouches": 5,
+        "gross": 0
+      },
+      "Newmarket": {
+        "races": 9,
+        "two": 2,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 2,
+        "winnerTouches": 9,
+        "gross": -7
+      },
+      "Wolverhampton": {
+        "races": 25,
+        "two": 9,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 9,
+        "winnerTouches": 25,
+        "gross": -16
+      },
+      "Kempton": {
+        "races": 19,
+        "two": 5,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 5,
+        "winnerTouches": 19,
+        "gross": -14
+      },
+      "Chelmsford City": {
+        "races": 16,
+        "two": 4,
+        "three": 1,
+        "four": 0,
+        "loserTouches": 5,
+        "winnerTouches": 15,
+        "gross": -10
+      },
+      "Lingfield": {
+        "races": 9,
+        "two": 3,
+        "three": 1,
+        "four": 0,
+        "loserTouches": 4,
+        "winnerTouches": 9,
+        "gross": -5
+      },
+      "Southwell": {
+        "races": 9,
+        "two": 3,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 3,
+        "winnerTouches": 9,
+        "gross": -6
+      }
+    },
+    "handicap": {
+      "handicap": {
+        "races": 71,
+        "two": 22,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 22,
+        "winnerTouches": 71,
+        "gross": -49
+      },
+      "nonhandicap": {
+        "races": 48,
+        "two": 19,
+        "three": 2,
+        "four": 0,
+        "loserTouches": 21,
+        "winnerTouches": 47,
+        "gross": -26
+      }
+    },
+    "distance_field": {
+      "10f|10-12": {
+        "races": 5,
+        "two": 2,
+        "three": 1,
+        "four": 0,
+        "loserTouches": 3,
+        "winnerTouches": 5,
+        "gross": -2
+      },
+      "8f|10-12": {
+        "races": 16,
+        "two": 7,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 7,
+        "winnerTouches": 16,
+        "gross": -9
+      },
+      "6f|10-12": {
+        "races": 17,
+        "two": 4,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 4,
+        "winnerTouches": 17,
+        "gross": -13
+      },
+      "6f|7-9": {
+        "races": 4,
+        "two": 2,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 2,
+        "winnerTouches": 4,
+        "gross": -2
+      },
+      "7f|10-12": {
+        "races": 10,
+        "two": 2,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 2,
+        "winnerTouches": 10,
+        "gross": -8
+      },
+      "16f|10-12": {
+        "races": 3,
+        "two": 1,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 1,
+        "winnerTouches": 3,
+        "gross": -2
+      },
+      "5f|10-12": {
+        "races": 7,
+        "two": 2,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 2,
+        "winnerTouches": 7,
+        "gross": -5
+      },
+      "7f|7-9": {
+        "races": 8,
+        "two": 4,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 4,
+        "winnerTouches": 7,
+        "gross": -3
+      },
+      "8f|7-9": {
+        "races": 5,
+        "two": 3,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 3,
+        "winnerTouches": 5,
+        "gross": -2
+      },
+      "12f|2-6": {
+        "races": 3,
+        "two": 2,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 2,
+        "winnerTouches": 3,
+        "gross": -1
+      },
+      "5f|2-6": {
+        "races": 2,
+        "two": 1,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 1,
+        "winnerTouches": 2,
+        "gross": -1
+      },
+      "6f|13-14": {
+        "races": 2,
+        "two": 0,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 0,
+        "winnerTouches": 2,
+        "gross": -2
+      },
+      "8f|2-6": {
+        "races": 1,
+        "two": 1,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 1,
+        "winnerTouches": 1,
+        "gross": 0
+      },
+      "12f|10-12": {
+        "races": 5,
+        "two": 2,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 2,
+        "winnerTouches": 5,
+        "gross": -3
+      },
+      "7f|13-14": {
+        "races": 1,
+        "two": 0,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 0,
+        "winnerTouches": 1,
+        "gross": -1
+      },
+      "16f|7-9": {
+        "races": 2,
+        "two": 0,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 0,
+        "winnerTouches": 2,
+        "gross": -2
+      },
+      "10f|15+": {
+        "races": 1,
+        "two": 0,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 0,
+        "winnerTouches": 1,
+        "gross": -1
+      },
+      "8f|15+": {
+        "races": 2,
+        "two": 1,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 1,
+        "winnerTouches": 2,
+        "gross": -1
+      },
+      "5f|13-14": {
+        "races": 1,
+        "two": 0,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 0,
+        "winnerTouches": 1,
+        "gross": -1
+      },
+      "14f|7-9": {
+        "races": 1,
+        "two": 1,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 1,
+        "winnerTouches": 1,
+        "gross": 0
+      },
+      "9f|10-12": {
+        "races": 1,
+        "two": 1,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 1,
+        "winnerTouches": 1,
+        "gross": 0
+      },
+      "11f|10-12": {
+        "races": 2,
+        "two": 0,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 0,
+        "winnerTouches": 2,
+        "gross": -2
+      },
+      "8f|13-14": {
+        "races": 3,
+        "two": 0,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 0,
+        "winnerTouches": 3,
+        "gross": -3
+      },
+      "9f|7-9": {
+        "races": 1,
+        "two": 0,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 0,
+        "winnerTouches": 1,
+        "gross": -1
+      },
+      "10f|7-9": {
+        "races": 4,
+        "two": 1,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 1,
+        "winnerTouches": 4,
+        "gross": -3
+      },
+      "13f|7-9": {
+        "races": 1,
+        "two": 0,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 0,
+        "winnerTouches": 1,
+        "gross": -1
+      },
+      "5f|7-9": {
+        "races": 3,
+        "two": 0,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 0,
+        "winnerTouches": 3,
+        "gross": -3
+      },
+      "12f|13-14": {
+        "races": 1,
+        "two": 0,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 0,
+        "winnerTouches": 1,
+        "gross": -1
+      },
+      "6f|2-6": {
+        "races": 2,
+        "two": 1,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 1,
+        "winnerTouches": 2,
+        "gross": -1
+      },
+      "12f|7-9": {
+        "races": 1,
+        "two": 0,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 0,
+        "winnerTouches": 1,
+        "gross": -1
+      },
+      "7f|2-6": {
+        "races": 1,
+        "two": 1,
+        "three": 1,
+        "four": 0,
+        "loserTouches": 2,
+        "winnerTouches": 1,
+        "gross": 1
+      },
+      "9f|2-6": {
+        "races": 1,
+        "two": 1,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 1,
+        "winnerTouches": 1,
+        "gross": 0
+      },
+      "14f|10-12": {
+        "races": 1,
+        "two": 0,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 0,
+        "winnerTouches": 1,
+        "gross": -1
+      },
+      "24f|2-6": {
+        "races": 1,
+        "two": 1,
+        "three": 0,
+        "four": 0,
+        "loserTouches": 1,
+        "winnerTouches": 1,
+        "gross": 0
+      }
+    }
+  },
+  "examples_three_plus": [
+    {
+      "date": "18-11-2023 13:26",
+      "course": "Lingfield",
+      "race": "1m2f Nov Stks",
+      "field": 12,
+      "count": 3
+    },
+    {
+      "date": "21-11-2023 17:00",
+      "course": "Chelmsford City",
+      "race": "7f Nov Stks",
+      "field": 5,
+      "count": 3
+    }
+  ]
+}
