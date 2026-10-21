@@ -38,7 +38,7 @@ def collect(source,dates):
     url_fn=betfair_url if source=="Betfair" else mirror_url
     probes=[(d,*get(url_fn(d))) for d in probe]
     available=[(d,s) for d,s,e in probes if s and "EVENT_ID" in s[:160]]
-    print("PROBE",source,"success",len(available),"of",len(probes),flush=True)
+    print("PROBE",source,"success",len(available),"of",len(probes),"errors",[(d.isoformat(),err) for d,body,err in probes if err][:3],flush=True)
     if not available:
         return {},len(probes),0
     collected={d:s for d,s in available}
@@ -77,6 +77,7 @@ def furlongs(s):
     return int(m[1]) if m else None
 
 def c_name(s):
+    s=re.sub(r"^(?:GB|UK|IRE|IRL)\s*/\s*","",s,flags=re.I).strip()
     return re.sub(r"\s+\d+(?:st|nd|rd|th)\s+\w+.*$","",s,flags=re.I).strip()
 
 def f_band(n):
