@@ -32,6 +32,6 @@ jobs:
             if(!js.toLowerCase().includes(x.toLowerCase())) throw new Error('Missing '+x);
           }
           if(!js.includes("if(p.status!=='EXPERIMENTAL')")) throw new Error('Provisional betting guidance must remain disabled');
-          if(!html.includes("61factor-estimates-20261021-v3")) throw new Error('Browser cache bust missing');
+          if(!html.includes("61factor-accuracy-20261021-v4")) throw new Error('Browser cache bust missing');
           console.log('Probability UI labels and guidance gate verified');
           NODE
