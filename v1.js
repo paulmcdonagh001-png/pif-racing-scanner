@@ -1,5 +1,5 @@
 'use strict';
-// PIF Racing V1: one public interface, private API and timing model remain server-side.
+// PIF Racing browser UI: always verify model identity against the protected backend.
 // Experimental research only. No bets or transactions are placed by this software.
 const API='https://pif-racing-paper.onrender.com';
 const SESSION_KEY='pif-racing-remembered-v1';
@@ -33,6 +33,20 @@ function ukOff(raw){
 function nfmt(n,dp=1){const v=Number(n);return Number.isFinite(v)?v.toFixed(dp):'—';}
 function paperKey(r,h){return String(r)+'|'+String(h);}
 function savePaper(){try{localStorage.setItem(PAPER_KEY,JSON.stringify(paper));}catch(_){}}
+// Verify the protected server's active model and gate before showing research.
+const CURRENT_RESEARCH_FILTER='pif-combined61-return-evidence-v9-20261021';
+function hasVerifiedModel(data){
+ const formula=data?.all_races?.formula||{};
+ return data?.all_races?.status==='READY'&&
+        formula.model_family==='Original 61-factor CatBoost'&&
+        formula.qualifier_version===CURRENT_RESEARCH_FILTER&&
+        data?.combined_research?.filter_version===CURRENT_RESEARCH_FILTER;
+}
+function updateModelIdentity(data){
+ const el=$('model-family-label');if(!el)return;
+ el.textContent=hasVerifiedModel(data)?
+   '61-FACTOR MODEL · V9 RESEARCH FILTER':'MODEL VERSION NOT VERIFIED';
+}
 function status(message,tone){
  const x=$('connection-status');x.textContent=message;
  x.className='connection '+(tone||'muted');
@@ -157,8 +171,12 @@ async function loadDay(day){
   if(seq!==requests || !sessionToken)return;
   dayData[day]=data;dayReceived[day]=Date.now();
   if(view!==day)return;
+  updateModelIdentity(data);
   $('as-of').textContent='Racing API Standard · verified '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-  status('Live racecards verified. Combined PIF qualifier research is experimental.','good');
+  status(hasVerifiedModel(data)?
+    'Live racecards verified. Original 61-factor V9 research gate active.':
+    'Racecards received, but the current model version could not be verified.',
+    hasVerifiedModel(data)?'good':'warn');
   showRaceDay(day);
  }catch(err){
   const detail=String(err.message||'Could not reach the racing service.');
@@ -307,6 +325,12 @@ function racingDailyTreble(data,day){
 function renderResearchShortlist(data,target){
  const full=data.all_races||{};
  const scan=data.combined_research||{};
+ if(!hasVerifiedModel(data)){
+  target.innerHTML='<div class="empty error"><strong>Current 61-factor model not verified.</strong>'+
+    '<p>Old research qualifiers are hidden rather than presented as V9. Refresh after the backend update.</p>'+
+    '<button class="button" data-retry="'+e(view==='tomorrow'?'tomorrow':'today')+'">Retry</button></div>';
+  return;
+ }
  if(full.status!=='READY'){
   target.innerHTML='<div class="empty error"><strong>Race-by-race evidence unavailable.</strong>'+
    '<p>No research watchlist can be verified. Refresh the races when the backend recovers.</p>'+
@@ -441,6 +465,12 @@ function setRaceFilter(mode){
 }
 function renderAllRaces(data,target){
  const full=data.all_races||{};
+ if(!hasVerifiedModel(data)){
+  target.innerHTML='<div class="empty error"><strong>Current model version not verified.</strong>'+
+     '<p>Old V7 all-race scores and qualifiers are hidden to avoid mixing them with V9. Retry when the updated backend responds.</p>'+
+     '<button class="button" data-retry="'+e(view==='tomorrow'?'tomorrow':'today')+'">Retry</button></div>';
+  return;
+ }
  const racecards=Array.isArray(full.races)?full.races:(data.races||[]);
  const sourceOK=full.status==='READY';
  const qualified=Number(full.qualified_races??racecards.filter(r=>r.qualified).length);

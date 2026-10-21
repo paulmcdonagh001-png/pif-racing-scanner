@@ -1,0 +1,35 @@
+name: V9 model identity and static JavaScript
+on:
+  push:
+    branches: [fix/current-model-label-v9-20261021]
+    paths:
+      - index.html
+      - v1.js
+      - .github/workflows/racing-v9-ui-identity.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check and no misleading V1 label
+        run: |
+          node --check v1.js
+          python - <<'PY'
+          from pathlib import Path
+          ui=Path('index.html').read_text()
+          js=Path('v1.js').read_text()
+          assert 'V1 · COMBINED RACING SCANNER' not in ui
+          assert 'id="model-family-label"' in ui
+          assert 'v1.js?v=model-v9-20261021' in ui
+          assert "pif-combined61-return-evidence-v9-20261021" in js
+          assert "formula.qualifier_version===CURRENT_RESEARCH_FILTER" in js
+          assert "data?.combined_research?.filter_version===CURRENT_RESEARCH_FILTER" in js
+          assert "if(!hasVerifiedModel(data))" in js
+          # Do not invalidate the owner's existing browser session or paper notes.
+          assert "const SESSION_KEY='pif-racing-remembered-v1'" in js
+          assert "const PAPER_KEY='pif-racing-v1-paper'" in js
+          print('Current model label and fail-closed verification passed')
+          PY
