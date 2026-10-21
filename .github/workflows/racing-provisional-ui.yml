@@ -28,7 +28,7 @@ jobs:
           for(const x of ["['WIN',p.win]","['TOP 2',p.top2]","['TOP 3',p.top3]","['TOP 4',p.top4]"]) {
             if(!js.includes(x)) throw new Error('Missing '+x);
           }
-          for(const x of ["PROVISIONAL_TRANSFER","provisional research","restored model not yet independently validated"]) {
+          for(const x of ["PROVISIONAL_TRANSFER","PROVISIONAL PIF 61-factor leader estimates","restored model not yet independently validated"]) {
             if(!js.toLowerCase().includes(x.toLowerCase())) throw new Error('Missing '+x);
           }
           if(!js.includes("if(p.status!=='EXPERIMENTAL')")) throw new Error('Provisional betting guidance must remain disabled');
