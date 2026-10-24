@@ -491,7 +491,7 @@ function renderAllRaces(data,target){
   '<div><strong>'+e(racecards.length)+'</strong><span>Total races</span></div>'+
   '<div><strong>'+e(saved)+'</strong><span>Leaders saved</span></div>'+
   '<div><strong>'+e(complete)+'</strong><span>Full rankings</span></div></div>'+
-  '<p class="audit-overview-note"><strong>Price verdicts are now on every race card.</strong> POSSIBLE MODEL VALUE is a provisional price comparison, not proven value. POOR MODEL VALUE means the quoted odds are shorter than the model’s estimated fair odds. A missing or incompatible price is labelled unavailable.</p>'+
+  '<p class="audit-overview-note"><strong>Compare the top five horses and their odds in every scored race.</strong> The model's first choice is not automatically the best price. Market disagreements are research signals, not verified value bets.</p>'+
    '<p class="audit-overview-note">The 61-factor model ranks each field; the separately tested Win and Top 2/3/4 estimates describe the <strong>first-ranked horse</strong>. Neither proves profitable betting value. Choose a race to inspect its runners.</p>';
  const sourceNote=sourceOK?'':
   '<div class="empty error"><strong>Detailed evidence temporarily unavailable.</strong>'+
@@ -589,6 +589,20 @@ function fullRace(r,probabilityByHorse,quoteByHorse,marketMap){
     h.scored&&Number.isFinite(Number(h.scored.rank))?Number(h.scored.rank):Number.POSITIVE_INFINITY;
   return rank(a)-rank(b);
  });
+ const contenders=Array.isArray(r.top_five)?r.top_five:[];
+ const contendersPanel=contenders.length?
+  '<div class="top-five-panel"><strong>Top five contenders · compare the odds</strong>'+
+  '<div class="top-five-grid">'+contenders.map(c=>{
+    const pc=c.price_comparison||{};
+    const price=pc.decimal_odds?' · '+e(Number(pc.decimal_odds).toFixed(2))+' Bet365':' · Odds unavailable';
+    const mismatch=pc.interpretation==='MODEL_RANKS_HIGHER_THAN_MARKET'?
+      ' · PIF ranks higher than market':
+      pc.interpretation==='MARKET_RANKS_HIGHER_THAN_MODEL'?
+      ' · Market ranks higher than PIF':'';
+    return '<div class="top-five-item"><b>#'+e(c.model_rank)+' '+e(c.horse)+'</b>'+
+      '<span>'+price+(pc.market_rank?' · Market #'+e(pc.market_rank):'')+mismatch+'</span></div>';
+   }).join('')+'</div><small>Model order is not a betting recommendation. Market differences are not proven value.</small></div>':
+  '<p class="hint">Top-five model rankings unavailable for this race.</p>';
  const runnerTable=runners.map(h=>{
   const scored=h.scored;
   const runnerProbability=usableResearchProbability(h.probability||scored?.probability)||
@@ -632,7 +646,7 @@ function fullRace(r,probabilityByHorse,quoteByHorse,marketMap){
  return '<details class="race-audit'+(r.qualified?' is-qualified':'')+'" data-browse-row data-course="'+e(String(r.course||'').trim())+
    '" data-minute="'+raceMinutes(r)+'" data-qualified="'+(r.qualified?'1':'0')+'">'+
   '<summary>'+summary+'<span class="race-audit-leader">'+reason+leadline+'</span>'+modelPriceHeadline(r.value_review)+chances+'</summary>'+
-  '<div class="race-audit-inner">'+priceResearchBox(r.value_review)+quick+
+  '<div class="race-audit-inner">'+contendersPanel+priceResearchBox(r.value_review)+quick+
   '<div class="runner-section-head"><h4>Runners <small>'+e(runners.length)+' in this race · model ranking first</small></h4>'+
   '<p>Open any runner for form, history and ratings.</p></div>'+
   (runnerTable||'<p class="hint">Runner details are not available.</p>')+evidence+
