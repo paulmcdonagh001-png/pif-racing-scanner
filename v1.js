@@ -248,7 +248,7 @@ function watchRaceCard(r,marketMap,probabilityByHorse){
    '<span class="qual-horse">'+e(v.horse)+'</span>'+
    '<span class="qual-meta">'+e(r.type)+' · '+e(r.distance)+' · '+e(r.going)+'</span></span>'+
   '<span class="qual-right"><span class="watch-badge">RESEARCH WATCH</span>'+
-   '<span class="qual-price">'+validPrice+'</span></span>'+showProbabilityWithBenchmark({...v,probability:usableResearchProbability(v.probability)||probabilityByHorse.get(key)||v.probability},marketMap.get(key))+'</summary>'+
+   '<span class="qual-price">'+validPrice+'</span></span>'+modelPriceHeadline(r.value_review)+showProbabilityWithBenchmark({...v,probability:usableResearchProbability(v.probability)||probabilityByHorse.get(key)||v.probability},marketMap.get(key))+'</summary>'+
   '<div class="qual-expanded"><p class="hint">'+e(r.name)+'</p>'+
    '<p class="qual-explanation">Model leader with substantial previous history and a ranking gap of '+
     e(nfmt(v.model_gap,3))+'. This is not an estimated win probability.</p>'+
@@ -377,7 +377,8 @@ function renderResearchShortlist(data,target){
  const valueNotice='<div class="empty"><strong>No independently verified value picks</strong>'+
    '<p>The 61-factor model still ranks horses, but research qualifiers do not prove good odds. The price review now separately compares available bookmaker terms with provisional model estimates. No daily accumulator is being forced from unverified selections.</p></div>';
  target.innerHTML=head+valueNotice+browseFilters(full.races||[])+
-   '<p id="shortlist-visible-count" class="browse-count"></p>'+
+   '<p class="hint">The price verdict on each horse uses indicative odds and an unvalidated model estimate. A possible model advantage is NOT a verified profitable bet.</p>'+
+    '<p id="shortlist-visible-count" class="browse-count"></p>'+
    real+watch+
    '<div id="browse-filter-empty" class="empty" hidden>No shortlisted horses match these course and time filters. Try another course or time.</div>'+
    details+'<p class="hint">To examine every runner and the model evidence, choose All races above.</p>';
@@ -490,7 +491,8 @@ function renderAllRaces(data,target){
   '<div><strong>'+e(racecards.length)+'</strong><span>Total races</span></div>'+
   '<div><strong>'+e(saved)+'</strong><span>Leaders saved</span></div>'+
   '<div><strong>'+e(complete)+'</strong><span>Full rankings</span></div></div>'+
-  '<p class="audit-overview-note">The 61-factor model ranks each field; the separately tested Win and Top 2/3/4 estimates describe the <strong>first-ranked horse</strong>. Neither proves profitable betting value. Choose a race to inspect its runners.</p>';
+  '<p class="audit-overview-note"><strong>Price verdicts are now on every race card.</strong> POSSIBLE MODEL VALUE is a provisional price comparison, not proven value. POOR MODEL VALUE means the quoted odds are shorter than the model’s estimated fair odds. A missing or incompatible price is labelled unavailable.</p>'+
+   '<p class="audit-overview-note">The 61-factor model ranks each field; the separately tested Win and Top 2/3/4 estimates describe the <strong>first-ranked horse</strong>. Neither proves profitable betting value. Choose a race to inspect its runners.</p>';
  const sourceNote=sourceOK?'':
   '<div class="empty error"><strong>Detailed evidence temporarily unavailable.</strong>'+
   '<p>These are current racecard facts; individual model scores cannot be verified on this load.</p></div>';
@@ -629,7 +631,7 @@ function fullRace(r,probabilityByHorse,quoteByHorse,marketMap){
  const evidence=hasLeader?modelEvidence(leader):'';
  return '<details class="race-audit'+(r.qualified?' is-qualified':'')+'" data-browse-row data-course="'+e(String(r.course||'').trim())+
    '" data-minute="'+raceMinutes(r)+'" data-qualified="'+(r.qualified?'1':'0')+'">'+
-  '<summary>'+summary+'<span class="race-audit-leader">'+reason+leadline+'</span>'+chances+'</summary>'+
+  '<summary>'+summary+'<span class="race-audit-leader">'+reason+leadline+'</span>'+modelPriceHeadline(r.value_review)+chances+'</summary>'+
   '<div class="race-audit-inner">'+priceResearchBox(r.value_review)+quick+
   '<div class="runner-section-head"><h4>Runners <small>'+e(runners.length)+' in this race · model ranking first</small></h4>'+
   '<p>Open any runner for form, history and ratings.</p></div>'+
@@ -799,6 +801,33 @@ function probabilityStrip(v){
   '<span class="top-prob-note">'+(p.status==='PROVISIONAL_TRANSFER'?'PIF ESTIMATED % · Restored 61-factor model. Earlier calibration checked on 2,731 leader results; 70 recent SFF-backed leader results also checked. Estimates, not guarantees.':(p.specialist_hurdle?'Handicap-hurdle-specific model · experimental percentages':'PIF research estimates · still being tested'))+'</span></span>';
 }
 
+/* Every race headline needs a visible price verdict. This comparison is
+   provisional research, NOT an independently verified betting edge. */
+function modelPriceHeadline(review){
+ const q=review?.quote||null;
+ const price=Number(q?.decimal), fair=Number(review?.provisional_fair_odds),
+       edge=Number(review?.provisional_win_roi_pct);
+ const present=review?.provisional_fair_odds!=null&&
+  review?.provisional_win_roi_pct!=null&&
+  q&&Number.isFinite(price)&&price>1.1&&
+  Number.isFinite(fair)&&fair>1&&Number.isFinite(edge);
+ let label='PRICE CHECK UNAVAILABLE',state='unavailable';
+ if(present){
+  if(edge>0.5){label='POSSIBLE MODEL VALUE';state='positive';}
+  else if(edge< -0.5){label='POOR MODEL VALUE';state='negative';}
+  else{label='NEAR MODEL FAIR PRICE';state='neutral';}
+ }
+ const source=q?.bookmaker||'Bookmaker';
+ const details=present?
+  e(source)+' '+e(nfmt(price,2))+' · PIF fair '+e(nfmt(fair,2))+
+   ' · estimated '+(edge>0?'+':'')+e(nfmt(edge,1))+'% return':
+  'No comparable odds and provisional calibrated estimate';
+ return '<span class="price-check-summary price-check-'+state+'">'+
+  '<strong>'+e(label)+'</strong>'+
+  '<span>'+details+'</span>'+
+  '<small>PROVISIONAL model calculation · not verified profit/value</small>'+
+  '</span>';
+}
 function priceResearchBox(review){
  if(!review)return '<div class="bet-model-not-ready"><strong>Value not verified</strong><p>No independently validated fair-odds comparison is available.</p></div>';
  const q=review.quote||null, price=Number(q?.decimal);
@@ -910,7 +939,7 @@ function combinedCard(v,qualified,marketMap){
     '<span class="qual-horse">'+e(v.horse)+'</span>'+
     '<span class="qual-meta">'+e(v.distance)+' · '+e(v.going)+' · '+e(v.field_size)+' runners</span></span>'+
    '<span class="qual-right">'+badge+'<span class="qual-price">'+odds+'</span></span>'+
-    showProbabilityWithBenchmark(v,marketMap.get(key))+'</summary>'+
+    modelPriceHeadline(v.value_review)+showProbabilityWithBenchmark(v,marketMap.get(key))+'</summary>'+
    '<div class="qual-expanded"><p class="muted-text">'+e(v.race_name)+'</p>'+
     '<p class="qual-explanation">'+e(gate)+'.</p>'+
     '<div class="evidence"><strong>History, course, trainer, jockey and race conditions</strong>'+
