@@ -1011,6 +1011,14 @@ function pifPnlLine(x){
  if(!p)return '';
  return '<small>£1 Win '+e(pifMoney(p.win))+' · £1 EW '+e(pifMoney(p.ew))+'</small>';
 }
+function racingOutcomeLabel(x,includePlace){
+ const st=String(x?.status||'');
+ if(st==='NON_RUNNER')return 'Non-runner · void';
+ if(st==='ABANDONED')return 'Abandoned · void';
+ if(st==='SETTLED')return x.won?'Won':(includePlace&&x.top3?'Top 3 ('+x.finish_position+')':'Lost');
+ const off=Date.parse(x?.off_utc||'');
+ return st==='UPCOMING'||(Number.isFinite(off)&&off>Date.now())?'Upcoming':'Awaiting official result';
+}
 function showResults(){
  if(view!=='results')return;
  const out=$('results-content');
@@ -1037,13 +1045,13 @@ function showResults(){
    e(gate.started_at?ukOff(gate.started_at):'date unavailable')+'. '+
    'Current qualifying version only; each horse/race counts once despite later model refreshes. '+
    'The percentage is an early observation, not a validated betting edge. Assess accuracy against the market with a much larger settled sample. '+
-   'Non-runners are not counted as losses. Earlier unfiltered research records ('+e(overall.saved||0)+') are excluded.</p>'+pifPnlSummary(actual);
+   'Non-runners and abandoned races are excluded from losses and strike rates. Earlier unfiltered research records ('+e(overall.saved||0)+') are excluded.</p>'+pifPnlSummary(actual);
   if(actual.length){
    html+='<div class="result-table"><div class="result-row result-head"><span>Qualified horse</span><span>Early quote</span><span>Result</span></div>'+
    actual.slice(0,70).map(x=>'<div class="result-row"><span><strong>'+e(x.horse)+'</strong>'+
     '<small>'+e(x.course)+' · '+e(ukOff(x.off_utc))+'</small>'+pifPnlLine(x)+'</span>'+
     '<span>'+e(x.first_quote?nfmt(x.first_quote,2):'Unavailable')+'</span>'+
-    '<span>'+e(x.status==='SETTLED'?(x.won?'Won':'Lost'):x.status==='NON_RUNNER'?'Non-runner':'Pending')+'</span></div>').join('')+'</div>';
+    '<span>'+e(racingOutcomeLabel(x,false))+'</span></div>').join('')+'</div>';
   }else html+='<div class="empty">The filter has not yet recorded any prospective qualifying horses. It will not backdate predictions.</div>';
  }
  html+='</section>';
@@ -1060,7 +1068,10 @@ function showResults(){
    '<span>'+e(n)+' settled</span>'+
    '<span>'+e(wins)+' wins · <strong>'+e(n?winPct.toFixed(1)+'%':'—')+'</strong></span>'+
    '<span>'+e(top3)+' top 3 · <strong>'+e(n?placePct.toFixed(1)+'%':'—')+'</strong></span>'+
-   '<span>'+e(rankOne.awaiting_results||0)+' awaiting results</span></div>'+
+   '<span>'+e(rankOne.non_runners||0)+' non-runners</span>'+
+    '<span>'+e(rankOne.abandoned||0)+' abandoned</span>'+
+    '<span>'+e(rankOne.upcoming||0)+' upcoming</span>'+
+    '<span>'+e(rankOne.awaiting_results||0)+' awaiting results</span></div>'+
    '<p class="hint">Top 3 includes winners. Non-runners are excluded from strike rates. '+
    'Refreshes cannot duplicate races. Research rankings are not betting qualifiers.</p>'+pifPnlSummary(rankOne.results||[]);
   if(rankOne.by_race_type?.length){
@@ -1078,9 +1089,7 @@ function showResults(){
      '<small>'+e(x.course)+' · '+e(ukOff(x.off_utc))+'</small>'+
      '<small>'+e(x.race_type)+' · '+(x.qualified_at_first_snapshot?'Qualified':'Ranking only')+
      '</small>'+pifPnlLine(x)+'</span><span>'+e(x.first_quote?nfmt(x.first_quote,2):'Unavailable')+'</span>'+
-     '<span>'+e(x.status==='SETTLED'?(x.won?'Won':
-       x.top3?'Top 3 ('+x.finish_position+')':'Lost'):
-       x.status==='NON_RUNNER'?'Non-runner':'Pending')+'</span></div>').join('')+
+     '<span>'+e(racingOutcomeLabel(x,true))+'</span></div>').join('')+
     '</div></details>';
   }else html+='<p class="hint">No pre-race rankings recorded for the current model yet.</p>';
  }else html+='<p class="hint">Awaiting the separate all-races research report from the racing service.</p>';
