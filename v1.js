@@ -491,7 +491,7 @@ function renderAllRaces(data,target){
   '<div><strong>'+e(racecards.length)+'</strong><span>Total races</span></div>'+
   '<div><strong>'+e(saved)+'</strong><span>Leaders saved</span></div>'+
   '<div><strong>'+e(complete)+'</strong><span>Full rankings</span></div></div>'+
-  '<p class="audit-overview-note"><strong>Compare the top five horses and their odds in every scored race.</strong> The model's first choice is not automatically the best price. Market disagreements are research signals, not verified value bets.</p>'+
+  '<p class="audit-overview-note"><strong>Compare the top five horses and their odds in every scored race.</strong> The first-ranked horse is not automatically the best price. Market disagreements are research signals, not verified value bets.</p>'+
    '<p class="audit-overview-note">The 61-factor model ranks each field; the separately tested Win and Top 2/3/4 estimates describe the <strong>first-ranked horse</strong>. Neither proves profitable betting value. Choose a race to inspect its runners.</p>';
  const sourceNote=sourceOK?'':
   '<div class="empty error"><strong>Detailed evidence temporarily unavailable.</strong>'+
