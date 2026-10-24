@@ -252,7 +252,7 @@ function watchRaceCard(r,marketMap,probabilityByHorse){
   '<div class="qual-expanded"><p class="hint">'+e(r.name)+'</p>'+
    '<p class="qual-explanation">Model leader with substantial previous history and a ranking gap of '+
     e(nfmt(v.model_gap,3))+'. This is not an estimated win probability.</p>'+
-   expl+
+   expl+priceResearchBox(r.value_review)+
    '<p class="hint">Does not pass the existing handicap-hurdle-only qualifying rule. No independently proven early-price advantage. '+
    'Additional history and race conditions remain uncertain.</p>'+
    '<p class="hint">All other runners can be checked under All races.</p></div></details>';
@@ -350,8 +350,9 @@ function renderResearchShortlist(data,target){
   if(v?.race_id!=null&&v?.horse_id!=null&&usableResearchProbability(v.probability))
    probabilityByHorse.set(paperKey(v.race_id,v.horse_id),v.probability);
  }
- let head='<div class="quick-totals"><span><strong>'+e(qual.length)+
-  '</strong> trial qualifiers</span><span><strong>'+e(candidates.length)+
+ let head='<div class="quick-totals"><span><strong>0</strong> verified value picks</span>'+
+  '<span><strong>'+e(qual.length)+
+  '</strong> research qualifiers</span><span><strong>'+e(candidates.length)+
   '</strong> research watch</span><span><strong>'+e(allCount)+
   '</strong> races analysed</span></div>';
  const real=qual.length?
@@ -373,7 +374,9 @@ function renderResearchShortlist(data,target){
   '<p class="hint">Historical tests show that the same filter does not consistently '+
   'beat the eventual starting-price favourite across Flat, all-weather or chase races. '+
   'None of these figures proves value at early odds.</p></details>';
- target.innerHTML=head+racingDailyTreble(data,view==='tomorrow'?'tomorrow':'today')+browseFilters(full.races||[])+
+ const valueNotice='<div class="empty"><strong>No independently verified value picks</strong>'+
+   '<p>The 61-factor model still ranks horses, but research qualifiers do not prove good odds. The price review now separately compares available bookmaker terms with provisional model estimates. No daily accumulator is being forced from unverified selections.</p></div>';
+ target.innerHTML=head+valueNotice+browseFilters(full.races||[])+
    '<p id="shortlist-visible-count" class="browse-count"></p>'+
    real+watch+
    '<div id="browse-filter-empty" class="empty" hidden>No shortlisted horses match these course and time filters. Try another course or time.</div>'+
@@ -483,7 +486,7 @@ function renderAllRaces(data,target){
  const saved=Number(full.model_scored??racecards.filter(r=>r.leader?.preoff).length);
  const complete=Number(full.full_runner_scored??0);
  const summary='<div class="race-dashboard" aria-label="Race research totals">'+
-  '<div><strong>'+e(qualified)+'</strong><span>Research qualifiers</span></div>'+
+  '<div><strong>'+e(qualified)+'</strong><span>Research qualifiers (not value)</span></div>'+
   '<div><strong>'+e(racecards.length)+'</strong><span>Total races</span></div>'+
   '<div><strong>'+e(saved)+'</strong><span>Leaders saved</span></div>'+
   '<div><strong>'+e(complete)+'</strong><span>Full rankings</span></div></div>'+
@@ -627,7 +630,7 @@ function fullRace(r,probabilityByHorse,quoteByHorse,marketMap){
  return '<details class="race-audit'+(r.qualified?' is-qualified':'')+'" data-browse-row data-course="'+e(String(r.course||'').trim())+
    '" data-minute="'+raceMinutes(r)+'" data-qualified="'+(r.qualified?'1':'0')+'">'+
   '<summary>'+summary+'<span class="race-audit-leader">'+reason+leadline+'</span>'+chances+'</summary>'+
-  '<div class="race-audit-inner">'+quick+
+  '<div class="race-audit-inner">'+priceResearchBox(r.value_review)+quick+
   '<div class="runner-section-head"><h4>Runners <small>'+e(runners.length)+' in this race · model ranking first</small></h4>'+
   '<p>Open any runner for form, history and ratings.</p></div>'+
   (runnerTable||'<p class="hint">Runner details are not available.</p>')+evidence+
@@ -796,27 +799,30 @@ function probabilityStrip(v){
   '<span class="top-prob-note">'+(p.status==='PROVISIONAL_TRANSFER'?'PIF ESTIMATED % · Restored 61-factor model. Earlier calibration checked on 2,731 leader results; 70 recent SFF-backed leader results also checked. Estimates, not guarantees.':(p.specialist_hurdle?'Handicap-hurdle-specific model · experimental percentages':'PIF research estimates · still being tested'))+'</span></span>';
 }
 
-function winEachWayPanel(v){
- const p=v.probability||{};
- if(p.status!=='EXPERIMENTAL')
-  return '<div class="bet-model-not-ready"><strong>Win / Each-way guidance unavailable</strong>'+
-   '<p>The historical probability model does not yet match this horse’s scoring model or racing surface. No bet-type conclusion is justified.</p></div>';
- const key=encodeURIComponent(paperKey(v.race_id,v.horse_id));
- return '<section class="bet-model-section"><h4>Win or each way?</h4>'+
+function priceResearchBox(review){
+ if(!review)return '<div class="bet-model-not-ready"><strong>Value not verified</strong><p>No independently validated fair-odds comparison is available.</p></div>';
+ const q=review.quote||null, price=Number(q?.decimal);
+ const hasPrice=q&&Number.isFinite(price)&&price>1.1;
+ const rank=review.market_rank===1?'Market favourite':
+  Number.isInteger(review.market_rank)?'Market rank '+review.market_rank:
+  'Market rank unconfirmed (incomplete prices)';
+ const fair=review.provisional_fair_odds==null?'Unavailable':nfmt(review.provisional_fair_odds,2);
+ const terms=q?.ew_places&&q?.ew_fraction?
+  'Recorded bookmaker terms: '+q.ew_places+' paid places at 1/'+Math.round(1/q.ew_fraction)+' odds.':
+  'No supported bookmaker each-way terms recorded.';
+ const ew=review.provisional_eachway_roi_pct==null?
+  'Each-way theoretical comparison unavailable.':
+  'Theoretical each-way model return: '+nfmt(review.provisional_eachway_roi_pct,1)+'% (unvalidated).';
+ return '<div class="bet-model-not-ready"><strong>Betting value: NOT VERIFIED</strong>'+
+  '<p><strong>'+e(rank)+'</strong> · '+(hasPrice?e(q.bookmaker)+' indicative '+e(nfmt(price,2)):'No usable quoted odds')+'</p>'+
+  '<p>Provisional model fair win price: <strong>'+e(fair)+'</strong>. '+
+  'Theoretical win model return: '+(review.provisional_win_roi_pct==null?'unavailable':e(nfmt(review.provisional_win_roi_pct,1))+'%')+'.</p>'+
+  '<p>'+e(terms)+' '+e(ew)+'</p>'+
+  '<p class="bet-safety">Research scenarios only: the restored probability model is not independently validated for profitability. Indicative prices may be stale or unavailable. Neither a win bet nor an each-way bet is recommended.</p></div>';
+}
 
-  '<div class="bet-calculator" data-bet-key="'+key+'">'+
-   '<label>Bookmaker odds (e.g. 5.30)<input class="bet-odds" type="number" min="1.01" max="1000" step="0.01" placeholder="'+
-     e(v.quote?.decimal?nfmt(v.quote.decimal,2):'e.g. 4.50')+'" inputmode="decimal"></label>'+
-   '<label>Places paid<select class="bet-places"><option value="">Select actual terms</option>'+
-   '<option value="2">First 2 places</option><option value="3">First 3 places</option>'+
-   '<option value="4">First 4 places</option><option value="5">First 5 places</option>'+
-   '<option value="6">First 6 places</option></select></label>'+
-   '<label>Place payout<select class="bet-fraction"><option value="">Select actual terms</option>'+
-   '<option value="0.2">1/5 odds</option><option value="0.25">1/4 odds</option></select></label>'+
-   '<button class="button secondary" data-compare-bet="'+key+'" type="button">Which looks better?</button>'+
-   '<div class="bet-result" aria-live="polite"></div></div>'+
-   '<p class="hint">Win pays only for first place. Each-way splits your stake into a win bet and a place bet. '+
-    'Check the odds and place terms at the bookmaker. PIF does not place bets.</p></section>';
+function winEachWayPanel(v){
+ return priceResearchBox(v.value_review);
 }
 function compareBet(button){
  const panel=button.closest('.bet-calculator');
@@ -910,7 +916,7 @@ function combinedCard(v,qualified,marketMap){
     '<div class="evidence"><strong>History, course, trainer, jockey and race conditions</strong>'+
     detail.map(x=>'<div class="past-run">'+x+'</div>').join('')+'</div>'+
     winEachWayPanel(v)+
-    '<p class="hint">Research only. This model has not proved profitable early-odds value; no verified sectional times or fair odds. Historical coverage remains incomplete.</p>'+
+    '<p class="hint">Research only: calculated fair odds are provisional scenarios, not validated betting prices. Historical coverage remains incomplete.</p>'+
     (qualified?'<button class="button" data-track="'+encodeURIComponent(key)+'">'+
       (saved?'Saved in my paper list':'Add to paper trial')+'</button>':'')+
     '</div></details>';
