@@ -1,0 +1,27 @@
+name: PIF Racing V2 beta page checks
+on:
+  push:
+    branches: [pif-v2-independent-beta-20261026]
+    paths: ['v2.html', '.github/workflows/pif-v2-beta-check.yml']
+  pull_request:
+    branches: [main]
+    paths: ['v2.html']
+jobs:
+  isolated-beta-page:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check independent-page JavaScript syntax
+        run: |
+          python - <<'PY'
+          import pathlib,re
+          doc=pathlib.Path('v2.html').read_text()
+          scripts=re.findall(r'<script>(.*?)</script>',doc,flags=re.S|re.I)
+          assert len(scripts)==1, 'Expected one self-contained script'
+          pathlib.Path('/tmp/pif_v2_beta_script.js').write_text(scripts[0])
+          assert 'v2-races' in scripts[0] and 'session_token' in scripts[0]
+          assert 'Experimental, not a betting recommendation' in doc
+          assert 'Original scanner' in doc
+          PY
+          node --check /tmp/pif_v2_beta_script.js
