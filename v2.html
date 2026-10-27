@@ -48,14 +48,14 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <header>
 <div class="logo">PIF</div>
 <div><strong>Racing V2</strong><small>Independent scanner · Research beta</small></div>
-<a href="./index.html">Original scanner</a>
+<a href="./database.html">Racing database</a>
 </header>
 <h1>All races. Our own rankings.</h1>
 <p>V2 uses historical results, ratings, conditions and trainer/jockey evidence. Bookmaker prices do not determine the rankings.</p>
 <div class="notice"><strong>Experimental, not a betting recommendation.</strong> The displayed percentages are uncalibrated PIF model shares, not reliable win probabilities. No horse is labelled value or each-way qualified.</div>
 <section id="signin" class="card" hidden>
 <h2>Private access</h2>
-<p>Use the same scanner code as the original PIF Racing website.</p>
+<p>Use your existing PIF Racing scanner access code.</p>
 <form id="login-form">
 <label for="pin">Scanner access code</label>
 <input id="pin" type="password" autocomplete="off" required minlength="8">
@@ -77,7 +77,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 </section>
 <div id="status" role="status" aria-live="polite"></div>
 <footer>
-V2 is a separate experimental system. No selections, results or formulas in the original scanner have been modified. Racing odds shown here are indicative and may be stale. No wagering functions are provided.
+PIF Racing V2 is the active scanner interface. Its independent ranking model is experimental; displayed shares are not calibrated win/place probabilities. Historical models are archived for comparison only. Prices are indicative. No wagering functions are provided.
 </footer>
 </main>
 <script>
@@ -167,7 +167,7 @@ async function reload(){
  }catch(err){
   if(/session_expired|unauthorised/.test(err.message)){token='';localStorage.removeItem(KEY);authUi()}
   status('V2 unavailable: '+err.message,true);
-  get('races').innerHTML='<div class="card"><strong>V2 is temporarily unavailable.</strong><p>The original scanner remains accessible from the top link.</p></div>';
+  get('races').innerHTML='<div class="card"><strong>V2 is temporarily unavailable.</strong><p>Please retry V2 in a moment; no old-model selections will be substituted.</p></div>';
  }finally{loading=false;get('reload').disabled=false}
 }
 authUi();if(token)reload();
