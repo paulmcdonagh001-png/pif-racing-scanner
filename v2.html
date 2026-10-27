@@ -152,6 +152,8 @@ function render(){
  '<div class="meta">'+escapeHtml(r.type)+' · '+escapeHtml(r.distance)+' · '+escapeHtml(r.going)+' · '+r.field_size+' runners</div></div>'+
  '<small class="meta">V2 beta</small></div>'+
  (r.top_three||[]).map(h=>row(h,r.type)).join('')+
+ ((r.all_runners||[]).filter(h=>Number(h.prior_runs_recorded)>=3).length<3?
+ '<div class="insufficient">Limited same-type evidence: fewer than three horses have 3+ recorded '+escapeHtml(r.type)+' runs. These ranks are especially uncertain.</div>':'')+
  (!r.top_three?.length?'<div class="insufficient">Insufficient independent evidence to rank this race reliably.</div>':'')+
  '<details><summary>All runner rankings</summary><div class="others">'+
  (r.all_runners||[]).map(h=>escapeHtml(h.model_rank)+'. '+escapeHtml(h.horse)+' — '+escapeHtml(h.prior_runs_recorded)+' same-type runs · '+escapeHtml(h.other_code_runs_recorded||0)+' other-code runs · win % not validated').join('<div style="height:5px"></div>')+
