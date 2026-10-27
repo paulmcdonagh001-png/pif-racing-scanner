@@ -166,12 +166,21 @@ async function reload(){
  status('Loading independent V2 racing analysis…');
  try{
   const data=await request('/v2-races',{session_token:token,day});
+  if(data.status==='PREPARING'){
+    const done=Number(data.progress?.done||0),total=Number(data.progress?.total||0);
+    status('Fetching today's race histories from Racing API… '+(total>1?done+' / '+total+' steps':'Preparing source data')+'. No database copy is being made.');
+    get('races').innerHTML='<div class="card"><strong>V2 analysis is preparing</strong><p>First scan may take a few minutes as we request horse histories and recent results directly from The Racing API. This is not a V1 selection list.</p></div>';
+    setTimeout(()=>{if(token)reload()},7000);
+    return;
+  }
+  if(data.status==='SOURCE_UNAVAILABLE')
+    throw Error('Racing API history could not be verified ('+String(data.error_type||'source error')+'). No substitute predictions have been shown. Retry after two minutes.');
   if(data.status!=='RESEARCH_ONLY'||!String(data.version||'').startsWith('pif-v2-independent-'))
     throw Error('V2 backend version not available. The original scanner is unchanged.');
   entries=Array.isArray(data.races)?data.races:[];
   updateFilters();render();
   get('loaded-time').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-  status('V2 beta · live racecards loaded · no validated value selections');
+  status('V2 beta · source: '+(data.evidence_source==='RACING_API_STANDARD_ON_DEMAND'?'Racing API (on demand)':'historical research')+' · no validated value selections');
  }catch(err){
   if(/session_expired|unauthorised/.test(err.message)){token='';localStorage.removeItem(KEY);authUi()}
   status('V2 unavailable: '+err.message,true);
