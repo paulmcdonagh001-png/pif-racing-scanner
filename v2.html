@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#081725">
-<title>PIF Racing V2 | Independent scanner beta</title>
+<title>PIF Racing V2 | Independent research rankings</title>
 <meta name="description" content="Private, research-only PIF Racing V2 independent all-races ranking beta. No validated betting value.">
 <style>
 :root{color-scheme:dark;--bg:#081725;--card:#11283b;--panel:#163146;--line:#304b60;--ink:#f1f6f9;--muted:#a9becc;--mint:#81dec0;--amber:#f7d396}
@@ -52,7 +52,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 </header>
 <h1>All races. Our own rankings.</h1>
 <p>V2 uses historical results, ratings, conditions and trainer/jockey evidence. Bookmaker prices do not determine the rankings.</p>
-<div class="notice"><strong>Experimental, not a betting recommendation.</strong> The displayed percentages are uncalibrated PIF model shares, not reliable win probabilities. No horse is labelled value or each-way qualified.</div>
+<div class="notice"><strong>Experimental rankings — no verified win or place percentages.</strong> V2 is still being checked against real results. Rankings are not betting recommendations and no runner has proven value. Run counts refer to previous races in the same race type; other-code history is listed separately.</div>
 <section id="signin" class="card" hidden>
 <h2>Private access</h2>
 <p>Use your existing PIF Racing scanner access code.</p>
@@ -77,7 +77,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 </section>
 <div id="status" role="status" aria-live="polite"></div>
 <footer>
-PIF Racing V2 is the active scanner interface. Its independent ranking model is experimental; displayed shares are not calibrated win/place probabilities. Historical models are archived for comparison only. Prices are indicative. No wagering functions are provided.
+PIF Racing V2 is the active scanner interface. Rankings are experimental and are not calibrated win/place probabilities. Same-type history may omit previous NH Flat or other-code races; such history is identified separately. Historical models are archived for comparison only. Prices are indicative. No wagering functions are provided.
 </footer>
 </main>
 <script>
@@ -129,26 +129,32 @@ function updateFilters(){
 function britishTime(raw){
  try{return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(raw));}catch(_){return '—'}
 }
-function row(h){
+function row(h,raceType){
  const odds=h.quote?.decimal?' · '+escapeHtml(h.quote.source)+' '+Number(h.quote.decimal).toFixed(2):' · No usable price';
+ const same=Number(h.prior_runs_recorded),other=Number(h.other_code_runs_recorded||0);
+ const sameText=Number.isInteger(same)&&same>=0?same+' recorded '+raceType+' run'+(same===1?'':'s'):'Same-type history not available';
+ const codeBreakdown=Object.entries(h.other_code_run_types||{}).filter(([k,v])=>Number(v)>0)
+    .map(([k,v])=>String(v)+' '+k).join(' · ');
+ const otherText=codeBreakdown?' · '+escapeHtml(codeBreakdown)+' (other code)':
+    other>0?' · '+other+' other-code runs':'';
+ const limited=same<3?'<div class="details" style="color:var(--amber)">Limited same-type evidence</div>':'';
  return '<div class="horse"><div class="position">'+Number(h.model_rank)+'</div>'+
  '<div><div class="horse-name">'+escapeHtml(h.horse)+'</div>'+
- '<div class="details">'+escapeHtml(h.prior_runs_recorded)+' recorded runs · '+escapeHtml(h.course_wins_recorded)+' course wins'+odds+'</div>'+
- (h.evidence_status==='PARTIAL_HISTORY'?'<div class="details" style="color:var(--amber)">Limited history</div>':'')+
- '</div><div class="prob">'+Number(h.research_share_pct).toFixed(1)+'%<small>V2 share</small></div></div>';
+ '<div class="details">'+escapeHtml(sameText)+otherText+' · '+escapeHtml(h.course_wins_recorded)+' course wins'+odds+'</div>'+
+ limited+'</div><div class="prob">—<small>Win % unverified</small></div></div>';
 }
 function render(){
  const cv=get('course').value,typ=get('code').value;
  const rs=entries.filter(x=>(cv==='all'||x.course===cv)&&(typ==='all'||x.type===typ));
- get('summary').textContent=rs.length+' races shown · '+entries.length+' available · PIF V2 independent research rankings';
+ get('summary').textContent=rs.length+' races shown · '+entries.length+' available · Independent V2 rankings (win/place probabilities not validated)';
  get('races').innerHTML=rs.map(r=>'<article class="meeting">'+
  '<div class="meeting-heading"><div><div class="meeting-title">'+escapeHtml(britishTime(r.off_utc))+' '+escapeHtml(r.course)+'</div>'+
  '<div class="meta">'+escapeHtml(r.type)+' · '+escapeHtml(r.distance)+' · '+escapeHtml(r.going)+' · '+r.field_size+' runners</div></div>'+
  '<small class="meta">V2 beta</small></div>'+
- (r.top_three||[]).map(row).join('')+
+ (r.top_three||[]).map(h=>row(h,r.type)).join('')+
  (!r.top_three?.length?'<div class="insufficient">Insufficient independent evidence to rank this race reliably.</div>':'')+
  '<details><summary>All runner rankings</summary><div class="others">'+
- (r.all_runners||[]).map(h=>escapeHtml(h.model_rank)+'. '+escapeHtml(h.horse)+' — '+Number(h.research_share_pct).toFixed(1)+'% research share').join('<div style="height:5px"></div>')+
+ (r.all_runners||[]).map(h=>escapeHtml(h.model_rank)+'. '+escapeHtml(h.horse)+' — '+escapeHtml(h.prior_runs_recorded)+' same-type runs · '+escapeHtml(h.other_code_runs_recorded||0)+' other-code runs · win % not validated').join('<div style="height:5px"></div>')+
  '</div></details></article>').join('')||
  '<div class="card"><strong>No races in this filter.</strong><p>Try a different course, race type or day.</p></div>';
 }
