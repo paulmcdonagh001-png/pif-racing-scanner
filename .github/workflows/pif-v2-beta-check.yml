@@ -25,6 +25,6 @@ jobs:
           assert 'Win % unverified' in doc
           assert 'same race type' in doc
           assert 'research_share_pct' not in scripts[0]
-          assert 'Original scanner' in doc
+          assert 'The original scanner is unchanged' in doc
           PY
           node --check /tmp/pif_v2_beta_script.js
