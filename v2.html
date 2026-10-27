@@ -187,7 +187,7 @@ async function reload(){
   const data=await request('/v2-races',{session_token:token,day});
   if(data.status==='PREPARING'){
     const done=Number(data.progress?.done||0),total=Number(data.progress?.total||0);
-    status('Fetching today's race histories from Racing API… '+(total>1?done+' / '+total+' steps':'Preparing source data')+'. No database copy is being made.');
+    status('Fetching today’s race histories from Racing API… '+(total>1?done+' / '+total+' steps':'Preparing source data')+'. No database copy is being made.');
     get('races').innerHTML='<div class="card"><strong>V2 analysis is preparing</strong><p>First scan may take a few minutes as we request horse histories and recent results directly from The Racing API. This is not a V1 selection list.</p></div>';
     setTimeout(()=>{if(token)reload()},7000);
     return;
