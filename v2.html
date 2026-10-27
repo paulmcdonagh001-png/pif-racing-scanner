@@ -180,7 +180,9 @@ async function reload(){
   entries=Array.isArray(data.races)?data.races:[];
   updateFilters();render();
   get('loaded-time').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-  status('V2 beta · source: '+(data.evidence_source==='RACING_API_STANDARD_ON_DEMAND'?'Racing API (on demand)':'historical research')+' · no validated value selections');
+  const ledger=data.ledger_status==='FROZEN'?'V2 forward results tracking active':
+     'Forward results tracking paused while database is recovered';
+  status('V2 beta · source: '+(data.evidence_source==='RACING_API_STANDARD_ON_DEMAND'?'Racing API (on demand)':'historical research')+' · '+ledger+' · no validated value selections');
  }catch(err){
   if(/session_expired|unauthorised/.test(err.message)){token='';localStorage.removeItem(KEY);authUi()}
   status('V2 unavailable: '+err.message,true);
