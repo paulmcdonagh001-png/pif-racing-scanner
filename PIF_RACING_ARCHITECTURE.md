@@ -1,3 +1,17 @@
+# PIF Racing — ACTIVE V2 architecture (27 October 2026)
+
+- **Main website:** https://pif-racing-scanner.onrender.com/ redirects to `v2.html`. Installed app starts at `v2.html`; old offline cache retired.
+- **V2 backend:** Private service `pif-racing-paper` at https://pif-racing-paper.onrender.com, authenticated `POST /v2-races`, using existing session token and PIN. V2 model lives in the private repo `pif_racing/v2_reset.py`.
+- **Data:** The Racing API Standard racecards, private PostgreSQL horse history, trainer/jockey observations, historical results. Existing ingestion, Render instances, protected database and licensed archives retained.
+- **V2 result:** independent per-race top-three ranking research with indicative odds. Existing model's `research_share_pct` is NOT a calibrated win chance, place chance, profitable selection, or certified market value.
+- **Legacy:** 61-factor V9 scanner interface (`v1.js`, Git history) and `/racecards` older research output are ARCHIVED for rollback/audit only. Never use them in V2's rankings, UI or value assessments. Historical ledgers remain preserved.
+- **Status:** V2 experimental beta deployed, full validation and true win/place probability model outstanding. Never claim a proven betting edge or expose private thresholds/raw licensed data.
+- **Service deployment:** Existing Render static-site service auto-deploys from `pif-racing-scanner/main`. Private backend auto-deploys from `pif-football/pif-racing-paper-v08`. No new paid service or added API subscription was created.
+
+---
+
+## Archived 14 October description
+
 # PIF Racing — current architecture (14 October 2026)
 
 ## What is actually in use
