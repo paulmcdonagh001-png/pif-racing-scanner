@@ -1,7 +1,7 @@
 name: PIF Racing V2 beta page checks
 on:
   push:
-    branches: [pif-v2-independent-beta-20261026]
+    branches: [main, pif-v2-independent-beta-20261026]
     paths: ['v2.html', '.github/workflows/pif-v2-beta-check.yml']
   pull_request:
     branches: [main]
@@ -21,7 +21,10 @@ jobs:
           assert len(scripts)==1, 'Expected one self-contained script'
           pathlib.Path('/tmp/pif_v2_beta_script.js').write_text(scripts[0])
           assert 'v2-races' in scripts[0] and 'session_token' in scripts[0]
-          assert 'Experimental, not a betting recommendation' in doc
+          assert 'Experimental rankings' in doc
+          assert 'Win % unverified' in doc
+          assert 'same race type' in doc
+          assert 'research_share_pct' not in scripts[0]
           assert 'Original scanner' in doc
           PY
           node --check /tmp/pif_v2_beta_script.js
