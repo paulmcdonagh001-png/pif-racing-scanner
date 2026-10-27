@@ -72,6 +72,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <div><label for="course">Racecourse</label><select id="course"><option value="all">All courses</option></select></div>
 <div><label for="code">Race type</label><select id="code"><option value="all">All types</option></select></div>
 </div>
+<div id="forward-record" class="card"><strong>V2 forward-test record</strong><p>Checking results tracking status…</p></div>
 <div id="summary">Open today's racing to view the independent V2 rankings.</div>
 <div id="races"></div>
 </section>
@@ -143,6 +144,24 @@ function row(h,raceType){
  '<div class="details">'+escapeHtml(sameText)+otherText+' · '+escapeHtml(h.course_wins_recorded)+' course wins'+odds+'</div>'+
  limited+'</div><div class="prob">—<small>Win % unverified</small></div></div>';
 }
+async function updateForwardRecord(){
+ if(!token)return;
+ try{
+  const data=await request('/v2-performance',{session_token:token});
+  const el=get('forward-record');
+  if(data.status!=='FORWARD_LEDGER_ACTIVE'){
+   el.innerHTML='<strong>V2 forward-test record</strong><p>Tracking is paused while the shared database is recovered. Today’s displayed rankings are not yet permanently recorded.</p>';
+   return;
+  }
+  const groups=Array.isArray(data.codes)?data.codes:[];
+  el.innerHTML='<strong>V2 forward-test record · unique first-frozen selections</strong>'+
+  (groups.length?'<p>'+groups.map(x=>escapeHtml(x.code)+': '+Number(x.races_frozen)+' races frozen, '+Number(x.rank1_settled)+' rank-one horses settled, '+Number(x.rank1_winners)+' winners').join(' · ')+'</p>':
+    '<p>No frozen V2 races recorded yet.</p>')+
+    '<p>Research only. Sample sizes and market-adjusted value are not yet validated.</p>';
+ }catch(_){
+  get('forward-record').innerHTML='<strong>V2 forward-test record</strong><p>Performance ledger currently unavailable. Predictions remain experimental.</p>';
+ }
+}
 function render(){
  const cv=get('course').value,typ=get('code').value;
  const rs=entries.filter(x=>(cv==='all'||x.course===cv)&&(typ==='all'||x.type===typ));
@@ -178,7 +197,7 @@ async function reload(){
   if(data.status!=='RESEARCH_ONLY'||!String(data.version||'').startsWith('pif-v2-independent-'))
     throw Error('V2 backend version not available. The original scanner is unchanged.');
   entries=Array.isArray(data.races)?data.races:[];
-  updateFilters();render();
+  updateFilters();render();updateForwardRecord();
   get('loaded-time').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
   const ledger=data.ledger_status==='FROZEN'?'V2 forward results tracking active':
      'Forward results tracking paused while database is recovered';
