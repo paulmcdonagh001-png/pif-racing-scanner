@@ -22,7 +22,7 @@ jobs:
           pathlib.Path('/tmp/pif_v2_beta_script.js').write_text(scripts[0])
           assert 'v2-races' in scripts[0] and 'session_token' in scripts[0]
           assert 'Experimental rankings' in doc
-          assert 'Win % unverified' in doc
+          assert 'No validated win %' in doc
           assert 'same race type' in doc
           assert 'research_share_pct' not in scripts[0]
           assert 'The original scanner is unchanged' in doc
