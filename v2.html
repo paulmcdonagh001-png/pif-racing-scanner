@@ -72,6 +72,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <div><label for="course">Racecourse</label><select id="course"><option value="all">All courses</option></select></div>
 <div><label for="code">Race type</label><select id="code"><option value="all">All types</option></select></div>
 </div>
+<label class="row" style="display:flex;align-items:center;gap:8px;font-size:12px;margin:11px 0"><input id="show-started" type="checkbox" style="width:auto;min-width:16px" /> Show races already off (for review)</label>
 <div id="forward-record" class="card"><strong>V2 forward-test record</strong><p>Checking results tracking status…</p></div>
 <div id="summary">Open today's racing to view the independent V2 rankings.</div>
 <div id="races"></div>
@@ -118,10 +119,22 @@ document.querySelectorAll('[data-day]').forEach(b=>b.addEventListener('click',()
 get('reload').addEventListener('click',reload);
 get('course').addEventListener('change',render);
 get('code').addEventListener('change',render);
+get('show-started').addEventListener('change',render);
+function raceGroup(r){
+ const type=String(r.type||'').trim();
+ if(!/^flat$/i.test(type))return type;
+ const course=String(r.course||''),going=String(r.going||'');
+ if(/\(\s*(?:AW|All[- ]Weather)\s*\)/i.test(course)||
+    /\b(?:standard(?:\s+to\s+slow)?|polytrack|tapeta|fibresand)\b/i.test(going))
+   return 'Flat · All-Weather';
+ if(/\b(?:good|soft|heavy|firm|yielding|hard)\b/i.test(going))
+   return 'Flat · Turf';
+ return 'Flat · Surface unconfirmed';
+}
 function updateFilters(){
  const selectedCourse=get('course').value,selectedType=get('code').value;
  const courses=[...new Set(entries.map(r=>r.course).filter(Boolean))].sort();
- const types=[...new Set(entries.map(r=>r.type).filter(Boolean))].sort();
+ const types=[...new Set(entries.map(r=>raceGroup(r)).filter(Boolean))].sort();
  get('course').innerHTML='<option value="all">All courses</option>'+courses.map(c=>'<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+'</option>').join('');
  get('code').innerHTML='<option value="all">All types</option>'+types.map(c=>'<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+'</option>').join('');
  if(courses.includes(selectedCourse))get('course').value=selectedCourse;
@@ -157,6 +170,7 @@ async function updateForwardRecord(){
   el.innerHTML='<strong>V2 forward-test record · unique first-frozen selections</strong>'+
   (groups.length?'<p>'+groups.map(x=>escapeHtml(x.code)+': '+Number(x.races_frozen)+' races frozen, '+Number(x.rank1_settled)+' rank-one horses settled, '+Number(x.rank1_winners)+' winners').join(' · ')+'</p>':
     '<p>No frozen V2 races recorded yet.</p>')+
+    '<p>Current frozen baseline groups both Flat surfaces together. Separate race-type models are not validated yet.</p>'+
     '<p>Research only. Sample sizes and market-adjusted value are not yet validated.</p>';
  }catch(_){
   get('forward-record').innerHTML='<strong>V2 forward-test record</strong><p>Performance ledger currently unavailable. Predictions remain experimental.</p>';
@@ -164,12 +178,18 @@ async function updateForwardRecord(){
 }
 function render(){
  const cv=get('course').value,typ=get('code').value;
- const rs=entries.filter(x=>(cv==='all'||x.course===cv)&&(typ==='all'||x.type===typ));
- get('summary').textContent=rs.length+' races shown · '+entries.length+' available · Independent V2 rankings (win/place probabilities not validated)';
+ const matches=entries.filter(x=>(cv==='all'||x.course===cv)&&(typ==='all'||raceGroup(x)===typ));
+ const now=Date.now();
+ const showStarted=get('show-started').checked;
+ const rs=matches.filter(x=>showStarted||day!=='today'||Date.parse(x.off_utc)>now);
+ const hidden=matches.length-rs.length;
+ get('summary').textContent=rs.length+' races shown · '+entries.length+' available'+
+   (hidden?' · '+hidden+' already off (hidden)':'')+
+   ' · Surface categories are filters, NOT separate trained models; win/place probabilities unverified';
  get('races').innerHTML=rs.map(r=>'<article class="meeting">'+
  '<div class="meeting-heading"><div><div class="meeting-title">'+escapeHtml(britishTime(r.off_utc))+' '+escapeHtml(r.course)+'</div>'+
- '<div class="meta">'+escapeHtml(r.type)+' · '+escapeHtml(r.distance)+' · '+escapeHtml(r.going)+' · '+r.field_size+' runners</div></div>'+
- '<small class="meta">V2 beta</small></div>'+
+ '<div class="meta">'+escapeHtml(raceGroup(r))+' · '+escapeHtml(r.distance)+' · '+escapeHtml(r.going)+' · '+r.field_size+' runners</div></div>'+
+ '<small class="meta">'+(Date.parse(r.off_utc)<=now?'Off · result pending':'V2 beta')+'</small></div>'+
  (r.top_three||[]).map(h=>row(h,r.type)).join('')+
  ((r.all_runners||[]).filter(h=>Number(h.prior_runs_recorded)>=3).length<3?
  '<div class="insufficient">Limited same-type evidence: fewer than three horses have 3+ recorded '+escapeHtml(r.type)+' runs. These ranks are especially uncertain.</div>':'')+
@@ -209,6 +229,7 @@ async function reload(){
  }finally{loading=false;get('reload').disabled=false}
 }
 authUi();if(token)reload();
+setInterval(()=>{if(token&&!loading&&day==='today')render()},60000);
 </script>
 </body>
 </html>
