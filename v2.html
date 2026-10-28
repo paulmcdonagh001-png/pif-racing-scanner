@@ -151,13 +151,33 @@ function row(h,raceType){
     .map(([k,v])=>String(v)+' '+k).join(' · ');
  const otherText=codeBreakdown?' · '+escapeHtml(codeBreakdown)+' (other code)':
     other>0?' · '+other+' other-code runs':'';
- const limited=same<5?'<div class="details" style="color:var(--amber)">Limited comparable '+escapeHtml(raceType)+' history ('+same+' recorded runs)</div>':'';
+ const limited=same<3?'<div class="details" style="color:var(--amber)"><strong>Very limited evidence:</strong> '+same+' recorded prior '+escapeHtml(raceType)+' run'+(same===1?'':'s')+'. Ranking should not be treated as a selection.</div>':same<5?'<div class="details" style="color:var(--amber)">Limited comparable history: '+same+' recorded '+escapeHtml(raceType)+' runs</div>':'';
+ const facts=h.evidence_facts||{};
+ const count=(x)=>Number.isFinite(Number(x))?Number(x):0;
+ const form=Array.isArray(facts.last_five_finishes)?facts.last_five_finishes.filter(Boolean).slice(0,5):[];
+ const formText=form.length?'Recent finishes (latest first): '+escapeHtml(form.join(' · ')):'Recent finishing sequence: not available';
+ const courseStarts=Number(facts.course_starts);
+ const tripStarts=Number(facts.similar_trip_starts);
+ const goingStarts=Number(facts.similar_going_starts);
+ const context=(Number.isFinite(courseStarts)?'Course '+count(facts.course_wins)+' win'+(count(facts.course_wins)===1?'':'s')+' from '+courseStarts+' recorded runs':'Course wins '+count(h.course_wins_recorded)+' (total runs not available)')+
+   ' · Similar trip top-three finishes: '+count(h.trip_top3_recorded)+(Number.isFinite(tripStarts)?' / '+tripStarts:'')+
+   ' · Similar going top-three finishes: '+count(h.going_top3_recorded)+(Number.isFinite(goingStarts)?' / '+goingStarts:'');
+ const recordLines='<div class="details">'+escapeHtml(context)+'</div>'+
+   (form.length?'<div class="details">'+formText+'</div>':'');
+ const trainer=facts.trainer_30d,jockey=facts.jockey_30d;
+ const stat=(x,label)=>x&&Number(x.runs)>0?label+': '+count(x.wins)+' wins / '+count(x.runs)+' runs':label+': sample unavailable';
+ const supporting=(trainer||jockey)?
+    '<div class="details">Recent 30-day form · '+escapeHtml(stat(trainer,'Trainer'))+' · '+escapeHtml(stat(jockey,'Jockey'))+'</div>':'';
+ const rating=(facts.official_rating!=null&&Number(facts.official_rating)>0)?
+    '<div class="details">Official rating: '+escapeHtml(facts.official_rating)+
+      (facts.days_since_last!=null?' · Last raced '+escapeHtml(facts.days_since_last)+' days ago':'')+'</div>':'';
+
  const factors=Array.isArray(h.ranking_evidence)?h.ranking_evidence.filter(x=>typeof x==='string').slice(0,2):[];
  const evidence=factors.length?'<div class="details">Why model ranks it highly: '+factors.map(escapeHtml).join(' · ')+'</div>':'';
  return '<div class="horse"><div class="position">'+Number(h.model_rank)+'</div>'+
  '<div><div class="horse-name">'+escapeHtml(h.horse)+'</div>'+
  '<div class="details">'+escapeHtml(sameText)+otherText+' · '+escapeHtml(h.course_wins_recorded)+' course wins'+odds+'</div>'+
- limited+evidence+'</div><div class="prob">—<small>Win % unverified</small></div></div>';
+ limited+recordLines+supporting+rating+evidence+'</div><div class="prob">—<small>No validated win %</small></div></div>';
 }
 async function updateForwardRecord(){
  if(!token)return;
@@ -211,6 +231,10 @@ function render(){
  '<div class="meeting-heading"><div><div class="meeting-title">'+escapeHtml(britishTime(r.off_utc))+' '+escapeHtml(r.course)+'</div>'+
  '<div class="meta">'+escapeHtml(raceGroup(r))+' · '+escapeHtml(r.distance)+' · '+escapeHtml(r.going)+' · '+r.field_size+' runners</div></div>'+
  '<small class="meta">'+(Date.parse(r.off_utc)<=now?'Off · result pending':'V2 beta')+'</small></div>'+
+ ((r.all_runners||[]).filter(h=>Number(h.prior_runs_recorded)>=3).length*2 < Number(r.field_size)?
+ '<div class="insufficient"><strong>LOW EVIDENCE — no supported selection:</strong> Only '+
+ (r.all_runners||[]).filter(h=>Number(h.prior_runs_recorded)>=3).length+' of '+Number(r.field_size)+
+ ' runners have at least three recorded '+escapeHtml(r.type)+' runs. The order below is for research only.</div>':'')+
  (r.top_three||[]).map(h=>row(h,r.type)).join('')+
  marketDisagreement(r)+
  ((r.all_runners||[]).filter(h=>Number(h.prior_runs_recorded)>=3).length<3?
