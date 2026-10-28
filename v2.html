@@ -173,11 +173,17 @@ function row(h,raceType){
       (facts.days_since_last!=null?' · Last raced '+escapeHtml(facts.days_since_last)+' days ago':'')+'</div>':'';
 
  const factors=Array.isArray(h.ranking_evidence)?h.ranking_evidence.filter(x=>typeof x==='string').slice(0,2):[];
- const evidence=factors.length?'<div class="details">Why model ranks it highly: '+factors.map(escapeHtml).join(' · ')+'</div>':'';
+ const evidence=factors.length?'<div class="details">Positive influences on this experimental rank: '+factors.map(escapeHtml).join(' · ')+'</div>':'';
+ const identity=[];
+ if(h.runner_age)identity.push(String(h.runner_age)+'yo');
+ if(/^flat$/i.test(raceType)&&Number(h.draw)>0)identity.push('Stall '+String(h.draw));
+ if(h.trainer_name)identity.push('Trainer: '+String(h.trainer_name));
+ if(h.jockey_name)identity.push('Jockey: '+String(h.jockey_name));
+ const runnerContext=identity.length?'<div class="details">'+identity.map(escapeHtml).join(' · ')+'</div>':'';
  return '<div class="horse"><div class="position">'+Number(h.model_rank)+'</div>'+
  '<div><div class="horse-name">'+escapeHtml(h.horse)+'</div>'+
  '<div class="details">'+escapeHtml(sameText)+otherText+' · '+escapeHtml(h.course_wins_recorded)+' course wins'+odds+'</div>'+
- limited+recordLines+supporting+rating+evidence+'</div><div class="prob">—<small>No validated win %</small></div></div>';
+ runnerContext+limited+recordLines+supporting+rating+evidence+'</div><div class="prob">—<small>No validated win %</small></div></div>';
 }
 async function updateForwardRecord(){
  if(!token)return;
@@ -229,20 +235,26 @@ function render(){
    ' · Surface categories are filters, NOT separate trained models; win/place probabilities unverified';
  get('races').innerHTML=rs.map(r=>'<article class="meeting">'+
  '<div class="meeting-heading"><div><div class="meeting-title">'+escapeHtml(britishTime(r.off_utc))+' '+escapeHtml(r.course)+'</div>'+
- '<div class="meta">'+escapeHtml(raceGroup(r))+' · '+escapeHtml(r.distance)+' · '+escapeHtml(r.going)+' · '+r.field_size+' runners</div></div>'+
+ (r.race_name?'<div class="details">'+escapeHtml(r.race_name)+'</div>':'')+
+ '<div class="meta">'+escapeHtml(raceGroup(r))+
+ (r.age_band?' · '+escapeHtml(r.age_band):'')+
+ ' · '+escapeHtml(r.distance)+' · '+escapeHtml(r.going)+' · '+r.field_size+' runners</div></div>'+
  '<small class="meta">'+(Date.parse(r.off_utc)<=now?'Off · result pending':'V2 beta')+'</small></div>'+
  ((r.all_runners||[]).filter(h=>Number(h.prior_runs_recorded)>=3).length*2 < Number(r.field_size)?
  '<div class="insufficient"><strong>LOW EVIDENCE — no supported selection:</strong> Only '+
  (r.all_runners||[]).filter(h=>Number(h.prior_runs_recorded)>=3).length+' of '+Number(r.field_size)+
- ' runners have at least three recorded '+escapeHtml(r.type)+' runs. The order below is for research only.</div>':'')+
+ ' runners have at least three recorded '+escapeHtml(r.type)+' runs. '+
+ (/\b(maiden|novice|beginners)\b/i.test(String(r.race_name||'')) || /\b2yo\b/i.test(String(r.age_band||''))?
+ 'Limited racing experience can be normal for this age/race category, but these rankings are still tentative.':
+ 'These rankings are tentative because comparable form is sparse.')+'</div>':'')+
  (r.top_three||[]).map(h=>row(h,r.type)).join('')+
  marketDisagreement(r)+
  ((r.all_runners||[]).filter(h=>Number(h.prior_runs_recorded)>=3).length<3?
  '<div class="insufficient">Limited same-type evidence: fewer than three horses have 3+ recorded '+escapeHtml(r.type)+' runs. These ranks are especially uncertain.</div>':'')+
  (!r.top_three?.length?'<div class="insufficient">Insufficient independent evidence to rank this race reliably.</div>':'')+
- '<details><summary>All runner rankings</summary><div class="others">'+
- (r.all_runners||[]).map(h=>escapeHtml(h.model_rank)+'. '+escapeHtml(h.horse)+' — '+escapeHtml(h.prior_runs_recorded)+' same-type runs · '+escapeHtml(h.other_code_runs_recorded||0)+' other-code runs · win % not validated').join('<div style="height:5px"></div>')+
- '</div></details></article>').join('')||
+ '<details><summary>Show other runners (ranks 4 onward) with full evidence</summary>'+
+ (r.all_runners||[]).slice(3).map(h=>row(h,r.type)).join('')+
+ '</details></article>').join('')||
  '<div class="card"><strong>No races in this filter.</strong><p>Try a different course, race type or day.</p></div>';
 }
 async function reload(){
