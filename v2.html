@@ -92,6 +92,10 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
  .form-chip{min-width:31px;padding:4px 5px}
 }
 
+.shadow-audit{margin-top:7px;border-top:1px solid var(--line)}
+.shadow-audit summary{color:var(--mint);padding:8px 2px;font-size:12px}
+.shadow-audit-content{padding:0 4px 6px}
+.shadow-audit-content p{margin:6px 0;font-size:12px}
 </style>
 </head>
 <body>
@@ -279,12 +283,26 @@ async function updateForwardRecord(){
   const data=await request('/v2-performance',{session_token:token});
   const el=get('forward-record');
   if(data.status!=='FORWARD_LEDGER_ACTIVE'){
-   el.innerHTML='<strong>V2 forward-test record</strong><p>Tracking is paused while the shared database is recovered. Today’s displayed rankings are not yet permanently recorded.</p>';
+   el.innerHTML='<strong>V2 forward-test record</strong><p>Recording is currently paused or unavailable. Rankings remain experimental; contact the Racing administrator before relying on a recorded result.</p>';
    return;
   }
   const groups=Array.isArray(data.codes)?data.codes:[];
   const cohorts=Array.isArray(data.research_codes)?data.research_codes:[];
   const flatCohorts=cohorts.filter(x=>String(x.code||'').startsWith('Flat'));
+  const shadows=Array.isArray(data.specialist_shadow_codes)?data.specialist_shadow_codes:[];
+  const shadowTotal=shadows.reduce((sum,x)=>sum+Number(x.frozen_races||0),0);
+  const paired=shadows.reduce((sum,x)=>sum+Number(x.comparable_races||0),0);
+  const shadowDetail=shadows.length?
+    '<details class="shadow-audit"><summary>Specialist model comparison · '+shadowTotal+
+      ' frozen races · '+paired+' fully comparable</summary>'+
+      '<div class="shadow-audit-content">'+shadows.map(x=>
+        '<p><strong>'+escapeHtml(x.code)+'</strong> · '+
+        Number(x.comparable_races||0)+' completed comparisons · '+
+        'Specialist '+Number(x.shadow_rank1_wins||0)+' wins / '+
+        'Original '+Number(x.baseline_rank1_wins_same_races||0)+' wins'+
+        (Number(x.comparable_races||0)<100?' · Too early to judge':' · Unvalidated observational results')+
+        '</p>').join('')+'</div></details>':
+    '<p><strong>Specialist comparisons:</strong> No first-frozen challenger races recorded yet. The original V2 record is preserved.</p>';
   el.innerHTML='<strong>V2 forward-test record · unique first-frozen selections</strong>'+
   (groups.length?'<p>'+groups.map(x=>escapeHtml(x.code)+': '+Number(x.races_frozen)+' races frozen, '+Number(x.rank1_settled)+' rank-one horses settled, '+Number(x.rank1_winners)+' winners').join(' · ')+'</p>':
     '<p>No frozen V2 races recorded yet.</p>')+
@@ -292,7 +310,8 @@ async function updateForwardRecord(){
        flatCohorts.map(x=>escapeHtml(x.code)+': '+Number(x.races_frozen)+' races, '+
          Number(x.rank1_settled)+' settled').join(' · ')+'</p>':'')+
     '<p>Older Flat forecasts remain combined as legacy unsplit records. Surface cohorts use the same experimental V2 alpha formula; separate fitted models are not validated yet.</p>'+
-    '<p>Research only. Sample sizes and market-adjusted value are not yet validated.</p>';
+    shadowDetail+
+    '<p>Research only. Shadow weights are experimental and market-adjusted value is not validated.</p>';
  }catch(_){
   get('forward-record').innerHTML='<strong>V2 forward-test record</strong><p>Performance ledger currently unavailable. Predictions remain experimental.</p>';
  }
