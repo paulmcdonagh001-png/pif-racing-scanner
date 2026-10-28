@@ -151,11 +151,13 @@ function row(h,raceType){
     .map(([k,v])=>String(v)+' '+k).join(' · ');
  const otherText=codeBreakdown?' · '+escapeHtml(codeBreakdown)+' (other code)':
     other>0?' · '+other+' other-code runs':'';
- const limited=same<3?'<div class="details" style="color:var(--amber)">Limited same-type evidence</div>':'';
+ const limited=same<5?'<div class="details" style="color:var(--amber)">Limited comparable '+escapeHtml(raceType)+' history ('+same+' recorded runs)</div>':'';
+ const factors=Array.isArray(h.ranking_evidence)?h.ranking_evidence.filter(x=>typeof x==='string').slice(0,2):[];
+ const evidence=factors.length?'<div class="details">Why model ranks it highly: '+factors.map(escapeHtml).join(' · ')+'</div>':'';
  return '<div class="horse"><div class="position">'+Number(h.model_rank)+'</div>'+
  '<div><div class="horse-name">'+escapeHtml(h.horse)+'</div>'+
  '<div class="details">'+escapeHtml(sameText)+otherText+' · '+escapeHtml(h.course_wins_recorded)+' course wins'+odds+'</div>'+
- limited+'</div><div class="prob">—<small>Win % unverified</small></div></div>';
+ limited+evidence+'</div><div class="prob">—<small>Win % unverified</small></div></div>';
 }
 async function updateForwardRecord(){
  if(!token)return;
@@ -181,6 +183,20 @@ async function updateForwardRecord(){
   get('forward-record').innerHTML='<strong>V2 forward-test record</strong><p>Performance ledger currently unavailable. Predictions remain experimental.</p>';
  }
 }
+function marketDisagreement(r){
+ const first=(r.top_three||[])[0];
+ if(!first||Number(first.model_rank)!==1)return '';
+ const lead=Number(first.quote?.decimal);
+ const others=(r.all_runners||[]).filter(h=>String(h.horse_id)!==String(first.horse_id))
+   .map(h=>Number(h.quote?.decimal)).filter(v=>Number.isFinite(v)&&v>1.01);
+ if(!Number.isFinite(lead)||lead<=1.01||others.length<2)return '';
+ const shortest=Math.min(...others);
+ if(lead<shortest*2)return '';
+ return '<div class="insufficient"><strong>Market disagreement — review, not value:</strong> '+
+   escapeHtml(first.horse)+' is ranked first at indicative odds '+lead.toFixed(2)+
+   ', while another runner is quoted at '+shortest.toFixed(2)+
+   '. The ranking is experimental; quotes are not verified executable prices.</div>';
+}
 function render(){
  const cv=get('course').value,typ=get('code').value;
  const matches=entries.filter(x=>(cv==='all'||x.course===cv)&&(typ==='all'||raceGroup(x)===typ));
@@ -196,6 +212,7 @@ function render(){
  '<div class="meta">'+escapeHtml(raceGroup(r))+' · '+escapeHtml(r.distance)+' · '+escapeHtml(r.going)+' · '+r.field_size+' runners</div></div>'+
  '<small class="meta">'+(Date.parse(r.off_utc)<=now?'Off · result pending':'V2 beta')+'</small></div>'+
  (r.top_three||[]).map(h=>row(h,r.type)).join('')+
+ marketDisagreement(r)+
  ((r.all_runners||[]).filter(h=>Number(h.prior_runs_recorded)>=3).length<3?
  '<div class="insufficient">Limited same-type evidence: fewer than three horses have 3+ recorded '+escapeHtml(r.type)+' runs. These ranks are especially uncertain.</div>':'')+
  (!r.top_three?.length?'<div class="insufficient">Insufficient independent evidence to rank this race reliably.</div>':'')+
