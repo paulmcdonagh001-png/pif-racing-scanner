@@ -41,6 +41,57 @@ summary{cursor:pointer;color:var(--muted);font-size:12px;padding:10px 12px;borde
 #status{font-size:12px;min-height:21px;color:var(--muted);margin:9px 0}
 footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;padding-top:13px;font-size:11px;line-height:1.6}
 @media(max-width:370px){.horse-name{font-size:14px}.prob{font-size:17px}header strong{font-size:16px}}
+
+/* V2 compact scan hierarchy: price/form/comparables first; detail on demand. */
+.horse{display:block;padding:13px 14px 12px;border-top:1px solid var(--line)}
+.horse-main{display:grid;grid-template-columns:34px minmax(0,1fr) minmax(68px,94px);align-items:center;gap:11px}
+.horse .position{width:32px;height:32px;font-size:14px;background:#183b45;border-color:#588f85}
+.horse-intro{min-width:0}
+.horse-name{font-size:17px;line-height:1.22;font-weight:800;letter-spacing:-.012em}
+.horse-context{margin-top:4px;color:#c6d6e1;font-size:12px;line-height:1.4}
+.horse-price{text-align:right;align-self:start;min-width:0}
+.horse-price strong{display:block;font-size:22px;line-height:1.14;color:var(--ink);font-weight:850;font-variant-numeric:tabular-nums}
+.horse-price span{display:block;color:#bed4e2;font-size:10px;overflow-wrap:anywhere}
+.horse-price small{display:block;font-size:10px;color:#91a8b8}
+.horse-body{margin:10px 0 0 45px}
+.low-history{border-left:3px solid var(--amber);padding:5px 8px;margin-bottom:10px;background:#302c28;color:var(--amber);font-size:12px;font-weight:650}
+.form-strip{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.form-label{font-size:10px;letter-spacing:.05em;font-weight:850;color:#a8c0cf}
+.form-label small{font-size:10px;font-weight:400;letter-spacing:0;color:var(--muted)}
+.form-values{display:flex;flex-wrap:wrap;gap:5px}
+.form-chip{min-width:37px;padding:4px 7px;text-align:center;border:1px solid #48647a;border-radius:6px;background:#20394c;color:#e1edf5;font-size:12px;font-weight:750;font-variant-numeric:tabular-nums}
+.form-chip.form-placed{background:#1b453e;border-color:#477b6e;color:#b5f0d8}
+.form-missing{color:var(--muted);font-size:12px}
+.metric-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:10px}
+.metric{background:#0b2336;border:1px solid #355066;border-radius:8px;padding:8px 10px;min-width:0}
+.metric-name{display:block;color:#c4d6e1;font-size:11px;font-weight:650}
+.metric-value{display:block;color:var(--ink);font-size:19px;font-weight:850;line-height:1.2;letter-spacing:-.025em;font-variant-numeric:tabular-nums}
+.metric-value span{color:#b7c9d6;font-size:14px;font-weight:550}
+.metric-empty{display:block;font-size:19px;color:#879bad}
+.metric-note{display:block;font-size:10px;color:#adbfcc;line-height:1.3}
+.horse-why{font-size:11px;line-height:1.4;color:#b8cfde;margin-top:8px}
+.horse-why strong{color:#dfecf4;margin-right:5px}
+.horse-extra{border-top:1px solid #294456;margin-top:10px}
+.horse-extra>summary{padding:8px 0 0;border:0;font-size:12px;color:var(--mint);font-weight:600}
+.horse-extra-body{margin-top:8px;color:#c2d4de;font-size:12px}
+.horse-extra-body p{margin:5px 0;line-height:1.45}
+.horse-extra-body b{color:#e2eff5}
+@media(max-width:480px){
+ .horse{padding:12px 10px}
+ .horse-main{grid-template-columns:30px minmax(0,1fr) 75px;gap:7px}
+ .horse .position{width:28px;height:28px}
+ .horse-name{font-size:15px}
+ .horse-context{font-size:11px}
+ .horse-price strong{font-size:19px}
+ .horse-body{margin-left:0}
+ .metric{padding:8px 7px}
+ .metric-value{font-size:17px}
+ .metric-value span{font-size:12px}
+ .metric-note{font-size:9px}
+ .metric-name{font-size:10px}
+ .form-chip{min-width:31px;padding:4px 5px}
+}
+
 </style>
 </head>
 <body>
@@ -144,46 +195,83 @@ function britishTime(raw){
  try{return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(raw));}catch(_){return '—'}
 }
 function row(h,raceType){
- const odds=h.quote?.decimal?' · '+escapeHtml(h.quote.source)+' '+Number(h.quote.decimal).toFixed(2):' · No usable price';
- const same=Number(h.prior_runs_recorded),other=Number(h.other_code_runs_recorded||0);
- const sameText=Number.isInteger(same)&&same>=0?same+' recorded '+raceType+' run'+(same===1?'':'s'):'Same-type history not available';
- const codeBreakdown=Object.entries(h.other_code_run_types||{}).filter(([k,v])=>Number(v)>0)
-    .map(([k,v])=>String(v)+' '+k).join(' · ');
- const otherText=codeBreakdown?' · '+escapeHtml(codeBreakdown)+' (other code)':
-    other>0?' · '+other+' other-code runs':'';
- const limited=same<3?'<div class="details" style="color:var(--amber)"><strong>Very limited evidence:</strong> '+same+' recorded prior '+escapeHtml(raceType)+' run'+(same===1?'':'s')+'. Ranking should not be treated as a selection.</div>':same<5?'<div class="details" style="color:var(--amber)">Limited comparable history: '+same+' recorded '+escapeHtml(raceType)+' runs</div>':'';
  const facts=h.evidence_facts||{};
- const count=(x)=>Number.isFinite(Number(x))?Number(x):0;
- const form=Array.isArray(facts.last_five_finishes)?facts.last_five_finishes.filter(Boolean).slice(0,5):[];
- const formText=form.length?'Recent finishes (latest first): '+escapeHtml(form.join(' · ')):'Recent finishing sequence: not available';
- const courseStarts=Number(facts.course_starts);
- const tripStarts=Number(facts.similar_trip_starts);
- const goingStarts=Number(facts.similar_going_starts);
- const context=(Number.isFinite(courseStarts)?'Course '+count(facts.course_wins)+' win'+(count(facts.course_wins)===1?'':'s')+' from '+courseStarts+' recorded runs':'Course wins '+count(h.course_wins_recorded)+' (total runs not available)')+
-   ' · Similar trip top-three finishes: '+count(h.trip_top3_recorded)+(Number.isFinite(tripStarts)?' / '+tripStarts:'')+
-   ' · Similar going top-three finishes: '+count(h.going_top3_recorded)+(Number.isFinite(goingStarts)?' / '+goingStarts:'');
- const recordLines='<div class="details">'+escapeHtml(context)+'</div>'+
-   (form.length?'<div class="details">'+formText+'</div>':'');
- const trainer=facts.trainer_30d,jockey=facts.jockey_30d;
- const stat=(x,label)=>x&&Number(x.runs)>0?label+': '+count(x.wins)+' wins / '+count(x.runs)+' runs':label+': sample unavailable';
- const supporting=(trainer||jockey)?
-    '<div class="details">Recent 30-day form · '+escapeHtml(stat(trainer,'Trainer'))+' · '+escapeHtml(stat(jockey,'Jockey'))+'</div>':'';
- const rating=(facts.official_rating!=null&&Number(facts.official_rating)>0)?
-    '<div class="details">Official rating: '+escapeHtml(facts.official_rating)+
-      (facts.days_since_last!=null?' · Last raced '+escapeHtml(facts.days_since_last)+' days ago':'')+'</div>':'';
-
- const factors=Array.isArray(h.ranking_evidence)?h.ranking_evidence.filter(x=>typeof x==='string').slice(0,2):[];
- const evidence=factors.length?'<div class="details">Positive influences on this experimental rank: '+factors.map(escapeHtml).join(' · ')+'</div>':'';
- const identity=[];
- if(h.runner_age)identity.push(String(h.runner_age)+'yo');
- if(/^flat$/i.test(raceType)&&Number(h.draw)>0)identity.push('Stall '+String(h.draw));
- if(h.trainer_name)identity.push('Trainer: '+String(h.trainer_name));
- if(h.jockey_name)identity.push('Jockey: '+String(h.jockey_name));
- const runnerContext=identity.length?'<div class="details">'+identity.map(escapeHtml).join(' · ')+'</div>':'';
- return '<div class="horse"><div class="position">'+Number(h.model_rank)+'</div>'+
- '<div><div class="horse-name">'+escapeHtml(h.horse)+'</div>'+
- '<div class="details">'+escapeHtml(sameText)+otherText+' · '+escapeHtml(h.course_wins_recorded)+' course wins'+odds+'</div>'+
- runnerContext+limited+recordLines+supporting+rating+evidence+'</div><div class="prob">—<small>No validated win %</small></div></div>';
+ const numeric=v=>v===null||v===undefined||v===''?null:(Number.isFinite(Number(v))?Number(v):null);
+ const count=v=>numeric(v)??0;
+ const rank=count(h.model_rank);
+ const prior=numeric(h.prior_runs_recorded);
+ const other=count(h.other_code_runs_recorded);
+ const price=numeric(h.quote?.decimal);
+ const hasPrice=price!==null&&price>1;
+ const source=hasPrice?String(h.quote?.source||'Quoted'):'No quote';
+ const age=String(h.runner_age||'').trim(), stall=numeric(h.draw);
+ const rating=numeric(facts.official_rating), days=numeric(facts.days_since_last);
+ const context=[];
+ if(age)context.push(age+'yo');
+ if(/^flat$/i.test(raceType)&&stall!==null&&stall>0)context.push('Stall '+stall);
+ if(rating!==null&&rating>0)context.push('OR '+rating);
+ context.push((prior===null?'Unknown':prior)+' recorded '+raceType+' runs');
+ if(days!==null&&days>=0)context.push('Last ran '+days+'d ago');
+ const form=Array.isArray(facts.last_five_finishes)?
+   facts.last_five_finishes.filter(Boolean).slice(0,5):[];
+ const formChips=form.length?form.map(v=>{
+   const result=String(v);
+   const m=result.match(/^(\d+)/);
+   const placed=m&&Number(m[1])<=3;
+   return '<span class="form-chip'+(placed?' form-placed':'')+'">'+escapeHtml(result)+'</span>';
+ }).join(''):'<span class="form-missing">No recent finishing positions recorded</span>';
+ function metric(label,top,bottom,unit){
+   const a=numeric(top),b=numeric(bottom);
+   const recorded=b!==null&&b>0;
+   return '<div class="metric"><span class="metric-name">'+escapeHtml(label)+'</span>'+
+    (recorded?'<strong class="metric-value">'+count(a)+'<span> / '+b+'</span></strong>':
+    '<strong class="metric-empty">—</strong>')+
+    '<span class="metric-note">'+(recorded?escapeHtml(unit):'No comparable runs')+'</span></div>';
+ }
+ const courseWins=facts.course_wins??h.course_wins_recorded;
+ const topTrip=facts.similar_trip_top_three??h.trip_top3_recorded;
+ const topGoing=facts.similar_going_top_three??h.going_top3_recorded;
+ const metrics=metric('Course',courseWins,facts.course_starts,'wins / runs')+
+               metric('Distance',topTrip,facts.similar_trip_starts,'top 3 / runs')+
+               metric('Going',topGoing,facts.similar_going_starts,'top 3 / runs');
+ const factors=Array.isArray(h.ranking_evidence)?
+  h.ranking_evidence.filter(x=>typeof x==='string').slice(0,2):[];
+ const why=factors.length?'<div class="horse-why"><strong>Model factors</strong> '+factors.map(escapeHtml).join(' · ')+'</div>':'';
+ const limited=prior!==null&&prior<3?
+   '<div class="low-history">Limited history — provisional rank only ('+prior+' prior runs)</div>':'';
+ const detailParts=[];
+ if(h.trainer_name)detailParts.push('<p><b>Trainer:</b> '+escapeHtml(h.trainer_name)+'</p>');
+ if(h.jockey_name)detailParts.push('<p><b>Jockey:</b> '+escapeHtml(h.jockey_name)+'</p>');
+ function recent(label,data){
+   const n=numeric(data?.runs);
+   return '<p><b>'+label+', last 30 days:</b> '+
+    (n!==null&&n>0?count(data.wins)+' wins from '+n+' recorded runs':
+     'No sufficient recorded sample')+'</p>';
+ }
+ detailParts.push(recent('Trainer record',facts.trainer_30d));
+ detailParts.push(recent('Jockey record',facts.jockey_30d));
+ const breakDown=Object.entries(h.other_code_run_types||{}).filter(([k,v])=>count(v)>0)
+    .map(([k,v])=>escapeHtml(String(v)+' '+k));
+ if(other>0)detailParts.push('<p><b>Other race types:</b> '+(breakDown.length?breakDown.join(' · '):other+' runs')+'</p>');
+ if(factors.length)detailParts.push('<p><b>Why the model ranked this horse here:</b> '+
+    factors.map(escapeHtml).join(' · ')+'. These are model contributions, not proof of winning chance.</p>');
+ const more='<details class="horse-extra"><summary>Trainer, jockey &amp; full explanation</summary>'+
+    '<div class="horse-extra-body">'+detailParts.join('')+'</div></details>';
+ return '<div class="horse'+(rank<=3?' horse-featured':'')+'">'+
+   '<div class="horse-main">'+
+    '<div class="position" aria-label="Research rank '+rank+'">'+rank+'</div>'+
+    '<div class="horse-intro"><div class="horse-name">'+escapeHtml(h.horse)+'</div>'+
+     '<div class="horse-context">'+context.map(escapeHtml).join(' · ')+'</div></div>'+
+    '<div class="horse-price"><strong>'+ (hasPrice?price.toFixed(2):'—')+'</strong>'+
+     '<span>'+escapeHtml(source)+'</span><small>Indicative odds</small></div>'+
+   '</div>'+
+   '<div class="horse-body">'+limited+
+    '<div class="form-strip"><span class="form-label">RECENT FORM <small>latest first</small></span>'+
+     '<div class="form-values">'+formChips+'</div></div>'+
+    '<div class="metric-grid">'+metrics+'</div>'+
+    why+more+
+   '</div>'+
+ '</div>';
 }
 async function updateForwardRecord(){
  if(!token)return;
