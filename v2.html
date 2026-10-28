@@ -167,10 +167,15 @@ async function updateForwardRecord(){
    return;
   }
   const groups=Array.isArray(data.codes)?data.codes:[];
+  const cohorts=Array.isArray(data.research_codes)?data.research_codes:[];
+  const flatCohorts=cohorts.filter(x=>String(x.code||'').startsWith('Flat'));
   el.innerHTML='<strong>V2 forward-test record · unique first-frozen selections</strong>'+
   (groups.length?'<p>'+groups.map(x=>escapeHtml(x.code)+': '+Number(x.races_frozen)+' races frozen, '+Number(x.rank1_settled)+' rank-one horses settled, '+Number(x.rank1_winners)+' winners').join(' · ')+'</p>':
     '<p>No frozen V2 races recorded yet.</p>')+
-    '<p>Current frozen baseline groups both Flat surfaces together. Separate race-type models are not validated yet.</p>'+
+    (flatCohorts.length?'<p><strong>Flat surface record:</strong> '+
+       flatCohorts.map(x=>escapeHtml(x.code)+': '+Number(x.races_frozen)+' races, '+
+         Number(x.rank1_settled)+' settled').join(' · ')+'</p>':'')+
+    '<p>Older Flat forecasts remain combined as legacy unsplit records. Surface cohorts use the same experimental V2 alpha formula; separate fitted models are not validated yet.</p>'+
     '<p>Research only. Sample sizes and market-adjusted value are not yet validated.</p>';
  }catch(_){
   get('forward-record').innerHTML='<strong>V2 forward-test record</strong><p>Performance ledger currently unavailable. Predictions remain experimental.</p>';
