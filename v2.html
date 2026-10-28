@@ -292,7 +292,9 @@ async function updateForwardRecord(){
   const shadows=Array.isArray(data.specialist_shadow_codes)?data.specialist_shadow_codes:[];
   const shadowTotal=shadows.reduce((sum,x)=>sum+Number(x.frozen_races||0),0);
   const paired=shadows.reduce((sum,x)=>sum+Number(x.comparable_races||0),0);
-  const shadowDetail=shadows.length?
+  const shadowDetail=data.specialist_shadow_status==='UNAVAILABLE'?
+    '<p><strong>Specialist comparison unavailable:</strong> results could not be read. This does not mean zero predictions were recorded.</p>':
+    shadows.length?
     '<details class="shadow-audit"><summary>Specialist model comparison · '+shadowTotal+
       ' frozen races · '+paired+' fully comparable</summary>'+
       '<div class="shadow-audit-content">'+shadows.map(x=>
