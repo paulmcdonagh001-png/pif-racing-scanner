@@ -22,9 +22,52 @@ jobs:
           pathlib.Path('/tmp/pif_v2_beta_script.js').write_text(scripts[0])
           assert 'v2-races' in scripts[0] and 'session_token' in scripts[0]
           assert 'Experimental rankings' in doc
-          assert 'No validated win %' in doc
+          assert 'Indicative odds' in doc
+          assert 'metric-grid' in doc and 'form-chip' in doc
+          assert 'Trainer, jockey &amp; full explanation' in doc
+          assert 'No validated win %' not in doc
           assert 'same race type' in doc
           assert 'research_share_pct' not in scripts[0]
           assert 'The original scanner is unchanged' in doc
           PY
           node --check /tmp/pif_v2_beta_script.js
+      - name: Check compact evidence cards with real numeric fields
+        run: |
+          node - <<'NODE'
+          const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+          const source=fs.readFileSync('/tmp/pif_v2_beta_script.js','utf8');
+          const begin=source.indexOf('function row(h,raceType){');
+          const end=source.indexOf('async function updateForwardRecord(){',begin);
+          assert(begin!==-1&&end>begin,'Compact horse renderer missing');
+          const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,ch=>({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+          }[ch]));
+          const row=vm.runInNewContext(source.slice(begin,end)+'\nrow;', {escapeHtml});
+          const h={
+            horse:'Jazzit',model_rank:1,prior_runs_recorded:17,runner_age:4,
+            draw:3,quote:{decimal:4.5,source:'Betfair Exchange'},trainer_name:'Trainer',
+            jockey_name:'Jockey',ranking_evidence:['Course and trip record'],
+            evidence_facts:{official_rating:55,days_since_last:12,
+              last_five_finishes:['1st','4th','10th','2nd','3rd'],
+              course_wins:1,course_starts:4,similar_trip_top_three:5,
+              similar_trip_starts:7,similar_going_top_three:4,
+              similar_going_starts:5,trainer_30d:{wins:3,runs:30},
+              jockey_30d:{wins:2,runs:30}}
+          };
+          const html=row(h,'Flat');
+          for(const part of ['Jazzit','4.50','Betfair Exchange','OR 55',
+              '1st','10th','Course','Distance','Going','1<span> / 4</span>',
+              '5<span> / 7</span>','4<span> / 5</span>',
+              'Trainer, jockey &amp; full explanation','3 wins from 30']) {
+            assert(html.includes(part),'Missing: '+part);
+          }
+          assert(!html.includes('No validated win %'),'Removed placeholder came back');
+          const sparse=row({horse:'No form',model_rank:4,prior_runs_recorded:0,
+            quote:null,evidence_facts:{}},'Hurdle');
+          assert(sparse.includes('Limited history'));
+          assert(sparse.includes('No comparable runs'));
+          const injection=row({horse:'<script>x</script>',model_rank:9,
+            prior_runs_recorded:0,evidence_facts:{}},'Flat');
+          assert(!injection.includes('<script>'),'Horse field XSS regression');
+          console.log('Compact ranking display, sparse-data disclosure and escaping passed');
+          NODE
