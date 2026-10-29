@@ -340,7 +340,21 @@ function row(h,raceType){
  const courseWins=facts.course_wins??h.course_wins_recorded;
  const topTrip=facts.similar_trip_top_three??h.trip_top3_recorded;
  const topGoing=facts.similar_going_top_three??h.going_top3_recorded;
- const metrics=metric('Course',courseWins,facts.course_starts,'wins / runs')+
+ const courseRuns=numeric(facts.course_starts);
+ const courseState=String(facts.course_evidence_status||'');
+ // Zero at course is different from unavailable course identity.
+ const courseNote=courseState==='COURSE_DATA_UNAVAILABLE'?'Course history unavailable':
+   courseState==='NO_PREVIOUS_FORM'?'No previous runs recorded':
+   courseState==='NOT_RACED_HERE'?'No recorded runs at this course':
+   'No matching course runs recorded';
+ const courseMetric='<div class="metric"><span class="metric-name">Course</span>'+
+   (courseRuns!==null&&courseRuns>0?
+      '<strong class="metric-value">'+count(courseWins)+'<span> / '+courseRuns+'</span></strong>'+
+      '<span class="metric-note">wins / runs at course</span>':
+      '<strong class="metric-empty">'+(courseState==='COURSE_DATA_UNAVAILABLE'?'—':'0')+'</strong>'+
+      '<span class="metric-note">'+escapeHtml(courseNote)+'</span>')+
+   '</div>';
+ const metrics=courseMetric+
                metric('Distance',topTrip,facts.similar_trip_starts,'top 3 / runs')+
                metric('Going',topGoing,facts.similar_going_starts,'top 3 / runs');
  const factors=h.display_model?[]:Array.isArray(h.ranking_evidence)?
