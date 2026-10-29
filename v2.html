@@ -301,6 +301,14 @@ function row(h,raceType){
  const rank=numeric(h.display_rank);
  const prior=numeric(h.display_prior_runs??h.prior_runs_recorded);
  const other=count(h.other_code_runs_recorded);
+ const transition=h.jump_research&&typeof h.jump_research==='object'?h.jump_research:{};
+ const priorDiscipline=String(transition.previous_discipline||'');
+ const priorStarts=numeric(transition.previous_discipline_starts);
+ const priorWins=numeric(transition.previous_discipline_wins);
+ const previousForm=priorStarts!==null&&priorStarts>0&&
+   (priorDiscipline==='NH Flat'||priorDiscipline==='Hurdle')?
+   priorDiscipline+': '+priorStarts+' previous runs'+
+   (priorWins!==null?' · '+priorWins+' wins':''):'';
  const price=numeric(h.quote?.decimal);
  const hasPrice=price!==null&&price>1;
  const source=hasPrice?String(h.quote?.source||'Quoted'):'No quote';
@@ -311,6 +319,7 @@ function row(h,raceType){
  if(/^flat$/i.test(raceType)&&stall!==null&&stall>0)context.push('Stall '+stall);
  if(rating!==null&&rating>0)context.push('OR '+rating);
  context.push((prior===null?'Unknown':prior)+' recorded '+raceType+' runs');
+ if(previousForm)context.push(previousForm);
  if(days!==null&&days>=0)context.push('Last ran '+days+'d ago');
  const form=Array.isArray(facts.last_five_finishes)?
    facts.last_five_finishes.filter(Boolean).slice(0,5):[];
@@ -338,7 +347,10 @@ function row(h,raceType){
   h.ranking_evidence.filter(x=>typeof x==='string').slice(0,2):[];
  const why=factors.length?'<div class="horse-why"><strong>Model factors</strong> '+factors.map(escapeHtml).join(' · ')+'</div>':'';
  const limited=prior!==null&&prior<3?
-   '<div class="low-history">Limited comparable history: '+prior+' recorded runs</div>':'';
+   '<div class="low-history">Limited '+escapeHtml(raceType)+' history: '+prior+' recorded runs'+
+     (previousForm?'. Previous '+escapeHtml(priorDiscipline)+
+       ' results shown separately, not scored as '+escapeHtml(raceType)+' results.':'')+
+   '</div>':'';
  const detailParts=[];
  if(h.trainer_name)detailParts.push('<p><b>Trainer:</b> '+escapeHtml(h.trainer_name)+'</p>');
  if(h.jockey_name)detailParts.push('<p><b>Jockey:</b> '+escapeHtml(h.jockey_name)+'</p>');
@@ -353,6 +365,8 @@ function row(h,raceType){
  const breakDown=Object.entries(h.other_code_run_types||{}).filter(([k,v])=>count(v)>0)
     .map(([k,v])=>escapeHtml(String(v)+' '+k));
  if(other>0)detailParts.push('<p><b>Other race types:</b> '+(breakDown.length?breakDown.join(' · '):other+' runs')+'</p>');
+ if(previousForm)detailParts.push('<p><b>Previous-discipline record:</b> '+escapeHtml(previousForm)+
+   '. A novice hurdle can be a first hurdles run without being the horse’s first race. This is context only, not included in the current same-discipline hurdle score.</p>');
  if(factors.length)detailParts.push('<p><b>Why the model ranked this horse here:</b> '+
     factors.map(escapeHtml).join(' · ')+'. These are model contributions, not proof of winning chance.</p>');
  const more='<details class="horse-extended"><summary>See course, distance, going &amp; full explanation</summary>'+
@@ -430,18 +444,30 @@ async function updateForwardRecord(){
  }
 }
 function marketDisagreement(r){
- const first=(r.top_three||[])[0];
- if(!first||Number(first.display_rank)!==1)return '';
- const lead=Number(first.quote?.decimal);
- const others=(r.all_runners||[]).filter(h=>String(h.horse_id)!==String(first.horse_id))
-   .map(h=>Number(h.quote?.decimal)).filter(v=>Number.isFinite(v)&&v>1.01);
- if(!Number.isFinite(lead)||lead<=1.01||others.length<2)return '';
- const shortest=Math.min(...others);
- if(lead<shortest*2)return '';
- return '<div class="insufficient"><strong>Market disagreement — review, not value:</strong> '+
-   escapeHtml(first.horse)+' is ranked first at indicative odds '+lead.toFixed(2)+
-   ', while another runner is quoted at '+shortest.toFixed(2)+
-   '. The ranking is experimental; quotes are not verified executable prices.</div>';
+ const ranked=(r.all_runners||[]).filter(h=>Number.isInteger(Number(h.display_rank))&&Number(h.display_rank)>0);
+ const quoted=ranked.map(h=>({runner:h,price:Number(h.quote?.decimal)}))
+   .filter(x=>Number.isFinite(x.price)&&x.price>1.01);
+ if(quoted.length<3)return '';
+ quoted.sort((a,b)=>a.price-b.price);
+ const favorite=quoted[0],modelFirst=ranked.find(h=>Number(h.display_rank)===1);
+ if(!modelFirst||modelFirst.horse_id===favorite.runner.horse_id)return '';
+ const firstPrice=Number(modelFirst.quote?.decimal);
+ if(!Number.isFinite(firstPrice)||firstPrice<favorite.price*2)return '';
+ const sparse=r.display_status==='PROVISIONAL_SPECIALIST_RANKING';
+ const prefix=sparse?'Provisional ranking unreliable — market favourite differs':'Market disagreement — review, not value';
+ const prev=favorite.runner.jump_research||{};
+ const bumperNote=(r.display_race_code==='Hurdle'&&prev.previous_discipline==='NH Flat'&&
+                   Number(prev.previous_discipline_starts)>0)?
+   ' Pre-hurdle bumper form: '+Number(prev.previous_discipline_wins||0)+
+   ' wins from '+Number(prev.previous_discipline_starts)+' recorded runs.'+
+   ' Those wins have not been scored as hurdle wins.':'';
+ return '<div class="insufficient"><strong>'+escapeHtml(prefix)+':</strong> '+
+  escapeHtml(favorite.runner.horse)+' is the shortest-priced horse at indicative '+
+  favorite.price.toFixed(2)+' (PIF rank '+Number(favorite.runner.display_rank)+
+  '), while '+escapeHtml(modelFirst.horse)+' is ranked first at '+firstPrice.toFixed(2)+
+  '. '+(sparse?'There is too little relevant form to trust the top-three order. ':
+     'The model and market disagree. ')+'Prices are indicative, not confirmed executable odds.'+
+  escapeHtml(bumperNote)+'</div>';
 }
 
 // These are illustrative payout comparisons only. PIF model ranks have NOT
