@@ -222,7 +222,7 @@ const get=id=>document.getElementById(id);
 const escapeHtml=value=>String(value==null?'':value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 let token='',day='today',entries=[],loading=false;
 const collapsedRaces=new Set();
-const expandedRunners=new Set();
+const runnerOpenStates=new Map();
 const raceKey=r=>day+'|'+String(r.race_id||[r.off_utc,r.course,r.race_name].join('|'));
 function updateRaceToggle(){
  const items=[...get('races').querySelectorAll('details.meeting')];
@@ -679,7 +679,8 @@ function render(){
  marketDisagreement(r)+
  marketPanel(r)+
  '<details class="other-runners" data-runners-key="'+escapeHtml(raceKey(r))+'"'+
- (expandedRunners.has(raceKey(r))||!['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status)?' open':'')+'><summary>'+
+ ((runnerOpenStates.has(raceKey(r))?runnerOpenStates.get(raceKey(r)):
+    !['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status))?' open':'')+'><summary>'+
  (['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status)?'Show / hide ranks 4 onward':'Show / hide runners (not ranked)')+
  '</summary>'+
  (['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status)?(r.all_runners||[]).slice(3):(r.all_runners||[]))
@@ -696,8 +697,7 @@ function render(){
  updateRaceToggle();
  get('races').querySelectorAll('details.other-runners').forEach(el=>{
    el.addEventListener('toggle',()=>{
-     if(el.open)expandedRunners.add(el.dataset.runnersKey);
-     else expandedRunners.delete(el.dataset.runnersKey);
+     runnerOpenStates.set(el.dataset.runnersKey,el.open);
    });
  });
  get('races').querySelectorAll('.market-tool').forEach(panel=>marketRefresh(panel,true));
