@@ -130,6 +130,14 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .race-model-line{margin-top:5px;font-size:12px;color:#c0d7e4;line-height:1.35}
 .race-model-line strong{color:var(--mint);font-weight:800}
 
+
+.forward-model-table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px;table-layout:auto}
+.forward-model-table th,.forward-model-table td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+.forward-model-table th:first-child,.forward-model-table td:first-child{text-align:left}
+.forward-model-table th{font-weight:700;color:#cde0e8;font-size:10px}
+@media(max-width:480px){.forward-model-table{font-size:11px}
+.forward-model-table th,.forward-model-table td{padding:6px 3px}
+.forward-model-table th{font-size:9px}}
 </style>
 </head>
 <body>
@@ -334,44 +342,55 @@ function row(h,raceType){
 }
 async function updateForwardRecord(){
  if(!token)return;
+ const el=get('forward-record');
+ const name="Forward results: our five formulas vs original";
+ const closed=(body)=>'<details><summary>'+name+' (optional)</summary>'+body+'</details>';
  try{
   const data=await request('/v2-performance',{session_token:token});
-  const el=get('forward-record');
   if(data.status!=='FORWARD_LEDGER_ACTIVE'){
-   el.innerHTML='<details><summary>Research results &amp; testing (optional)</summary><p>Tracking temporarily unavailable. Rankings are still experimental.</p></details>';
-   return;
+    el.innerHTML=closed('<p>Results tracking is currently unavailable.</p>');
+    return;
   }
-  const groups=Array.isArray(data.codes)?data.codes:[];
-  const cohorts=Array.isArray(data.research_codes)?data.research_codes:[];
-  const flatCohorts=cohorts.filter(x=>String(x.code||'').startsWith('Flat'));
-  const shadows=Array.isArray(data.specialist_shadow_codes)?data.specialist_shadow_codes:[];
-  const shadowTotal=shadows.reduce((sum,x)=>sum+Number(x.frozen_races||0),0);
-  const paired=shadows.reduce((sum,x)=>sum+Number(x.comparable_races||0),0);
-  const shadowDetail=data.specialist_shadow_status==='UNAVAILABLE'?
-    '<p><strong>Specialist comparison unavailable:</strong> results could not be read. This does not mean zero predictions were recorded.</p>':
-    shadows.length?
-    '<details class="shadow-audit"><summary>Specialist model comparison · '+shadowTotal+
-      ' frozen races · '+paired+' fully comparable</summary>'+
-      '<div class="shadow-audit-content">'+shadows.map(x=>
-        '<p><strong>'+escapeHtml(x.code)+'</strong> · '+
-        Number(x.comparable_races||0)+' completed comparisons · '+
-        'Specialist '+Number(x.shadow_rank1_wins||0)+' wins / '+
-        'Original '+Number(x.baseline_rank1_wins_same_races||0)+' wins'+
-        (Number(x.comparable_races||0)<100?' · Too early to judge':' · Unvalidated observational results')+
-        '</p>').join('')+'</div></details>':
-    '<p><strong>Specialist comparisons:</strong> No first-frozen challenger races recorded yet. The original V2 record is preserved.</p>';
-  el.innerHTML='<details><summary>Research results &amp; testing (optional)</summary>'+
-  '<p>Original V2 forward-test record · unique first-frozen selections</p>'+
-  (groups.length?'<p>'+groups.map(x=>escapeHtml(x.code)+': '+Number(x.races_frozen)+' races frozen, '+Number(x.rank1_settled)+' rank-one horses settled, '+Number(x.rank1_winners)+' winners').join(' · ')+'</p>':
-    '<p>No frozen V2 races recorded yet.</p>')+
-    (flatCohorts.length?'<p><strong>Flat surface record:</strong> '+
-       flatCohorts.map(x=>escapeHtml(x.code)+': '+Number(x.races_frozen)+' races, '+
-         Number(x.rank1_settled)+' settled').join(' · ')+'</p>':'')+
-    '<p>Older Flat forecasts remain combined as legacy unsplit records. Surface cohorts use the same experimental V2 alpha formula; separate fitted models are not validated yet.</p>'+
-    shadowDetail+
-    '<p>Research only. Shadow weights are experimental and market-adjusted value is not validated.</p></details>';
+  const previous=Array.isArray(data.specialist_shadow_codes)?data.specialist_shadow_codes:[];
+  const aw=Array.isArray(data.aw_fitted_shadow_codes)?data.aw_fitted_shadow_codes:[];
+  const turf=Array.isArray(data.turf_shadow_codes)?data.turf_shadow_codes:[];
+  const rows=[
+    ['All-Weather',aw.find(x=>x.code==='Flat AW'),data.aw_fitted_shadow_status],
+    ['Flat Turf',turf.find(x=>x.code==='Flat Turf'),data.turf_shadow_status],
+    ['Hurdles',previous.find(x=>x.code==='Hurdle'),data.specialist_shadow_status],
+    ['Chases',previous.find(x=>x.code==='Chase'),data.specialist_shadow_status],
+    ['National Hunt Flat',previous.find(x=>x.code==='NH Flat'),data.specialist_shadow_status],
+  ];
+  const number=x=>Number.isFinite(Number(x))?Number(x):0;
+  const table='<table class="forward-model-table"><thead><tr>'+
+    '<th>Race type</th><th>Recorded</th><th>Completed</th><th>Our formula</th><th>Old formula</th></tr></thead>'+
+    '<tbody>'+rows.map(([name,info,status])=>{
+      if(status==='UNAVAILABLE')return '<tr><td>'+escapeHtml(name)+'</td><td colspan="4">Comparison unavailable</td></tr>';
+      const counted=number(info?.comparable_races);
+      return '<tr><td>'+escapeHtml(name)+'</td>'+
+        '<td>'+number(info?.frozen_races)+'</td>'+
+        '<td>'+counted+'</td>'+
+        '<td>'+number(info?.shadow_rank1_wins)+'</td>'+
+        '<td>'+number(info?.baseline_rank1_wins_same_races)+'</td></tr>';
+    }).join('')+'</tbody></table>';
+  const nCompleted=rows.reduce((n,[,info,status])=>n+(status==='UNAVAILABLE'?0:number(info?.comparable_races)),0);
+  const intro=nCompleted?
+    '<p><strong>Results so far:</strong> These are completed races where both choices were saved before the off. Winners are counted, not just favourites.</p>':
+    '<p><strong>Waiting for completed comparisons.</strong> The system is saving eligible choices before races start. Official winners appear here once settled.</p>';
+  const original=Array.isArray(data.research_codes)?data.research_codes:[];
+  const originalDetails=original.length?
+    '<details class="shadow-audit"><summary>Original formula record (background comparison)</summary>'+
+    '<div class="shadow-audit-content">'+original.map(x=>
+      '<p>'+escapeHtml(x.code)+': '+number(x.races_frozen)+' recorded races · '+
+      number(x.rank1_winners)+' rank-one winners</p>').join('')+'</div></details>':'';
+  el.innerHTML=closed(intro+table+
+    '<p><strong>Recorded</strong> = predictions saved before the race. '+
+    '<strong>Completed</strong> = both methods comparable after verified results. '+
+    'Our formula = specialist first choice; old formula = original V2 first choice.</p>'+
+    '<p>Experimental research only: no proven profit or betting value, and small samples can mislead.</p>'+
+    originalDetails);
  }catch(_){
-  get('forward-record').innerHTML='<details><summary>Research results &amp; testing (optional)</summary><p>Performance tracking unavailable. Rankings remain experimental.</p></details>';
+  el.innerHTML=closed('<p>Results comparison temporarily unavailable. No claims about model success are being made.</p>');
  }
 }
 function marketDisagreement(r){
