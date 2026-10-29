@@ -458,9 +458,11 @@ function marketDisagreement(r){
  const prev=favorite.runner.jump_research||{};
  const bumperNote=(r.display_race_code==='Hurdle'&&prev.previous_discipline==='NH Flat'&&
                    Number(prev.previous_discipline_starts)>0)?
-   ' Pre-hurdle bumper form: '+Number(prev.previous_discipline_wins||0)+
-   ' wins from '+Number(prev.previous_discipline_starts)+' recorded runs.'+
-   ' Those wins have not been scored as hurdle wins.':'';
+   ' Pre-hurdle bumper form: '+(prev.previous_discipline_wins!==null&&
+    prev.previous_discipline_wins!==undefined?
+   Number(prev.previous_discipline_wins)+' wins from ':'')+
+   Number(prev.previous_discipline_starts)+' recorded runs.'+
+   ' Bumper results are not scored as hurdle results by this formula.':'';
  return '<div class="insufficient"><strong>'+escapeHtml(prefix)+':</strong> '+
   escapeHtml(favorite.runner.horse)+' is the shortest-priced horse at indicative '+
   favorite.price.toFixed(2)+' (PIF rank '+Number(favorite.runner.display_rank)+
