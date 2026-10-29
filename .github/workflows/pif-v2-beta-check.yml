@@ -21,12 +21,12 @@ jobs:
           assert len(scripts)==1, 'Expected one self-contained script'
           pathlib.Path('/tmp/pif_v2_beta_script.js').write_text(scripts[0])
           assert 'v2-races' in scripts[0] and 'session_token' in scripts[0]
-          assert 'Experimental rankings' in doc
+          assert 'No verified value selections yet' in doc
           assert 'Indicative odds' in doc
           assert 'metric-grid' in doc and 'form-chip' in doc
-          assert 'Trainer, jockey &amp; full explanation' in doc
+          assert 'See course, distance, going &amp; full explanation' in doc
           assert 'No validated win %' not in doc
-          assert 'same race type' in doc
+          assert 'Rank 1' in doc and 'not</strong> a recommended bet' in doc
           assert 'research_share_pct' not in scripts[0]
           assert 'The original scanner is unchanged' in doc
           PY
@@ -58,10 +58,13 @@ jobs:
           for(const part of ['Jazzit','4.50','Betfair Exchange','OR 55',
               '1st','10th','Course','Distance','Going','1<span> / 4</span>',
               '5<span> / 7</span>','4<span> / 5</span>',
-              'Trainer, jockey &amp; full explanation','3 wins from 30']) {
+              'See course, distance, going &amp; full explanation','3 wins from 30']) {
             assert(html.includes(part),'Missing: '+part);
           }
           assert(!html.includes('No validated win %'),'Removed placeholder came back');
+          assert(html.includes('<details class="horse-extended">'),'Secondary evidence must be expandable');
+          assert(html.indexOf('metric-grid')>html.indexOf('<details class="horse-extended">'),
+            'Expanded statistics appeared before the disclosure');
           const sparse=row({horse:'No form',model_rank:4,prior_runs_recorded:0,
             quote:null,evidence_facts:{}},'Hurdle');
           assert(sparse.includes('Limited history'));
