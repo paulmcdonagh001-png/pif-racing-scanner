@@ -79,7 +79,7 @@ assert(newcomerHtml.includes('NH Flat: 4 previous runs · 3 wins'));
 assert(newcomerHtml.includes('Limited comparable history: 0 recorded Hurdle runs'));
 assert(newcomerHtml.includes('not scored as Hurdle results'));
 const mismatchStart=script.indexOf('function marketDisagreement(r){');
-const mismatchEnd=script.indexOf('function render(){',mismatchStart);
+const mismatchEnd=script.indexOf('const marketInputState=',mismatchStart);
 assert(mismatchStart>=0&&mismatchEnd>mismatchStart);
 vm.runInContext(script.slice(mismatchStart,mismatchEnd),context);
 const raceMismatch={
