@@ -149,7 +149,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 </header>
 <h1>Five race types. Five separate formulas.</h1>
 <p>Each race now uses its <strong>own specialist research formula</strong>: All-Weather, Flat Turf, Hurdles, Chases or National Hunt Flat.</p>
-<div class="notice"><strong>Live rankings are experimental, not betting tips.</strong> Where a race lacks enough comparable previous runs, no ranking is shown. Rank 1 means that specialist formula's first choice, not proven value; indicative odds are not guaranteed prices. The old general formula is still recorded separately for fair forward testing.</div>
+<div class="notice"><strong>Top three rankings are back.</strong> Every race uses its relevant specialist formula. Races with little past form show a <strong>provisional top three</strong> with an extra warning, not a confident betting selection. No model has proven value. The old general formula is still tracked separately.</div>
 <section id="signin" class="card" hidden>
 <h2>Private access</h2>
 <p>Use your existing PIF Racing scanner access code.</p>
@@ -424,18 +424,21 @@ function render(){
  (r.age_band?' · '+escapeHtml(r.age_band):'')+
  ' · '+escapeHtml(r.distance)+' · '+escapeHtml(r.going)+' · '+r.field_size+' runners</div>'+
  '<div class="race-model-line"><strong>'+escapeHtml(r.display_model||'Specialist model unavailable')+'</strong>'+
- ' · '+(r.display_status==='SPECIALIST_RESEARCH_ONLY'?'Research rankings shown':'Not enough evidence to rank')+
+ ' · '+(r.display_status==='PROVISIONAL_SPECIALIST_RANKING'?'Provisional top three · limited form':
+    r.display_status==='SPECIALIST_RESEARCH_ONLY'?'Research top three shown':'No supported ranking')+
  '</div></div>'+
  '<div class="meeting-actions"><small class="meta">'+(Date.parse(r.off_utc)<=now?'Off · result pending':'Research only')+'</small>'+
  '<span class="meeting-control"><span class="meeting-open">Hide race</span><span class="meeting-closed">Show race</span><span class="meeting-arrow" aria-hidden="true">⌄</span></span></div></summary>'+
- (r.display_status!=='SPECIALIST_RESEARCH_ONLY'?
- '<div class="insufficient"><strong>No specialist ranking:</strong> '+escapeHtml(r.display_warning||'Insufficient comparable history')+'</div>':'')+
+ (r.display_status==='PROVISIONAL_SPECIALIST_RANKING'?
+ '<div class="insufficient"><strong>Limited form:</strong> '+escapeHtml(r.display_warning||'Provisional ranking only')+'</div>':
+ r.display_status!=='SPECIALIST_RESEARCH_ONLY'?
+ '<div class="insufficient"><strong>No ranking:</strong> '+escapeHtml(r.display_warning||'Race details could not be verified')+'</div>':'')+
  (r.top_three||[]).map(h=>row(h,r.type)).join('')+
  marketDisagreement(r)+
  '<details class="other-runners"><summary>'+
- (r.display_status==='SPECIALIST_RESEARCH_ONLY'?'Show ranks 4 onward':'Show runners (not ranked)')+
+ (['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status)?'Show ranks 4 onward':'Show runners (not ranked)')+
  '</summary>'+
- (r.display_status==='SPECIALIST_RESEARCH_ONLY'?(r.all_runners||[]).slice(3):(r.all_runners||[]))
+ (['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status)?(r.all_runners||[]).slice(3):(r.all_runners||[]))
    .map(h=>row(h,r.type)).join('')+
  '</details></details>').join('')||
  '<div class="card"><strong>No races in this filter.</strong><p>Try a different course, race type or day.</p></div>';
