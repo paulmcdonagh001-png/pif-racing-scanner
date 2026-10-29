@@ -23,6 +23,10 @@ jobs:
           assert 'v2-races' in scripts[0] and 'session_token' in scripts[0]
           assert 'No verified value selections yet' in doc
           assert 'Indicative odds' in doc
+          assert 'id="toggle-races"' in doc and 'Collapse all races' in doc
+          assert 'details class="meeting"' in doc
+          assert 'Show race' in doc and 'Hide race' in doc
+          assert 'collapsedRaces' in doc and 'data-race-key' in doc
           assert 'metric-grid' in doc and 'form-chip' in doc
           assert 'See course, distance, going &amp; full explanation' in doc
           assert 'No validated win %' not in doc
