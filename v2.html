@@ -495,7 +495,7 @@ function marketOutcome(kind,rank,stake,decimal,places,fraction,returns){
 }
 function marketMoney(n){
  const rounded=Math.round((n+Number.EPSILON)*100)/100;
- return (rounded>0?'+':'')+'£'+Math.abs(rounded).toFixed(2).replace(/^/,(rounded<0?'-':''));
+ return (rounded<0?'-':rounded>0?'+':'')+'£'+Math.abs(rounded).toFixed(2);
 }
 function marketPayoutCell(net){
  const cls=net>0.004?'market-gain':net<-.004?'market-loss':'market-even';
