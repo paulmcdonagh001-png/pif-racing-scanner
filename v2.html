@@ -299,7 +299,7 @@ async function updateForwardRecord(){
   const data=await request('/v2-performance',{session_token:token});
   const el=get('forward-record');
   if(data.status!=='FORWARD_LEDGER_ACTIVE'){
-   el.innerHTML='<strong>V2 forward-test record</strong><p>Recording is currently paused or unavailable. Rankings remain experimental; contact the Racing administrator before relying on a recorded result.</p>';
+   el.innerHTML='<details><summary>Research results &amp; testing (optional)</summary><p>Tracking temporarily unavailable. Rankings are still experimental.</p></details>';
    return;
   }
   const groups=Array.isArray(data.codes)?data.codes:[];
@@ -321,7 +321,8 @@ async function updateForwardRecord(){
         (Number(x.comparable_races||0)<100?' · Too early to judge':' · Unvalidated observational results')+
         '</p>').join('')+'</div></details>':
     '<p><strong>Specialist comparisons:</strong> No first-frozen challenger races recorded yet. The original V2 record is preserved.</p>';
-  el.innerHTML='<strong>V2 forward-test record · unique first-frozen selections</strong>'+
+  el.innerHTML='<details><summary>Research results &amp; testing (optional)</summary>'+
+  '<p>Original V2 forward-test record · unique first-frozen selections</p>'+
   (groups.length?'<p>'+groups.map(x=>escapeHtml(x.code)+': '+Number(x.races_frozen)+' races frozen, '+Number(x.rank1_settled)+' rank-one horses settled, '+Number(x.rank1_winners)+' winners').join(' · ')+'</p>':
     '<p>No frozen V2 races recorded yet.</p>')+
     (flatCohorts.length?'<p><strong>Flat surface record:</strong> '+
@@ -329,9 +330,9 @@ async function updateForwardRecord(){
          Number(x.rank1_settled)+' settled').join(' · ')+'</p>':'')+
     '<p>Older Flat forecasts remain combined as legacy unsplit records. Surface cohorts use the same experimental V2 alpha formula; separate fitted models are not validated yet.</p>'+
     shadowDetail+
-    '<p>Research only. Shadow weights are experimental and market-adjusted value is not validated.</p>';
+    '<p>Research only. Shadow weights are experimental and market-adjusted value is not validated.</p></details>';
  }catch(_){
-  get('forward-record').innerHTML='<strong>V2 forward-test record</strong><p>Performance ledger currently unavailable. Predictions remain experimental.</p>';
+  get('forward-record').innerHTML='<details><summary>Research results &amp; testing (optional)</summary><p>Performance tracking unavailable. Rankings remain experimental.</p></details>';
  }
 }
 function marketDisagreement(r){
