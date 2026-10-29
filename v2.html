@@ -168,6 +168,11 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .market-inputs{margin-top:7px}
 @media(max-width:480px){.market-shortlist{grid-template-columns:1fr}.market-short{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:9px}.market-short strong{grid-column:1}.market-short small{grid-column:1}.market-short p{grid-column:2;grid-row:1/span 2;margin:0}.market-tool-grid{gap:7px}.market-tool-inner{padding:0 9px 10px}}
 
+
+/* Make the per-race runner expander visible, keyboard accessible and persistent. */
+.other-runners > summary{font-size:13px;min-height:42px;display:list-item;list-style:disclosure-closed inside;padding:12px;color:var(--mint);cursor:pointer}
+.other-runners[open] > summary{list-style:disclosure-open inside}
+.other-runners > summary:focus-visible{outline:2px solid var(--mint);outline-offset:-2px}
 </style>
 </head>
 <body>
@@ -217,6 +222,7 @@ const get=id=>document.getElementById(id);
 const escapeHtml=value=>String(value==null?'':value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 let token='',day='today',entries=[],loading=false;
 const collapsedRaces=new Set();
+const expandedRunners=new Set();
 const raceKey=r=>day+'|'+String(r.race_id||[r.off_utc,r.course,r.race_name].join('|'));
 function updateRaceToggle(){
  const items=[...get('races').querySelectorAll('details.meeting')];
@@ -672,8 +678,9 @@ function render(){
  (r.top_three||[]).map(h=>row(h,r.type)).join('')+
  marketDisagreement(r)+
  marketPanel(r)+
- '<details class="other-runners"><summary>'+
- (['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status)?'Show ranks 4 onward':'Show runners (not ranked)')+
+ '<details class="other-runners" data-runners-key="'+escapeHtml(raceKey(r))+'"'+
+ (expandedRunners.has(raceKey(r))||!['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status)?' open':'')+'><summary>'+
+ (['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status)?'Show / hide ranks 4 onward':'Show / hide runners (not ranked)')+
  '</summary>'+
  (['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status)?(r.all_runners||[]).slice(3):(r.all_runners||[]))
    .map(h=>row(h,r.type)).join('')+
@@ -687,6 +694,12 @@ function render(){
    });
  }
  updateRaceToggle();
+ get('races').querySelectorAll('details.other-runners').forEach(el=>{
+   el.addEventListener('toggle',()=>{
+     if(el.open)expandedRunners.add(el.dataset.runnersKey);
+     else expandedRunners.delete(el.dataset.runnersKey);
+   });
+ });
  get('races').querySelectorAll('.market-tool').forEach(panel=>marketRefresh(panel,true));
 }
 async function reload(){
