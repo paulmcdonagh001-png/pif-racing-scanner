@@ -347,7 +347,7 @@ function row(h,raceType){
   h.ranking_evidence.filter(x=>typeof x==='string').slice(0,2):[];
  const why=factors.length?'<div class="horse-why"><strong>Model factors</strong> '+factors.map(escapeHtml).join(' · ')+'</div>':'';
  const limited=prior!==null&&prior<3?
-   '<div class="low-history">Limited '+escapeHtml(raceType)+' history: '+prior+' recorded runs'+
+   '<div class="low-history">Limited comparable history: '+prior+' recorded '+escapeHtml(raceType)+' runs'+
      (previousForm?'. Previous '+escapeHtml(priorDiscipline)+
        ' results shown separately, not scored as '+escapeHtml(raceType)+' results.':'')+
    '</div>':'';
