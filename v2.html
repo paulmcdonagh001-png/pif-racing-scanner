@@ -96,6 +96,19 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .shadow-audit summary{color:var(--mint);padding:8px 2px;font-size:12px}
 .shadow-audit-content{padding:0 4px 6px}
 .shadow-audit-content p{margin:6px 0;font-size:12px}
+
+/* Simplified default: horse, provisional rank, odds and recent form.
+   Suitability records and trainer data are opt-in, not a wall of text. */
+.horse-body{margin-top:6px}
+.horse-extended{margin-top:7px;border-top:1px solid #294456}
+.horse-extended > summary{border:0;padding:7px 0 2px;color:var(--mint);font-weight:650;font-size:12px}
+.horse-extended-content{padding:2px 0 4px}
+.horse-extended-content .metric-grid{margin-top:7px}
+.horse-extended-content .horse-extra-body{margin-top:9px}
+.other-runners > summary{color:var(--mint);font-weight:650}
+#forward-record{padding:5px 11px;margin-top:10px}
+#forward-record > details > summary{border:0;color:#c6d9e4;font-weight:650;padding:7px 0}
+#forward-record > details > p{margin:8px 0}
 </style>
 </head>
 <body>
@@ -105,9 +118,9 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <div><strong>Racing V2</strong><small>Independent scanner · Research beta</small></div>
 <a href="./database.html">Racing database</a>
 </header>
-<h1>All races. Our own rankings.</h1>
-<p>V2 uses historical results, ratings, conditions and trainer/jockey evidence. Bookmaker prices do not determine the rankings.</p>
-<div class="notice"><strong>Experimental rankings — no verified win or place percentages.</strong> V2 is still being checked against real results. Rankings are not betting recommendations and no runner has proven value. Run counts refer to previous races in the same race type; other-code history is listed separately.</div>
+<h1>Race rankings — research only</h1>
+<p><strong>Rank 1</strong> is the original V2 formula’s first choice in that race. It is <strong>not</strong> a recommended bet, the bookmaker favourite, or a verified chance of winning.</p>
+<div class="notice"><strong>No verified value selections yet.</strong> Prices are indicative. The five newer race-type models are being tested privately and do not determine these rankings.</div>
 <section id="signin" class="card" hidden>
 <h2>Private access</h2>
 <p>Use your existing PIF Racing scanner access code.</p>
@@ -128,7 +141,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <div><label for="code">Race type</label><select id="code"><option value="all">All types</option></select></div>
 </div>
 <label class="row" style="display:flex;align-items:center;gap:8px;font-size:12px;margin:11px 0"><input id="show-started" type="checkbox" style="width:auto;min-width:16px" /> Show races already off (for review)</label>
-<div id="forward-record" class="card"><strong>V2 forward-test record</strong><p>Checking results tracking status…</p></div>
+<div id="forward-record" class="card"><details><summary>Research results &amp; testing (optional)</summary><p>Checking results tracking status…</p></details></div>
 <div id="summary">Open today's racing to view the independent V2 rankings.</div>
 <div id="races"></div>
 </section>
@@ -259,8 +272,12 @@ function row(h,raceType){
  if(other>0)detailParts.push('<p><b>Other race types:</b> '+(breakDown.length?breakDown.join(' · '):other+' runs')+'</p>');
  if(factors.length)detailParts.push('<p><b>Why the model ranked this horse here:</b> '+
     factors.map(escapeHtml).join(' · ')+'. These are model contributions, not proof of winning chance.</p>');
- const more='<details class="horse-extra"><summary>Trainer, jockey &amp; full explanation</summary>'+
-    '<div class="horse-extra-body">'+detailParts.join('')+'</div></details>';
+ const more='<details class="horse-extended"><summary>See course, distance, going &amp; full explanation</summary>'+
+    '<div class="horse-extended-content">'+
+      '<div class="metric-grid">'+metrics+'</div>'+
+      why+
+      '<div class="horse-extra-body">'+detailParts.join('')+'</div>'+
+    '</div></details>';
  return '<div class="horse'+(rank<=3?' horse-featured':'')+'">'+
    '<div class="horse-main">'+
     '<div class="position" aria-label="Research rank '+rank+'">'+rank+'</div>'+
@@ -272,8 +289,7 @@ function row(h,raceType){
    '<div class="horse-body">'+limited+
     '<div class="form-strip"><span class="form-label">RECENT FORM <small>latest first</small></span>'+
      '<div class="form-values">'+formChips+'</div></div>'+
-    '<div class="metric-grid">'+metrics+'</div>'+
-    why+more+
+    more+
    '</div>'+
  '</div>';
 }
@@ -341,27 +357,22 @@ function render(){
  const hidden=matches.length-rs.length;
  get('summary').textContent=rs.length+' races shown · '+entries.length+' available'+
    (hidden?' · '+hidden+' already off (hidden)':'')+
-   ' · Surface categories are filters, NOT separate trained models; win/place probabilities unverified';
+   ' · Rank 1 means model first choice, not best bet';
  get('races').innerHTML=rs.map(r=>'<article class="meeting">'+
  '<div class="meeting-heading"><div><div class="meeting-title">'+escapeHtml(britishTime(r.off_utc))+' '+escapeHtml(r.course)+'</div>'+
  (r.race_name?'<div class="details">'+escapeHtml(r.race_name)+'</div>':'')+
  '<div class="meta">'+escapeHtml(raceGroup(r))+
  (r.age_band?' · '+escapeHtml(r.age_band):'')+
  ' · '+escapeHtml(r.distance)+' · '+escapeHtml(r.going)+' · '+r.field_size+' runners</div></div>'+
- '<small class="meta">'+(Date.parse(r.off_utc)<=now?'Off · result pending':'V2 beta')+'</small></div>'+
+ '<small class="meta">'+(Date.parse(r.off_utc)<=now?'Off · result pending':'Research only')+'</small></div>'+
  ((r.all_runners||[]).filter(h=>Number(h.prior_runs_recorded)>=3).length*2 < Number(r.field_size)?
- '<div class="insufficient"><strong>LOW EVIDENCE — no supported selection:</strong> Only '+
+ '<div class="insufficient"><strong>Limited history:</strong> Only '+
  (r.all_runners||[]).filter(h=>Number(h.prior_runs_recorded)>=3).length+' of '+Number(r.field_size)+
- ' runners have at least three recorded '+escapeHtml(r.type)+' runs. '+
- (/\b(maiden|novice|beginners)\b/i.test(String(r.race_name||'')) || /\b2yo\b/i.test(String(r.age_band||''))?
- 'Limited racing experience can be normal for this age/race category, but these rankings are still tentative.':
- 'These rankings are tentative because comparable form is sparse.')+'</div>':'')+
+ ' horses have 3 or more recorded '+escapeHtml(r.type)+' runs. Treat this order as especially uncertain.</div>':'')+
  (r.top_three||[]).map(h=>row(h,r.type)).join('')+
  marketDisagreement(r)+
- ((r.all_runners||[]).filter(h=>Number(h.prior_runs_recorded)>=3).length<3?
- '<div class="insufficient">Limited same-type evidence: fewer than three horses have 3+ recorded '+escapeHtml(r.type)+' runs. These ranks are especially uncertain.</div>':'')+
  (!r.top_three?.length?'<div class="insufficient">Insufficient independent evidence to rank this race reliably.</div>':'')+
- '<details><summary>Show other runners (ranks 4 onward) with full evidence</summary>'+
+ '<details class="other-runners"><summary>Show ranks 4 onward</summary>'+
  (r.all_runners||[]).slice(3).map(h=>row(h,r.type)).join('')+
  '</details></article>').join('')||
  '<div class="card"><strong>No races in this filter.</strong><p>Try a different course, race type or day.</p></div>';
