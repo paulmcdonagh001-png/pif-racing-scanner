@@ -467,7 +467,7 @@ function marketStake(raw){
  const value=Number(str);
  return Number.isFinite(value)&&value>0&&value<=10000?value:null;
 }
-function marketQuoteKey(state){return state.horse+'|'+state.market;}
+function marketQuoteKey(state){return state.horse+'|'+state.market+(state.market==='either_to_win'?'|'+state.second:'');}
 function marketQuote(r,state){
  const key=marketQuoteKey(state);
  if(Object.prototype.hasOwnProperty.call(state.quotes,key))return state.quotes[key];
@@ -542,7 +542,7 @@ function marketDynamic(r,st){
  if(market==='position_payout'){
   const inputs=[1,2,3,4,5,6].map(pos=>
    '<label><span>If '+pos+(pos===1?'st':pos===2?'nd':pos===3?'rd':'th')+
-   ', total payout (£)</span><input data-market-role="payout'+pos+'" inputmode="decimal" type="number" min="0" step=".01" placeholder="e.g. 20" value="'+escapeHtml(st.payouts[pos]??'')+'"></label>').join('');
+   ', total payout (£)</span><input data-market-role="payout'+pos+'" inputmode="decimal" type="number" min="0" step=".01" placeholder="e.g. 20" value="'+escapeHtml(st.payouts[st.horse]?.[pos]??'')+'"></label>').join('');
   return '<p class="market-tool-help market-full">Copy the bookmaker’s <strong>total returns including stake</strong> for each paid place. Blank places are treated as losing.</p>'+
    '<div class="market-tool-grid market-full">'+inputs+'</div>';
  }
@@ -580,7 +580,7 @@ function marketResults(r,st){
   const payouts={};
   let hasPayout=false;
   for(let i=1;i<=6;i++){
-   const val=String(st.payouts[i]??'').trim();
+   const val=String(st.payouts[st.horse]?.[i]??'').trim();
    if(!val)continue;
    const n=Number(val);
    if(!Number.isFinite(n)||n<0||n>100000)
@@ -607,7 +607,7 @@ function marketPositionTable(stake,decimal,st,payouts,money){
   '<p class="market-caveat">At these odds, the outcome must happen more than '+
   (100/decimal).toFixed(1)+'% of the time to break even in the long run. PIF has not established that probability.</p>':'';
  return '<h3>Profit or loss by finishing position</h3>'+
-  '<table class="market-pay-table"><thead><tr><th>1st</th><th>2nd</th><th>3rd</th><th>4th</th><th>5th</th><th>6th+</th></tr></thead>'+
+  '<table class="market-pay-table"><thead><tr><th>1st</th><th>2nd</th><th>3rd</th><th>4th</th><th>5th</th><th>6th</th></tr></thead>'+
   '<tbody><tr>'+cells+'</tr></tbody></table>'+
   '<p class="market-caveat">These are hypothetical net returns on a £'+stake.toFixed(2)+
   ' total stake, not a prediction. For Money Back, a refund is £0 profit. Actual bookmaker terms govern settlement.</p>'+minimum;
@@ -635,7 +635,7 @@ function marketUIEvent(event){
   marketRefresh(panel,true);
  }else{
   if(role==='odds')st.quotes[marketQuoteKey(st)]=value;
-  else if(role.startsWith('payout'))st.payouts[Number(role.slice(6))]=value;
+  else if(role.startsWith('payout')){if(!st.payouts[st.horse])st.payouts[st.horse]=Object.create(null);st.payouts[st.horse][Number(role.slice(6))]=value;}
   else st[role]=value;
   marketRefresh(panel,role==='places'||role==='fraction'||role==='second');
  }
