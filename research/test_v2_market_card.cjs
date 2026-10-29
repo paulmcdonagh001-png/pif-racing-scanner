@@ -60,4 +60,41 @@ assert(!vm.runInContext('marketPanel(sparse)',context).includes('<script>'),'Hor
 assert(vm.runInContext("marketResults(sparse,marketState(sparse))",context).includes('Enter the bookmaker'),'Never fabricate missing odds');
 assert(doc.includes('marketPanel(r)+'),'Racecard must contain embedded panel');
 assert(!doc.includes('research_share_pct'),'Do not leak uncalibrated model shares');
+
+const rowStart=script.indexOf('function row(h,raceType){');
+const rowEnd=script.indexOf('async function updateForwardRecord(){',rowStart);
+assert(rowStart>=0&&rowEnd>rowStart);
+vm.runInContext(script.slice(rowStart,rowEnd),context);
+const firstTimeHurdler={
+ horse:'Forthfactor',display_rank:2,prior_runs_recorded:0,runner_age:5,
+ other_code_runs_recorded:4,other_code_run_types:{'NH Flat':4},
+ evidence_facts:{last_five_finishes:[]},
+ jump_research:{previous_discipline:'NH Flat',previous_discipline_starts:4,
+  previous_discipline_wins:3,previous_discipline_top3:3},
+ quote:{decimal:1.15,source:'Betfair Exchange'}
+};
+context.firstTimeHurdler=firstTimeHurdler;
+const newcomerHtml=vm.runInContext("row(firstTimeHurdler,'Hurdle')",context);
+assert(newcomerHtml.includes('NH Flat: 4 previous runs · 3 wins'));
+assert(newcomerHtml.includes('Limited comparable history: 0 recorded Hurdle runs'));
+assert(newcomerHtml.includes('not scored as Hurdle results'));
+const mismatchStart=script.indexOf('function marketDisagreement(r){');
+const mismatchEnd=script.indexOf('const marketInputState=',mismatchStart);
+assert(mismatchStart>=0&&mismatchEnd>mismatchStart);
+vm.runInContext(script.slice(mismatchStart,mismatchEnd),context);
+const raceMismatch={
+ display_race_code:'Hurdle',display_status:'PROVISIONAL_SPECIALIST_RANKING',
+ all_runners:[
+  {horse:'Emerald Tir',horse_id:'a',display_rank:1,quote:{decimal:34}},
+  {...firstTimeHurdler,horse_id:'b'},
+  {horse:'Chocks Away',horse_id:'c',display_rank:3,quote:{decimal:85}}
+ ]
+};
+context.raceMismatch=raceMismatch;
+const warning=vm.runInContext('marketDisagreement(raceMismatch)',context);
+assert(warning.includes('Forthfactor'));
+assert(warning.includes('PIF rank 2'));
+assert(warning.includes('3 wins from 4 recorded runs'));
+assert(warning.includes('too little relevant form'));
+
 console.log('PIF Racing V2 market cards: payout calculations, rank integrity and no-price checks passed');
