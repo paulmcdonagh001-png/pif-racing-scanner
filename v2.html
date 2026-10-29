@@ -109,6 +109,23 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 #forward-record{padding:5px 11px;margin-top:10px}
 #forward-record > details > summary{border:0;color:#c6d9e4;font-weight:650;padding:7px 0}
 #forward-record > details > p{margin:8px 0}
+
+/* One-click whole race folding; race details preserve their open state across filters. */
+.meeting > summary.meeting-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;list-style:none;cursor:pointer;border:0;color:var(--ink)}
+.meeting > summary.meeting-heading::-webkit-details-marker{display:none}
+.meeting > summary.meeting-heading:hover{background:#21465f}
+.meeting > summary.meeting-heading:focus-visible{outline:2px solid var(--mint);outline-offset:-3px}
+.meeting-actions{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}
+.meeting-control{display:flex;align-items:center;gap:5px;color:var(--mint);font-weight:700;font-size:12px;white-space:nowrap}
+.meeting-arrow{font-size:20px;line-height:14px;display:inline-block;transform:rotate(0deg);transition:transform .15s ease}
+.meeting[open] .meeting-arrow{transform:rotate(180deg)}
+.meeting .meeting-open{display:none}
+.meeting[open] .meeting-open{display:inline}
+.meeting[open] .meeting-closed{display:none}
+.meeting:not([open]) .meeting-closed{display:inline}
+.meeting:not([open]) > summary.meeting-heading{border-radius:10px}
+@media(max-width:480px){.meeting-actions .meta{font-size:10px}.meeting-control{font-size:11px}}
+
 </style>
 </head>
 <body>
@@ -135,7 +152,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <button type="button" class="selected" data-day="today">Today</button>
 <button type="button" data-day="tomorrow">Tomorrow</button>
 </div>
-<div class="row"><button id="reload" class="secondary" type="button">Refresh races</button><span id="loaded-time" class="meta"></span></div>
+<div class="row"><button id="reload" class="secondary" type="button">Refresh races</button><button id="toggle-races" class="secondary" type="button">Collapse all races</button><span id="loaded-time" class="meta"></span></div>
 <div class="filters">
 <div><label for="course">Racecourse</label><select id="course"><option value="all">All courses</option></select></div>
 <div><label for="code">Race type</label><select id="code"><option value="all">All types</option></select></div>
@@ -157,6 +174,14 @@ const KEY='pif-racing-remembered-v1';
 const get=id=>document.getElementById(id);
 const escapeHtml=value=>String(value==null?'':value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 let token='',day='today',entries=[],loading=false;
+const collapsedRaces=new Set();
+const raceKey=r=>day+'|'+String(r.race_id||[r.off_utc,r.course,r.race_name].join('|'));
+function updateRaceToggle(){
+ const items=[...get('races').querySelectorAll('details.meeting')];
+ const allClosed=items.length>0&&items.every(el=>!el.open);
+ get('toggle-races').textContent=allClosed?'Expand all races':'Collapse all races';
+ get('toggle-races').disabled=items.length===0;
+}
 try{const session=JSON.parse(localStorage.getItem(KEY)||'null');if(session&&Date.parse(session.expires_at)>Date.now()+30000)token=session.session_token||'';}catch(_){}
 function status(s,isError=false){get('status').textContent=s;get('status').className=isError?'error':''}
 function authUi(){get('signin').hidden=Boolean(token);get('application').hidden=!token}
@@ -188,6 +213,16 @@ get('reload').addEventListener('click',reload);
 get('course').addEventListener('change',render);
 get('code').addEventListener('change',render);
 get('show-started').addEventListener('change',render);
+get('toggle-races').addEventListener('click',()=>{
+ const items=[...get('races').querySelectorAll('details.meeting')];
+ const expand=items.length>0&&items.every(el=>!el.open);
+ for(const el of items){
+   el.open=expand;
+   if(expand)collapsedRaces.delete(el.dataset.raceKey);
+   else collapsedRaces.add(el.dataset.raceKey);
+ }
+ updateRaceToggle();
+});
 function raceGroup(r){
  const type=String(r.type||'').trim();
  if(!/^flat$/i.test(type))return type;
@@ -359,13 +394,14 @@ function render(){
  get('summary').textContent=rs.length+' races shown · '+entries.length+' available'+
    (hidden?' · '+hidden+' already off (hidden)':'')+
    ' · Rank 1 means model first choice, not best bet';
- get('races').innerHTML=rs.map(r=>'<article class="meeting">'+
- '<div class="meeting-heading"><div><div class="meeting-title">'+escapeHtml(britishTime(r.off_utc))+' '+escapeHtml(r.course)+'</div>'+
+ get('races').innerHTML=rs.map(r=>'<details class="meeting" data-race-key="'+escapeHtml(raceKey(r))+'"'+(collapsedRaces.has(raceKey(r))?'':' open')+'>'+
+ '<summary class="meeting-heading"><div><div class="meeting-title">'+escapeHtml(britishTime(r.off_utc))+' '+escapeHtml(r.course)+'</div>'+
  (r.race_name?'<div class="details">'+escapeHtml(r.race_name)+'</div>':'')+
  '<div class="meta">'+escapeHtml(raceGroup(r))+
  (r.age_band?' · '+escapeHtml(r.age_band):'')+
  ' · '+escapeHtml(r.distance)+' · '+escapeHtml(r.going)+' · '+r.field_size+' runners</div></div>'+
- '<small class="meta">'+(Date.parse(r.off_utc)<=now?'Off · result pending':'Research only')+'</small></div>'+
+ '<div class="meeting-actions"><small class="meta">'+(Date.parse(r.off_utc)<=now?'Off · result pending':'Research only')+'</small>'+
+ '<span class="meeting-control"><span class="meeting-open">Hide race</span><span class="meeting-closed">Show race</span><span class="meeting-arrow" aria-hidden="true">⌄</span></span></div></summary>'+
  ((r.all_runners||[]).filter(h=>Number(h.prior_runs_recorded)>=3).length*2 < Number(r.field_size)?
  '<div class="insufficient"><strong>Limited history:</strong> Only '+
  (r.all_runners||[]).filter(h=>Number(h.prior_runs_recorded)>=3).length+' of '+Number(r.field_size)+
@@ -375,8 +411,16 @@ function render(){
  (!r.top_three?.length?'<div class="insufficient">Insufficient independent evidence to rank this race reliably.</div>':'')+
  '<details class="other-runners"><summary>Show ranks 4 onward</summary>'+
  (r.all_runners||[]).slice(3).map(h=>row(h,r.type)).join('')+
- '</details></article>').join('')||
+ '</details></details>').join('')||
  '<div class="card"><strong>No races in this filter.</strong><p>Try a different course, race type or day.</p></div>';
+ for(const el of get('races').querySelectorAll('details.meeting')){
+   el.addEventListener('toggle',()=>{
+     if(el.open)collapsedRaces.delete(el.dataset.raceKey);
+     else collapsedRaces.add(el.dataset.raceKey);
+     updateRaceToggle();
+   });
+ }
+ updateRaceToggle();
 }
 async function reload(){
  if(!token||loading)return;
