@@ -80,6 +80,12 @@ jobs:
             quote:null,evidence_facts:{}},'Hurdle');
           assert(sparse.includes('Limited comparable history'));
           assert(sparse.includes('No comparable runs'));
+          const noCourse=row({...h,display_evidence_facts:{...h.evidence_facts,
+            course_starts:0,course_wins:0,course_evidence_status:'NOT_RACED_HERE'}},'Flat');
+          assert(noCourse.includes('No recorded runs at this course'),'Zero course starts must not look like missing data');
+          const unknownCourse=row({...h,display_evidence_facts:{...h.evidence_facts,
+            course_starts:0,course_wins:0,course_evidence_status:'COURSE_DATA_UNAVAILABLE'}},'Flat');
+          assert(unknownCourse.includes('Course history unavailable'),'Unknown venue must not assert zero visits');
           const injection=row({horse:'<script>x</script>',model_rank:9,display_rank:null,
             prior_runs_recorded:0,evidence_facts:{}},'Flat');
           assert(!injection.includes('<script>'),'Horse field XSS regression');
