@@ -35,6 +35,8 @@ jobs:
           assert 'FIVE_CODE_SPECIFIC_EXPERIMENTAL' in doc and 'display_rank' in doc
           PY
           node --check /tmp/pif_v2_beta_script.js
+      - name: Test market comparison within V2 racecards
+        run: node research/test_v2_market_card.cjs
       - name: Check compact evidence cards with real numeric fields
         run: |
           node - <<'NODE'

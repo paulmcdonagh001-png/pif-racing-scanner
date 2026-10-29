@@ -138,6 +138,36 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 @media(max-width:480px){.forward-model-table{font-size:11px}
 .forward-model-table th,.forward-model-table td{padding:6px 3px}
 .forward-model-table th{font-size:9px}}
+
+/* PIF V2: within-race betting-market research, no automated selections. */
+.market-lens{border-top:1px solid var(--line);padding:12px 12px 14px;background:#0b2232}
+.market-lens-heading{font-size:15px;font-weight:800;color:#e9f6f0;margin:0 0 4px}
+.market-lens-note{font-size:12px;color:#c1d4df;line-height:1.48;margin:0 0 10px}
+.market-shortlist{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.market-short{background:#142f43;border:1px solid #36566a;padding:9px;border-radius:8px;min-width:0}
+.market-short strong{display:block;font-size:12px;overflow-wrap:anywhere}
+.market-short small{display:block;color:#c1d1dd;margin-top:4px;font-size:11px}
+.market-short p{font-size:11px;margin:6px 0 0;color:#c0d0da}
+.market-tool{margin-top:10px;border:1px solid #467667;border-radius:9px;background:#102a3a;overflow:hidden}
+.market-tool>summary{border:0;color:var(--mint);font-weight:800;font-size:13px;padding:11px 12px;cursor:pointer}
+.market-tool-inner{padding:0 12px 12px}
+.market-tool-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.market-tool label{margin:4px 0;color:#d0dfe8;font-size:11px}
+.market-tool label span{display:block;margin-bottom:4px}
+.market-tool input,.market-tool select{padding:9px;font-size:14px}
+.market-tool .market-full{grid-column:1/-1}
+.market-tool-help{font-size:11px;color:#b9d0de;margin:6px 0 10px}
+.market-result{margin-top:10px;background:#092332;border-radius:8px;border:1px solid #365a6a;padding:10px}
+.market-result h3{font-size:13px;margin:0 0 7px}
+.market-pay-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.market-pay-table th,.market-pay-table td{padding:7px 4px;text-align:center;border-bottom:1px solid #284758;font-size:11px}
+.market-pay-table th{color:#c4d8e4;font-weight:600}
+.market-pay-table td{font-weight:800;font-variant-numeric:tabular-nums}
+.market-gain{color:#87e3b8}.market-loss{color:#ffb2aa}.market-even{color:#e7d7ac}
+.market-caveat{font-size:11px;color:#bbcedb;margin-top:8px;line-height:1.4}
+.market-inputs{margin-top:7px}
+@media(max-width:480px){.market-shortlist{grid-template-columns:1fr}.market-short{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:9px}.market-short strong{grid-column:1}.market-short small{grid-column:1}.market-short p{grid-column:2;grid-row:1/span 2;margin:0}.market-tool-grid{gap:7px}.market-tool-inner{padding:0 9px 10px}}
+
 </style>
 </head>
 <body>
@@ -407,6 +437,212 @@ function marketDisagreement(r){
    ', while another runner is quoted at '+shortest.toFixed(2)+
    '. The ranking is experimental; quotes are not verified executable prices.</div>';
 }
+
+// These are illustrative payout comparisons only. PIF model ranks have NOT
+// been calibrated into win/place probabilities and cannot validate betting value.
+const marketInputState=Object.create(null);
+const marketKinds=[
+ ['win','Win'],['top_finishes','Top finishes'],['money_back','Money back'],
+ ['each_way_extra','Each Way Extra'],['position_payout','Position payout'],
+ ['either_to_win','Either to win']
+];
+function marketState(r){
+ const id=raceKey(r);
+ if(!marketInputState[id])marketInputState[id]={
+  horse:'0',market:'win',stake:'5',places:'3',fraction:'.2',second:'1',
+  quotes:Object.create(null),payouts:Object.create(null)
+ };
+ return marketInputState[id];
+}
+function marketNumber(raw){
+ const str=String(raw??'').trim();
+ if(!str)return null;
+ const match=str.match(/^([0-9]+(?:\.[0-9]+)?)\s*\/\s*([0-9]+(?:\.[0-9]+)?)$/);
+ const value=match?1+Number(match[1])/Number(match[2]):Number(str);
+ return Number.isFinite(value)&&value>1&&value<=1001?value:null;
+}
+function marketStake(raw){
+ const str=String(raw??'').trim();
+ if(!str)return null;
+ const value=Number(str);
+ return Number.isFinite(value)&&value>0&&value<=10000?value:null;
+}
+function marketQuoteKey(state){return state.horse+'|'+state.market+(state.market==='either_to_win'?'|'+state.second:'');}
+function marketQuote(r,state){
+ const key=marketQuoteKey(state);
+ if(Object.prototype.hasOwnProperty.call(state.quotes,key))return state.quotes[key];
+ if(state.market!=='win')return '';
+ const horse=(r.top_three||[])[Number(state.horse)];
+ const d=horse?.quote?.decimal;
+ return d!==null&&d!==undefined&&Number.isFinite(Number(d))&&Number(d)>1?
+  String(d):'';
+}
+function marketOutcome(kind,rank,stake,decimal,places,fraction,returns){
+ if(kind==='position_payout'){
+  const amount=returns[rank];
+  return amount===null||amount===undefined? -stake :amount-stake;
+ }
+ if(kind==='win')return rank===1?stake*(decimal-1):-stake;
+ if(kind==='top_finishes')return rank<=places?stake*(decimal-1):-stake;
+ if(kind==='money_back')return rank===1?stake*(decimal-1):rank<=places?0:-stake;
+ if(kind==='each_way_extra'){
+  const half=stake/2;
+  const grossWin=rank===1?half*decimal:0;
+  const grossPlace=rank<=places?half*(1+(decimal-1)*fraction):0;
+  return grossWin+grossPlace-stake;
+ }
+ return null;
+}
+function marketMoney(n){
+ const rounded=Math.round((n+Number.EPSILON)*100)/100;
+ return (rounded<0?'-':rounded>0?'+':'')+'£'+Math.abs(rounded).toFixed(2);
+}
+function marketPayoutCell(net){
+ const cls=net>0.004?'market-gain':net<-.004?'market-loss':'market-even';
+ return '<td class="'+cls+'">'+marketMoney(net)+'</td>';
+}
+function marketResearchAngle(index){
+ if(index===0)return 'First on PIF ranking. Compare the win price with Top Finishes or Money Back.';
+ if(index===1)return 'Second on PIF ranking. Compare its price against the first choice; check placing terms.';
+ return 'Third on PIF ranking. Check whether a bigger possible payout compensates for the risk.';
+}
+function marketPanel(r){
+ const ranked=(r.top_three||[]).filter(h=>Number(h.display_rank)>0).slice(0,3);
+ if(!ranked.length)return '';
+ const st=marketState(r);
+ const cards=ranked.map((h,index)=>{
+  const d=Number(h.quote?.decimal);
+  const quote=Number.isFinite(d)&&d>1?'Win quote '+d.toFixed(2):'Win quote unavailable';
+  return '<div class="market-short"><strong>#'+(index+1)+' '+escapeHtml(h.horse)+'</strong>'+
+   '<small>'+escapeHtml(quote)+'</small><p>'+escapeHtml(marketResearchAngle(index))+'</p></div>';
+ }).join('');
+ return '<div class="market-lens"><h3 class="market-lens-heading">Which horse and which bet?</h3>'+
+  '<p class="market-lens-note">Compare the top three from this race. <strong>No verified best bet yet:</strong> ranks are experimental, and a high price alone does not mean value.</p>'+
+  '<div class="market-shortlist">'+cards+'</div>'+
+  '<details class="market-tool" data-market-race="'+escapeHtml(raceKey(r))+'">'+
+  '<summary>Compare £5 bets and bookmaker markets</summary>'+
+  '<div class="market-tool-inner">'+
+  '<div class="market-tool-grid">'+
+  '<label><span>Which horse?</span><select data-market-role="horse">'+
+   ranked.map((h,i)=>'<option value="'+i+'"'+(st.horse===String(i)?' selected':'')+'>'+escapeHtml(h.horse)+'</option>').join('')+
+  '</select></label>'+
+  '<label><span>Bet type</span><select data-market-role="market">'+
+   marketKinds.map(([code,name])=>'<option value="'+code+'"'+(st.market===code?' selected':'')+'>'+escapeHtml(name)+'</option>').join('')+
+  '</select></label>'+
+  '<label><span>Total stake (£)</span><input data-market-role="stake" inputmode="decimal" type="number" min="0.01" step="0.5" value="'+escapeHtml(st.stake)+'"></label>'+
+  '<div class="market-dynamic market-full"></div>'+
+  '</div>'+
+  '<div class="market-result" aria-live="polite"></div>'+
+  '<p class="market-caveat">Also available on bookmakers: Distances, Bet Builder, Tote, Exotics and More Markets. We cannot compare these responsibly without their exact terms and prices. No automatic betting, no proved value, and no Rule 4/dead-heat settlement here.</p>'+
+  '</div></details></div>';
+}
+function marketDynamic(r,st){
+ const market=st.market;
+ const opt=(values,selected)=>values.map(([v,label])=>'<option value="'+v+'"'+(String(selected)===v?' selected':'')+'>'+label+'</option>').join('');
+ if(market==='position_payout'){
+  const inputs=[1,2,3,4,5,6].map(pos=>
+   '<label><span>If '+pos+(pos===1?'st':pos===2?'nd':pos===3?'rd':'th')+
+   ', total payout (£)</span><input data-market-role="payout'+pos+'" inputmode="decimal" type="number" min="0" step=".01" placeholder="e.g. 20" value="'+escapeHtml(st.payouts[st.horse]?.[pos]??'')+'"></label>').join('');
+  return '<p class="market-tool-help market-full">Copy the bookmaker’s <strong>total returns including stake</strong> for each paid place. Blank places are treated as losing.</p>'+
+   '<div class="market-tool-grid market-full">'+inputs+'</div>';
+ }
+ let html='';
+ if(market==='either_to_win'){
+  html+='<label class="market-full"><span>Other horse in the bookmaker’s pair</span><select data-market-role="second">'+
+   (r.top_three||[]).slice(0,3).map((h,i)=>'<option value="'+i+'"'+(st.second===String(i)?' selected':'')+'>'+escapeHtml(h.horse)+'</option>').join('')+
+   '</select></label>';
+ }
+ if(['top_finishes','money_back','each_way_extra'].includes(market)){
+  html+='<label><span>'+(market==='money_back'?'Money back through':'Number of paid places')+'</span><select data-market-role="places">'+
+   opt([['2','2 places'],['3','3 places'],['4','4 places'],['5','5 places'],['6','6 places']],st.places)+'</select></label>';
+ }
+ if(market==='each_way_extra'){
+  html+='<label><span>Place odds</span><select data-market-role="fraction">'+
+   opt([['.2','1/5 of win odds'],['.25','1/4 of win odds']],st.fraction)+'</select></label>';
+ }
+ const quote=marketQuote(r,st);
+ html+='<label class="market-full"><span>'+ (market==='each_way_extra'?'Bookmaker win odds for this each-way offer':'Bookmaker market odds')+
+  ' (e.g. 7/2 or 4.50 decimal)</span><input data-market-role="odds" type="text" inputmode="decimal" placeholder="Enter quoted odds" value="'+escapeHtml(quote)+'"></label>';
+ html+='<p class="market-tool-help market-full">'+(market==='win'&&quote&&
+  !Object.prototype.hasOwnProperty.call(st.quotes,marketQuoteKey(st))?
+  'Win odds came from the PIF racecard and are indicative, not a confirmed bet365 price. Check before betting.':
+  'Enter the actual price shown by your bookmaker for this exact market. Different markets have different prices.')+
+  (market==='each_way_extra'?' £5 total stake means £2.50 win + £2.50 place.':'')+'</p>';
+ return html;
+}
+function marketResults(r,st){
+ const stake=marketStake(st.stake);
+ if(stake===null)return '<h3>Enter a valid total stake</h3><p class="market-caveat">Stake must be greater than zero.</p>';
+ if(st.market==='either_to_win'&&st.second===st.horse)
+  return '<h3>Select two different horses</h3><p class="market-caveat">Either To Win needs an actual bookmaker-offered pair.</p>';
+ const money=x=>marketPayoutCell(Math.round(x*100)/100);
+ if(st.market==='position_payout'){
+  const payouts={};
+  let hasPayout=false;
+  for(let i=1;i<=6;i++){
+   const val=String(st.payouts[st.horse]?.[i]??'').trim();
+   if(!val)continue;
+   const n=Number(val);
+   if(!Number.isFinite(n)||n<0||n>100000)
+    return '<h3>Check the payout figures</h3><p class="market-caveat">Enter nonnegative total returns from the bookmaker.</p>';
+   payouts[i]=n;hasPayout=true;
+  }
+  if(!hasPayout)return '<h3>Enter the bookmaker’s place payouts</h3><p class="market-caveat">Then see the net profit or loss for each finishing position.</p>';
+  return marketPositionTable(stake,null,st,payouts,money);
+ }
+ const decimal=marketNumber(marketQuote(r,st));
+ if(decimal===null)return '<h3>Enter the bookmaker’s odds</h3><p class="market-caveat">Special market prices cannot be assumed from ordinary win odds. Use fractional odds like 7/2 or decimal odds like 4.50.</p>';
+ if(st.market==='either_to_win'){
+  return '<h3>If either chosen horse wins</h3><table class="market-pay-table"><thead><tr><th>Either wins</th><th>Neither wins</th></tr></thead>'+
+   '<tbody><tr>'+money(stake*(decimal-1))+money(-stake)+'</tr></tbody></table>'+
+   '<p class="market-caveat">Only a bookmaker-offered pair at these specific odds qualifies. Confirm both horses and the price.</p>';
+ }
+ return marketPositionTable(stake,decimal,st,{},money);
+}
+function marketPositionTable(stake,decimal,st,payouts,money){
+ const places=Number(st.places),fraction=Number(st.fraction);
+ const cells=[1,2,3,4,5,6].map(pos=>
+  money(marketOutcome(st.market,pos,stake,decimal,places,fraction,payouts))).join('');
+ const minimum=(st.market==='win'||st.market==='top_finishes')&&decimal?
+  '<p class="market-caveat">At these odds, the outcome must happen more than '+
+  (100/decimal).toFixed(1)+'% of the time to break even in the long run. PIF has not established that probability.</p>':'';
+ return '<h3>Profit or loss by finishing position</h3>'+
+  '<table class="market-pay-table"><thead><tr><th>1st</th><th>2nd</th><th>3rd</th><th>4th</th><th>5th</th><th>6th</th></tr></thead>'+
+  '<tbody><tr>'+cells+'</tr></tbody></table>'+
+  '<p class="market-caveat">These are hypothetical net returns on a £'+stake.toFixed(2)+
+  ' total stake, not a prediction. For Money Back, a refund is £0 profit. Actual bookmaker terms govern settlement.</p>'+minimum;
+}
+function marketRefresh(panel,replaceDynamic){
+ const r=entries.find(x=>raceKey(x)===panel.dataset.marketRace);
+ if(!r)return;
+ const state=marketState(r);
+ if(replaceDynamic)panel.querySelector('.market-dynamic').innerHTML=marketDynamic(r,state);
+ panel.querySelector('.market-result').innerHTML=marketResults(r,state);
+}
+function marketUIEvent(event){
+ const input=event.target.closest('[data-market-role]');
+ if(!input)return;
+ if(event.type==='input'&&input.tagName==='SELECT')return;
+ if(event.type==='change'&&input.tagName!=='SELECT')return;
+ const panel=input.closest('[data-market-race]');
+ if(!panel)return;
+ const r=entries.find(x=>raceKey(x)===panel.dataset.marketRace);
+ if(!r)return;
+ const st=marketState(r),role=input.dataset.marketRole,value=input.value;
+ if(role==='horse'||role==='market'){
+  st[role]=value;
+  if(st.second===st.horse)st.second=String((Number(st.horse)+1)%Math.min(3,(r.top_three||[]).length));
+  marketRefresh(panel,true);
+ }else{
+  if(role==='odds')st.quotes[marketQuoteKey(st)]=value;
+  else if(role.startsWith('payout')){if(!st.payouts[st.horse])st.payouts[st.horse]=Object.create(null);st.payouts[st.horse][Number(role.slice(6))]=value;}
+  else st[role]=value;
+  marketRefresh(panel,role==='places'||role==='fraction'||role==='second');
+ }
+}
+get('races').addEventListener('input',marketUIEvent);
+get('races').addEventListener('change',marketUIEvent);
+
 function render(){
  const cv=get('course').value,typ=get('code').value;
  const matches=entries.filter(x=>(cv==='all'||x.course===cv)&&(typ==='all'||raceGroup(x)===typ));
@@ -435,6 +671,7 @@ function render(){
  '<div class="insufficient"><strong>No ranking:</strong> '+escapeHtml(r.display_warning||'Race details could not be verified')+'</div>':'')+
  (r.top_three||[]).map(h=>row(h,r.type)).join('')+
  marketDisagreement(r)+
+ marketPanel(r)+
  '<details class="other-runners"><summary>'+
  (['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status)?'Show ranks 4 onward':'Show runners (not ranked)')+
  '</summary>'+
@@ -450,6 +687,7 @@ function render(){
    });
  }
  updateRaceToggle();
+ get('races').querySelectorAll('.market-tool').forEach(panel=>marketRefresh(panel,true));
 }
 async function reload(){
  if(!token||loading)return;
