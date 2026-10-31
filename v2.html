@@ -586,6 +586,32 @@ async function updateForwardRecord(){
     '<p><strong>Recorded</strong> means an exact score-factor snapshot saved before the off and matched to the first-frozen prediction. This research is observational and cannot establish betting value.</p>';
   const factorAudit='<details class="shadow-audit"><summary>Why Hurdles and Turf first picks miss — factor investigation</summary>'+
     '<div class="shadow-audit-content"><h3>Which factors are driving the misses?</h3>'+factorDisplay+'</div></details>';
+  // Separately versioned model changes can only earn promotion after
+  // real settled races. Never replace the existing ranked racecards based
+  // on historical starting-price fitting.
+  const candidates=Array.isArray(data.history_challenger_codes)?
+    data.history_challenger_codes:[];
+  const newModels='<details class="shadow-audit"><summary>New model experiments: Hurdles history and Turf course record</summary>'+
+    '<div class="shadow-audit-content"><h3>Current formula versus proposed change</h3>'+
+    '<p><strong>Hurdles:</strong> test older course, distance and going results beyond the recent 12 runs. <strong>Flat Turf:</strong> test a slightly bigger course-record weighting and smaller recent-form weighting. Existing racecard rankings are unchanged. All comparisons require same pre-race data and verified complete results.</p>'+
+    (data.history_challenger_status==='UNAVAILABLE'?
+      '<p>Challenger results temporarily unavailable. No winner counts have been inferred.</p>':
+      '<table class="forward-model-table"><thead><tr><th>Model</th><th>Recorded races</th><th>Completed</th><th>Current first wins</th><th>New first wins</th><th>First choices differed</th></tr></thead><tbody>'+
+      [['Hurdles','Hurdle'],['Flat Turf','Flat Turf']].flatMap(([label,code])=>
+        ['regular','provisional'].map(tier=>{
+          const r=candidates.find(x=>x.code===code&&x.tier===tier);
+          if(tier==='provisional'&&!r?.recorded_races)return '';
+          const completed=number(r?.completed_races);
+          return '<tr><td>'+escapeHtml(label)+(tier==='provisional'?' · limited form':'')+'</td>'+
+          '<td>'+number(r?.recorded_races)+'</td>'+
+          '<td>'+(completed||'—')+'</td>'+
+          '<td>'+(completed?number(r?.current_first_wins):'—')+'</td>'+
+          '<td>'+(completed?number(r?.new_first_wins):'—')+'</td>'+
+          '<td>'+(completed?number(r?.first_choice_disagreements):'—')+'</td></tr>';
+        })
+      ).join('')+'</tbody></table>'+
+      '<p>Zero recorded or completed races means the new test is awaiting eligible future races. No historical predictions are being rewritten. Neither experiment is validated or suitable for betting.</p>')+
+    '</div></details>';
   const original=Array.isArray(data.research_codes)?data.research_codes:[];
   const originalDetails=original.length?
     '<details class="shadow-audit"><summary>Original formula record (background comparison)</summary>'+
@@ -597,7 +623,7 @@ async function updateForwardRecord(){
     '<strong>Completed</strong> = both methods comparable after verified results. '+
     'Our formula = specialist first choice; old formula = original V2 first choice.</p>'+
     '<p>Experimental research only: no proven profit or betting value, and small samples can mislead.</p>'+
-    marketAudit+factorAudit+originalDetails);
+    marketAudit+factorAudit+newModels+originalDetails);
  }catch(_){
   el.innerHTML=closed('<p>Results comparison temporarily unavailable. No claims about model success are being made.</p>');
  }
