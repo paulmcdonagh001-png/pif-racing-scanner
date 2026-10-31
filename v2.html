@@ -502,6 +502,20 @@ async function updateForwardRecord(){
     number(marketCoverage.mixed_quote_sources_races)+' mixed bookmakers; '+
     number(marketCoverage.tied_favourite_races)+' tied prices. '+
     'The remaining races had incomplete recorded fields. Missing prices never count as losses.</p>';
+  const weakerRegular=categories.map(([label,code])=>({
+      label,record:market.find(x=>x.code===code&&x.tier==='regular')
+    })).filter(x=>{
+      const r=x.record;
+      return r&&number(r.priced_comparable_races)>=5&&
+        number(r.specialist_wins_same_races)<number(r.favourite_wins_same_races);
+    });
+  const earlyWarning=weakerRegular.length?
+    '<p class="insufficient"><strong>Early forward-test warning:</strong> '+
+    weakerRegular.map(({label,record:r})=>escapeHtml(label)+': model first choice '+
+      number(r.specialist_wins_same_races)+'/'+number(r.priced_comparable_races)+
+      ' wins versus the favourite '+number(r.favourite_wins_same_races)+'/'+
+      number(r.priced_comparable_races)).join('; ')+
+    '. These small samples are not a verdict, but the current first-ranked picks should not be treated as betting signals.</p>':'';
   const marketHeading='<h3>Specialist vs market favourite · forward test</h3>'+
     '<p>Only completed races with valid, same-source odds for <strong>every runner</strong> are compared. Prices were recorded before the start, not taken from the result. No bookmaker profit or proven betting edge is implied.</p>';
   const marketBody=data.favourite_forward_status==='UNAVAILABLE'?
@@ -539,7 +553,7 @@ async function updateForwardRecord(){
     '<div class="shadow-audit-content">'+
     (data.favourite_forward_status==='UNAVAILABLE'?
       '<p>Independent price-coverage and win comparison temporarily unavailable.</p>':
-      outcomes+winnerRanks+priceCoverage)+marketHeading+marketBody+
+      earlyWarning+outcomes+winnerRanks+priceCoverage)+marketHeading+marketBody+
     (data.favourite_forward_status==='UNAVAILABLE'?'':favouriteRanking+longPriceBreakdown)+'</div></details>';
   const original=Array.isArray(data.research_codes)?data.research_codes:[];
   const originalDetails=original.length?
