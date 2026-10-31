@@ -494,11 +494,26 @@ async function updateForwardRecord(){
     '<p><strong>—</strong> = insufficient complete pre-race prices or results, not zero wins. '+
     'The 8–20/1 column counts first-, second- and third-ranked horses at those recorded prices. '+
     'Limited-form predictions are reported separately and are not reliable betting selections.</p>';
+  const longPriceBreakdown='<h3>8–20/1 results by PIF ranking</h3>'+
+    '<p>This answers whether our second, third or fourth choice performs differently at bigger odds. The range means decimal 9.00–21.00. These are small forward-test samples, not betting recommendations.</p>'+
+    '<table class="forward-model-table"><thead><tr><th>Race type</th><th>Rank 1</th><th>Rank 2</th><th>Rank 3</th><th>Rank 4</th></tr></thead><tbody>'+
+    categories.flatMap(([label,code])=>['regular','provisional'].map(tier=>{
+      const r=market.find(x=>x.code===code&&x.tier===tier);
+      if(tier==='provisional'&&!r?.recorded_races)return '';
+      const cells=[1,2,3,4].map(rank=>{
+        const s=r?.long_price_by_rank?.[String(rank)];
+        const picks=number(s?.selections);
+        return '<td>'+(picks?number(s.wins)+' wins / '+picks+' picks':'—')+'</td>';
+      }).join('');
+      return '<tr><td>'+escapeHtml(label)+(tier==='provisional'?' · limited form':'')+'</td>'+cells+'</tr>';
+    })).join('')+'</tbody></table>'+
+    '<p><strong>—</strong> means no fully settled qualifying selections at that price and rank. Top-three finishes are also recorded in the data but are not assumed to be paid each-way places.</p>';
   const marketAudit='<details class="shadow-audit"><summary>Compare with favourites and longer-priced horses</summary>'+
     '<div class="shadow-audit-content">'+
     (data.favourite_forward_status==='UNAVAILABLE'?
       '<p>Independent price-coverage and win comparison temporarily unavailable.</p>':
-      outcomes+priceCoverage)+marketHeading+marketBody+'</div></details>';
+      outcomes+priceCoverage)+marketHeading+marketBody+
+    (data.favourite_forward_status==='UNAVAILABLE'?'':longPriceBreakdown)+'</div></details>';
   const original=Array.isArray(data.research_codes)?data.research_codes:[];
   const originalDetails=original.length?
     '<details class="shadow-audit"><summary>Original formula record (background comparison)</summary>'+
