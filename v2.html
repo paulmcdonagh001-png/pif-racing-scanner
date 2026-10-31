@@ -450,6 +450,31 @@ async function updateForwardRecord(){
   const market=Array.isArray(data.favourite_forward_codes)?data.favourite_forward_codes:[];
   const categories=[['All-Weather','Flat AW'],['Flat Turf','Flat Turf'],
     ['Hurdles','Hurdle'],['Chases','Chase'],['National Hunt Flat','NH Flat']];
+  const outcomes='<h3>First-choice winners · official results</h3>'+
+    '<p>Counts below use first-frozen predictions and complete official results. They remain available even where bookmaker odds are missing. Limited-form models are reported separately.</p>'+
+    '<table class="forward-model-table"><thead><tr><th>Race type</th><th>Recorded</th><th>Completed</th><th>Specialist wins</th><th>Old-model wins</th></tr></thead><tbody>'+
+    categories.flatMap(([label,code])=>['regular','provisional'].map(tier=>{
+      const r=market.find(x=>x.code===code&&x.tier===tier);
+      if(tier==='provisional'&&!r?.recorded_races)return '';
+      return '<tr><td>'+escapeHtml(label)+(tier==='provisional'?' · limited form':'')+'</td>'+
+        '<td>'+number(r?.recorded_races)+'</td>'+
+        '<td>'+number(r?.fully_settled_races)+'</td>'+
+        '<td>'+number(r?.settled_specialist_first_wins)+'</td>'+
+        '<td>'+number(r?.settled_original_first_wins)+'</td></tr>';
+    })).join('')+'</tbody></table>';
+  const marketCoverage=market.reduce((a,r)=>{
+    for(const key of ['recorded_races','complete_racefields','fully_priced_snapshot_races',
+      'missing_prices_races','mixed_quote_sources_races','tied_favourite_races']){
+      a[key]=(a[key]||0)+number(r[key]);
+    }
+    return a;
+  },{});
+  const priceCoverage='<p><strong>Pre-race price coverage:</strong> '+number(marketCoverage.fully_priced_snapshot_races)+
+    ' of '+number(marketCoverage.recorded_races)+' recorded races had a complete, same-source odds snapshot with a clear favourite. '+
+    number(marketCoverage.missing_prices_races)+' had missing prices; '+
+    number(marketCoverage.mixed_quote_sources_races)+' mixed bookmakers; '+
+    number(marketCoverage.tied_favourite_races)+' tied prices. '+
+    'The remaining races had incomplete recorded fields. Missing prices never count as losses.</p>';
   const marketHeading='<h3>Specialist vs market favourite · forward test</h3>'+
     '<p>Only completed races with valid, same-source odds for <strong>every runner</strong> are compared. Prices were recorded before the start, not taken from the result. No bookmaker profit or proven betting edge is implied.</p>';
   const marketBody=data.favourite_forward_status==='UNAVAILABLE'?
@@ -470,7 +495,10 @@ async function updateForwardRecord(){
     'The 8–20/1 column counts first-, second- and third-ranked horses at those recorded prices. '+
     'Limited-form predictions are reported separately and are not reliable betting selections.</p>';
   const marketAudit='<details class="shadow-audit"><summary>Compare with favourites and longer-priced horses</summary>'+
-    '<div class="shadow-audit-content">'+marketHeading+marketBody+'</div></details>';
+    '<div class="shadow-audit-content">'+
+    (data.favourite_forward_status==='UNAVAILABLE'?
+      '<p>Independent price-coverage and win comparison temporarily unavailable.</p>':
+      outcomes+priceCoverage)+marketHeading+marketBody+'</div></details>';
   const original=Array.isArray(data.research_codes)?data.research_codes:[];
   const originalDetails=original.length?
     '<details class="shadow-audit"><summary>Original formula record (background comparison)</summary>'+
