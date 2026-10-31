@@ -342,16 +342,19 @@ function row(h,raceType){
  const topGoing=facts.similar_going_top_three??h.going_top3_recorded;
  const courseRuns=numeric(facts.course_starts);
  const courseState=String(facts.course_evidence_status||'');
- // Zero at course is different from unavailable course identity.
- const courseNote=courseState==='COURSE_DATA_UNAVAILABLE'?'Course history unavailable':
+ // Never invent zero course visits when the source did not verify them.
+ const courseMissing=courseState==='COURSE_DATA_UNAVAILABLE'||courseRuns===null||
+   (courseRuns===0&&!['NOT_RACED_HERE','NO_PREVIOUS_FORM'].includes(courseState));
+ const courseNote=courseMissing?'Course history unavailable':
    courseState==='NO_PREVIOUS_FORM'?'No previous runs recorded':
-   courseState==='NOT_RACED_HERE'?'No recorded runs at this course':
-   'No matching course runs recorded';
+   'No recorded runs at this course';
+ const winsVerified=numeric(courseWins)!==null;
  const courseMetric='<div class="metric"><span class="metric-name">Course</span>'+
    (courseRuns!==null&&courseRuns>0?
-      '<strong class="metric-value">'+count(courseWins)+'<span> / '+courseRuns+'</span></strong>'+
-      '<span class="metric-note">wins / runs at course</span>':
-      '<strong class="metric-empty">'+(courseState==='COURSE_DATA_UNAVAILABLE'?'—':'0')+'</strong>'+
+      '<strong class="metric-value">'+(winsVerified?count(courseWins):'—')+
+      '<span> / '+courseRuns+'</span></strong>'+
+      '<span class="metric-note">'+(winsVerified?'wins / runs at course':'Course visits recorded; wins unavailable')+'</span>':
+      '<strong class="metric-empty">'+(courseMissing?'—':'0')+'</strong>'+
       '<span class="metric-note">'+escapeHtml(courseNote)+'</span>')+
    '</div>';
  const metrics=courseMetric+
