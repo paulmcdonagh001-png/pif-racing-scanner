@@ -86,6 +86,11 @@ jobs:
           const unknownCourse=row({...h,display_evidence_facts:{...h.evidence_facts,
             course_starts:0,course_wins:0,course_evidence_status:'COURSE_DATA_UNAVAILABLE'}},'Flat');
           assert(unknownCourse.includes('Course history unavailable'),'Unknown venue must not assert zero visits');
+          assert(unknownCourse.includes('metric-empty">—</strong>'),'Unverified course visits must not display zero');
+          const omittedCourse=row({...h,display_evidence_facts:{official_rating:55}},'Chase');
+          assert(omittedCourse.includes('Course history unavailable'),'Absent course field must not masquerade as zero');
+          const unverifiedWins=row({...h,display_evidence_facts:{course_starts:3}},'Hurdle');
+          assert(unverifiedWins.includes('Course visits recorded; wins unavailable'),'Missing wins must not display invented zero');
           const injection=row({horse:'<script>x</script>',model_rank:9,display_rank:null,
             prior_runs_recorded:0,evidence_facts:{}},'Flat');
           assert(!injection.includes('<script>'),'Horse field XSS regression');
