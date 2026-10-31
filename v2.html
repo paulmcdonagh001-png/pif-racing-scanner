@@ -462,6 +462,33 @@ async function updateForwardRecord(){
         '<td>'+number(r?.settled_specialist_first_wins)+'</td>'+
         '<td>'+number(r?.settled_original_first_wins)+'</td></tr>';
     })).join('')+'</tbody></table>';
+  // Explain misses without hindsight: this only reads rankings frozen pre-off,
+  // followed by the winner from the official result. No feature refitting.
+  const winnerRanks='<h3>Where did we rank the winner?</h3>'+
+    '<p>For every fully settled race, we show where the eventual winner sat in our saved specialist ranking. This makes it clear whether the model narrowly missed (2nd/3rd) or failed to identify the winner (4th or lower).</p>'+
+    '<table class="forward-model-table"><thead><tr><th>Race type</th><th>Completed</th><th>Winner #1</th><th>#2</th><th>#3</th><th>#4+</th></tr></thead><tbody>'+
+    categories.flatMap(([label,code])=>['regular','provisional'].map(tier=>{
+      const r=market.find(x=>x.code===code&&x.tier===tier);
+      if(tier==='provisional'&&!r?.recorded_races)return '';
+      const dist=r?.winner_rank_distribution||{};
+      const done=number(r?.fully_settled_races);
+      const cell=x=>'<td>'+(done?number(dist[x]):'—')+'</td>';
+      return '<tr><td>'+escapeHtml(label)+(tier==='provisional'?' · limited form':'')+'</td>'+
+        '<td>'+(done?done:'—')+'</td>'+
+        ['1','2','3','4+'].map(cell).join('')+'</tr>';
+    })).join('')+'</tbody></table>';
+  const favouriteRanking='<h3>Where did we rank the market favourite?</h3>'+
+    '<p>Only uses races with one clearly shortest-priced horse, the same bookmaker for every runner, and complete official results. A low agreement rate is a warning to investigate—not proof the model is finding value.</p>'+
+    '<table class="forward-model-table"><thead><tr><th>Race type</th><th>Comparable</th><th>Fav ranked #1</th><th>Fav ranked #2</th><th>Fav ranked #3</th><th>Fav ranked #4+</th></tr></thead><tbody>'+
+    categories.flatMap(([label,code])=>['regular','provisional'].map(tier=>{
+      const r=market.find(x=>x.code===code&&x.tier===tier);
+      if(tier==='provisional'&&!r?.recorded_races)return '';
+      const dist=r?.favourite_rank_distribution||{};
+      const n=number(r?.priced_comparable_races);
+      return '<tr><td>'+escapeHtml(label)+(tier==='provisional'?' · limited form':'')+'</td>'+
+        '<td>'+(n?n:'—')+'</td>'+
+        ['1','2','3','4+'].map(key=>'<td>'+(n?number(dist[key]):'—')+'</td>').join('')+'</tr>';
+    })).join('')+'</tbody></table>';
   const marketCoverage=market.reduce((a,r)=>{
     for(const key of ['recorded_races','complete_racefields','fully_priced_snapshot_races',
       'missing_prices_races','mixed_quote_sources_races','tied_favourite_races']){
@@ -512,8 +539,8 @@ async function updateForwardRecord(){
     '<div class="shadow-audit-content">'+
     (data.favourite_forward_status==='UNAVAILABLE'?
       '<p>Independent price-coverage and win comparison temporarily unavailable.</p>':
-      outcomes+priceCoverage)+marketHeading+marketBody+
-    (data.favourite_forward_status==='UNAVAILABLE'?'':longPriceBreakdown)+'</div></details>';
+      outcomes+winnerRanks+priceCoverage)+marketHeading+marketBody+
+    (data.favourite_forward_status==='UNAVAILABLE'?'':favouriteRanking+longPriceBreakdown)+'</div></details>';
   const original=Array.isArray(data.research_codes)?data.research_codes:[];
   const originalDetails=original.length?
     '<details class="shadow-audit"><summary>Original formula record (background comparison)</summary>'+
