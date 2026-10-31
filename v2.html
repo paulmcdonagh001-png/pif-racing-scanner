@@ -555,6 +555,37 @@ async function updateForwardRecord(){
       '<p>Independent price-coverage and win comparison temporarily unavailable.</p>':
       earlyWarning+outcomes+winnerRanks+priceCoverage)+marketHeading+marketBody+
     (data.favourite_forward_status==='UNAVAILABLE'?'':favouriteRanking+longPriceBreakdown)+'</div></details>';
+  // New prospective analysis uses immutable *pre-off factor components*.
+  // Older races lack those snapshots, so never backfill their components
+  // after results are known or call a factor "overweighted" prematurely.
+  const factors=Array.isArray(data.factor_audit_codes)?data.factor_audit_codes:[];
+  const factorLabels={
+    official_rating:'Official rating',recent_form:'Recent form',
+    course:'Course record',distance:'Distance',going:'Going',
+    trainer_jockey:'Trainer & jockey',jump_completion:'Jump completion'
+  };
+  const factorDisplay=data.factor_audit_status==='UNAVAILABLE'?
+    '<p>Factor comparison temporarily unavailable. Existing rankings are unaffected.</p>':
+    '<p>New pre-race factor evidence is being recorded for Hurdles and Flat Turf. Older races cannot safely be reconstructed after the results. A high contribution shows what helped the losing top choice, <strong>not</strong> proof a factor is wrongly weighted.</p>'+
+    '<table class="forward-model-table"><thead><tr><th>Model</th><th>Recorded</th><th>Completed</th><th>Missed first choices</th><th>Biggest advantage for losing choice</th></tr></thead><tbody>'+
+    [['Hurdles','Hurdle'],['Flat Turf','Flat Turf']].flatMap(([label,code])=>
+      ['regular','provisional'].map(tier=>{
+        const r=factors.find(x=>x.code===code&&x.tier===tier);
+        if(tier==='provisional'&&!r?.recorded_races)return '';
+        const misses=number(r?.missed_first_choices);
+        const leaders=Object.entries(r?.largest_positive_factor||{}).filter(([_,n])=>number(n)>0)
+          .sort((a,b)=>number(b[1])-number(a[1])).slice(0,2)
+          .map(([key,n])=>escapeHtml(factorLabels[key]||key)+' ('+number(n)+')').join(', ');
+        return '<tr><td>'+escapeHtml(label)+(tier==='provisional'?' · limited form':'')+'</td>'+
+          '<td>'+number(r?.recorded_races)+'</td>'+
+          '<td>'+number(r?.fully_settled_races)+'</td>'+
+          '<td>'+(misses?misses:'—')+'</td>'+
+          '<td>'+(misses?(leaders||'No dominant positive component'):'Awaiting complete results')+'</td></tr>';
+      })
+    ).join('')+'</tbody></table>'+
+    '<p><strong>Recorded</strong> means an exact score-factor snapshot saved before the off and matched to the first-frozen prediction. This research is observational and cannot establish betting value.</p>';
+  const factorAudit='<details class="shadow-audit"><summary>Why Hurdles and Turf first picks miss — factor investigation</summary>'+
+    '<div class="shadow-audit-content"><h3>Which factors are driving the misses?</h3>'+factorDisplay+'</div></details>';
   const original=Array.isArray(data.research_codes)?data.research_codes:[];
   const originalDetails=original.length?
     '<details class="shadow-audit"><summary>Original formula record (background comparison)</summary>'+
@@ -566,7 +597,7 @@ async function updateForwardRecord(){
     '<strong>Completed</strong> = both methods comparable after verified results. '+
     'Our formula = specialist first choice; old formula = original V2 first choice.</p>'+
     '<p>Experimental research only: no proven profit or betting value, and small samples can mislead.</p>'+
-    marketAudit+originalDetails);
+    marketAudit+factorAudit+originalDetails);
  }catch(_){
   el.innerHTML=closed('<p>Results comparison temporarily unavailable. No claims about model success are being made.</p>');
  }
