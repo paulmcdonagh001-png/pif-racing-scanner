@@ -444,6 +444,33 @@ async function updateForwardRecord(){
   const intro=nCompleted?
     '<p><strong>Results so far:</strong> These are completed races where both choices were saved before the off. Winners are counted, not just favourites.</p>':
     '<p><strong>Waiting for completed comparisons.</strong> The system is saving eligible choices before races start. Official winners appear here once settled.</p>';
+  // Fair comparison against the favourite uses every runner's price frozen
+  // before the off from one source, and requires a fully settled race.
+  // Normal and limited-form specialist versions MUST remain separate.
+  const market=Array.isArray(data.favourite_forward_codes)?data.favourite_forward_codes:[];
+  const categories=[['All-Weather','Flat AW'],['Flat Turf','Flat Turf'],
+    ['Hurdles','Hurdle'],['Chases','Chase'],['National Hunt Flat','NH Flat']];
+  const marketHeading='<h3>Specialist vs market favourite · forward test</h3>'+
+    '<p>Only completed races with valid, same-source odds for <strong>every runner</strong> are compared. Prices were recorded before the start, not taken from the result. No bookmaker profit or proven betting edge is implied.</p>';
+  const marketBody=data.favourite_forward_status==='UNAVAILABLE'?
+    '<p>Favourite comparison temporarily unavailable; no estimate is substituted.</p>':
+    '<table class="forward-model-table"><thead><tr><th>Model</th><th>Priced races</th><th>Our first wins</th><th>Favourite wins</th><th>8–20/1 top-three picks</th></tr></thead><tbody>'+
+    categories.flatMap(([label,code])=>['regular','provisional'].map(tier=>{
+      const r=market.find(x=>x.code===code&&x.tier===tier);
+      if(tier==='provisional'&&!r?.recorded_races)return '';
+      const priced=number(r?.priced_comparable_races),picks=number(r?.long_price_top3_selections);
+      const pricedLabel=priced?String(priced):'—';
+      return '<tr><td>'+escapeHtml(label)+(tier==='provisional'?' · limited form':'')+'</td>'+
+        '<td>'+pricedLabel+'</td>'+
+        '<td>'+(priced?number(r?.specialist_wins_same_races):'—')+'</td>'+
+        '<td>'+(priced?number(r?.favourite_wins_same_races):'—')+'</td>'+
+        '<td>'+(picks?number(r?.long_price_top3_winners)+' wins / '+picks+' picks':'—')+'</td></tr>';
+    })).join('')+'</tbody></table>'+
+    '<p><strong>—</strong> = insufficient complete pre-race prices or results, not zero wins. '+
+    'The 8–20/1 column counts first-, second- and third-ranked horses at those recorded prices. '+
+    'Limited-form predictions are reported separately and are not reliable betting selections.</p>';
+  const marketAudit='<details class="shadow-audit"><summary>Compare with favourites and longer-priced horses</summary>'+
+    '<div class="shadow-audit-content">'+marketHeading+marketBody+'</div></details>';
   const original=Array.isArray(data.research_codes)?data.research_codes:[];
   const originalDetails=original.length?
     '<details class="shadow-audit"><summary>Original formula record (background comparison)</summary>'+
@@ -455,7 +482,7 @@ async function updateForwardRecord(){
     '<strong>Completed</strong> = both methods comparable after verified results. '+
     'Our formula = specialist first choice; old formula = original V2 first choice.</p>'+
     '<p>Experimental research only: no proven profit or betting value, and small samples can mislead.</p>'+
-    originalDetails);
+    marketAudit+originalDetails);
  }catch(_){
   el.innerHTML=closed('<p>Results comparison temporarily unavailable. No claims about model success are being made.</p>');
  }
