@@ -199,7 +199,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <button type="button" class="selected" data-day="today">Today</button>
 <button type="button" data-day="tomorrow">Tomorrow</button>
 </div>
-<div class="row"><button id="reload" class="secondary" type="button">Refresh races</button><button id="toggle-races" class="secondary" type="button">Collapse all races</button><span id="loaded-time" class="meta"></span></div>
+<div class="row"><button id="reload" class="secondary" type="button">Reload rankings</button><button id="toggle-races" class="secondary" type="button">Collapse all races</button><span id="loaded-time" class="meta"></span></div>
 <div class="filters">
 <div><label for="course">Racecourse</label><select id="course"><option value="all">All courses</option></select></div>
 <div><label for="code">Race type</label><select id="code"><option value="all">All types</option></select></div>
@@ -929,8 +929,8 @@ async function reload(){
   const data=await request('/v2-races',{session_token:token,day});
   if(data.status==='PREPARING'){
     const done=Number(data.progress?.done||0),total=Number(data.progress?.total||0);
-    status('Fetching today’s race histories from Racing API… '+(total>1?done+' / '+total+' steps':'Preparing source data')+'. No database copy is being made.');
-    get('races').innerHTML='<div class="card"><strong>V2 analysis is preparing</strong><p>First scan may take a few minutes as we request horse histories and recent results directly from The Racing API. This is not a V1 selection list.</p></div>';
+    status('Fetching '+day+'’s race histories from Racing API… '+(total>1?done+' / '+total+' steps':'Preparing source data')+'. Completed daily rankings will be saved.');
+    get('races').innerHTML='<div class="card"><strong>V2 analysis is preparing</strong><p>First scan may take a few minutes. Completed V2 rankings will be saved so you can reopen earlier races without rescanning.</p></div>';
     setTimeout(()=>{if(token)reload()},7000);
     return;
   }
@@ -942,10 +942,17 @@ async function reload(){
     throw Error('Specialist models are not yet active on this backend. Refresh the page; no general-model rankings will be substituted.');
   entries=Array.isArray(data.races)?data.races:[];
   updateFilters();render();updateForwardRecord();
-  get('loaded-time').textContent='Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  const saved=data.snapshot_status==='SAVED_DATABASE';
+  const savedAt=saved&&data.snapshot_saved_utc?new Date(data.snapshot_saved_utc):null;
+  const saveTime=savedAt&&!Number.isNaN(savedAt.valueOf())?
+    savedAt.toLocaleString('en-GB',{timeZone:'Europe/London',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+  get('loaded-time').textContent=saved?'Rankings saved '+saveTime:
+    'Analysis loaded '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
   const ledger=data.ledger_status==='FROZEN'?'V2 forward results tracking active':
      'Forward results tracking paused while database is recovered';
-  status('V2 beta · source: '+(data.evidence_source==='RACING_API_STANDARD_ON_DEMAND'?'Racing API (on demand)':'historical research')+' · '+ledger+' · no validated value selections');
+  status('V2 beta · '+(saved?'saved daily rankings (no rescan)':
+     'Racing API initial analysis'+(data.snapshot_status==='MEMORY_ONLY'?' · not yet saved':''))
+     +' · '+ledger+' · no validated value selections');
  }catch(err){
   if(/session_expired|unauthorised/.test(err.message)){token='';localStorage.removeItem(KEY);authUi()}
   status('V2 unavailable: '+err.message,true);
