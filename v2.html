@@ -438,7 +438,7 @@ function updateFilters(){
 function britishTime(raw){
  try{return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(raw));}catch(_){return '—'}
 }
-function row(h,raceType){
+function row(h,raceType,race){
  const facts=h.display_evidence_facts||h.evidence_facts||{};
  const numeric=v=>v===null||v===undefined||v===''?null:(Number.isFinite(Number(v))?Number(v):null);
  const count=v=>numeric(v)??0;
@@ -514,6 +514,50 @@ function row(h,raceType){
  const metrics=courseMetric+
                metric('Distance',topTrip,facts.similar_trip_starts,'top 3 / runs')+
                metric('Going',topGoing,facts.similar_going_starts,'top 3 / runs');
+
+ const field=Array.isArray(race?.all_runners)?race.all_runners:[];
+ const fieldOr=field.map(x=>numeric((x.display_evidence_facts||x.evidence_facts||{}).official_rating))
+   .filter(x=>x!==null&&x>0);
+ const minOr=fieldOr.length>1?Math.min(...fieldOr):null;
+ const maxOr=fieldOr.length>1?Math.max(...fieldOr):null;
+ function performance(n,d){
+   const a=numeric(n),b=numeric(d);
+   return a!==null&&b!==null&&b>0&&a>=0&&a<=b?100*a/b:null;
+ }
+ function record(n,d,suffix){
+   const a=numeric(n),b=numeric(d);
+   return a!==null&&b!==null&&b>0&&a>=0&&a<=b?
+     a+' / '+b+' '+suffix:'No verified comparable record';
+ }
+ function bar(label,pct,description){
+   const available=pct!==null&&Number.isFinite(pct);
+   const width=available?Math.min(100,Math.max(0,pct)):0;
+   return '<div class="evidence-factor" title="'+escapeHtml(description)+'">'+
+    '<div class="evidence-head"><span>'+escapeHtml(label)+'</span>'+
+    '<small>'+(available?'Recorded':'Unavailable')+'</small></div>'+
+    '<div class="evidence-track"><div class="evidence-fill'+(width<35?' low':'')+
+    '" style="width:'+width.toFixed(1)+'%"></div></div>'+
+    '<div class="evidence-sub">'+escapeHtml(description)+'</div></div>';
+ }
+ const trainer=facts.trainer_30d||{},jockey=facts.jockey_30d||{};
+ const ability=rating!==null&&rating>0&&minOr!==null?
+   (maxOr===minOr?50:100*(rating-minOr)/(maxOr-minOr)):null;
+ const bars=bar('Ability',ability,rating!==null&&rating>0?
+   'OR '+rating+' · relative to this field':'Official rating unavailable')+
+  bar('Course',courseMissing||!winsVerified?null:performance(courseWins,courseRuns),
+    courseMissing?'Course record unavailable':record(courseWins,courseRuns,'course wins'))+
+  bar('Trainer',performance(trainer.wins,trainer.runs),
+    record(trainer.wins,trainer.runs,'wins · last 30d'))+
+  bar('Distance',performance(topTrip,facts.similar_trip_starts),
+    record(topTrip,facts.similar_trip_starts,'top-3 finishes at trip'))+
+  bar('Jockey',performance(jockey.wins,jockey.runs),
+    record(jockey.wins,jockey.runs,'wins · last 30d'))+
+  bar('Going',performance(topGoing,facts.similar_going_starts),
+    record(topGoing,facts.similar_going_starts,'top-3 finishes on going'));
+ const chooseIndex=field.findIndex(x=>String(x.horse_id)===String(h.horse_id));
+ const choose=chooseIndex<0?'':'<button type="button" class="choose-runner" data-choose-horse="'+
+   chooseIndex+'" data-choose-race="'+escapeHtml(raceKey(race))+
+   '">Choose this runner for comparison</button>';
  const factors=Array.isArray(h.conditions_reasons)&&h.conditions_reasons.length?
   h.conditions_reasons.filter(x=>typeof x==='string').slice(0,3):
   h.display_model?[]:Array.isArray(h.ranking_evidence)?
@@ -547,10 +591,11 @@ function row(h,raceType){
  if(other>0&&anyDays===null)detailParts.push('<p><b>Data gap:</b> This saved card records other race types but has not verified the latest run across all disciplines. The date above is for '+escapeHtml(raceType)+' only.</p>');
  if(previousForm)detailParts.push('<p><b>Previous-discipline record:</b> '+escapeHtml(previousForm)+
    '. A novice hurdle can be a first hurdles run without being the horse’s first race. This is context only, not included in the current same-discipline hurdle score.</p>');
+ if(context.length)detailParts.push('<p><b>Racecard details:</b> '+context.map(escapeHtml).join(' · ')+'</p>');
  if(comparison)detailParts.push(comparison);
  if(factors.length)detailParts.push('<p><b>Why the model ranked this horse here:</b> '+
     factors.map(escapeHtml).join(' · ')+'. These are model contributions, not proof of winning chance.</p>');
- const more='<details class="horse-extended"><summary>See course, distance, going &amp; full explanation</summary>'+
+ const more='<details class="horse-extended"><summary>Full racecard &amp; model explanation</summary>'+
     '<div class="horse-extended-content">'+
       '<div class="metric-grid">'+metrics+'</div>'+
       why+cautions+
