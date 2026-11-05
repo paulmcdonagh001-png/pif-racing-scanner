@@ -1052,7 +1052,7 @@ async function reload(){
     throw Error('Racing API history could not be verified ('+String(data.error_type||'source error')+'). No substitute predictions have been shown. Retry after two minutes.');
   if(data.status!=='RESEARCH_ONLY'||!String(data.version||'').startsWith('pif-v2-independent-'))
     throw Error('V2 backend version not available. No replacement rankings were shown.');
-  if(!['FIVE_CODE_SPECIFIC_EXPERIMENTAL','FIVE_CODE_RACE_CONDITIONS_V1'].includes(data.display_ranking_system))
+  if(!['FIVE_CODE_SPECIFIC_EXPERIMENTAL','FIVE_CODE_RACE_CONDITIONS_V1','FIVE_CODE_RACE_CONDITIONS_V2'].includes(data.display_ranking_system))
     throw Error('Specialist models are not yet active on this backend. Refresh the page; no general-model rankings will be substituted.');
   entries=Array.isArray(data.races)?data.races:[];
   updateFilters();render();updateForwardRecord();
