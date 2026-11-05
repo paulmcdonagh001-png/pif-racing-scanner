@@ -173,6 +173,55 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .other-runners > summary{font-size:13px;min-height:42px;display:list-item;list-style:disclosure-closed inside;padding:12px;color:var(--mint);cursor:pointer}
 .other-runners[open] > summary{list-style:disclosure-open inside}
 .other-runners > summary:focus-visible{outline:2px solid var(--mint);outline-offset:-2px}
+
+/* Full-field runner cards: readable mobile layout, evidence not win probabilities. */
+.runner-legend{font-size:12px;color:#bcd4dd;line-height:1.5;padding:13px 13px 2px}
+.horse{background:#fcfdfd;color:#19343c;border:1px solid #cbdadd;border-radius:13px;margin:11px 10px;padding:13px;box-shadow:0 3px 7px #0002}
+.horse-featured{border-color:#61b09b}
+.horse-main{grid-template-columns:34px minmax(0,1fr)86px;gap:9px;align-items:start}
+.horse .position{background:#dbf0e8;border:1px solid #8ebdaf;color:#195c50;width:33px;height:33px}
+.horse .horse-name{font-size:18px;color:#163d3e}
+.horse .horse-context{font-size:12px;color:#48626b;line-height:1.45}
+.horse .horse-price strong{color:#fff;background:#c9212b;border-radius:8px;padding:11px 4px;text-align:center;font-size:19px}
+.horse .horse-price span,.horse .horse-price small{color:#4c6470;text-align:center;margin-top:4px}
+.horse .horse-body{margin:8px 0 0}
+.horse .form-label,.horse .form-label small{color:#516971}
+.horse .form-chip{background:#e7eff0;color:#344b53;border-color:#cbdade}
+.horse .form-chip.form-placed{background:#d6f2e3;color:#1a5d3b;border-color:#a1d9ba}
+.horse .form-missing{color:#627b83}
+.horse .research-rank{font-size:12px;font-weight:800;color:#126b60;padding:5px 0}
+.horse .research-rank span{font-weight:550;color:#667b81}
+.evidence-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px;margin:11px 0;padding:12px 0;border-top:1px solid #d5e0e2;border-bottom:1px solid #d5e0e2}
+.evidence-factor{min-width:0}
+.evidence-head{display:flex;align-items:baseline;justify-content:space-between;gap:4px;color:#233f46;font-size:12px;font-weight:800}
+.evidence-head small{color:#56717a;font-weight:550;font-size:9px}
+.evidence-track{height:9px;background:#e0e4e6;border-radius:4px;overflow:hidden;margin:5px 0}
+.evidence-fill{height:100%;background:#5b9f24;border-radius:4px}
+.evidence-fill.low{background:#e28c1c}
+.evidence-sub{color:#566d75;font-size:10px;line-height:1.35;min-height:15px}
+.horse .low-history{background:#fff3d6;border-left-color:#d99a2d;color:#70520f}
+.horse .insufficient{background:#fff3d6;border-left:3px solid #d99a2d;color:#70520f}
+.horse .horse-extended{border-top:0;margin-top:8px}
+.horse .horse-extended>summary{color:#136d60;padding:7px 0;font-weight:750}
+.horse .horse-extra-body,.horse .horse-extra-body p{color:#405961}
+.horse .horse-extra-body b{color:#24464e}
+.horse .metric{background:#edf3f4;border-color:#d2e0e3}
+.horse .metric-name,.horse .metric-value,.horse .metric-value span,.horse .metric-note,.horse .metric-empty{color:#284b50}
+.horse .horse-why{color:#346457}
+.horse .horse-why strong{color:#246051}
+.choose-runner{width:100%;margin-top:5px;padding:10px 8px;background:#e4f5ee;color:#155d51;border:1px solid #1b947d;font-size:12px;font-weight:800}
+.choose-runner:hover,.choose-runner:focus-visible{background:#ceeade}
+@media(max-width:480px){
+ .horse{margin:9px 7px;padding:11px}
+ .horse-main{grid-template-columns:29px minmax(0,1fr)76px;gap:7px}
+ .horse .position{width:28px;height:28px}
+ .horse .horse-name{font-size:16px}
+ .horse .horse-price strong{font-size:17px}
+ .horse .horse-context{font-size:11px}
+ .evidence-grid{gap:9px 10px}
+ .evidence-head{font-size:11px}
+ .evidence-sub{font-size:9px}
+}
 </style>
 </head>
 <body>
