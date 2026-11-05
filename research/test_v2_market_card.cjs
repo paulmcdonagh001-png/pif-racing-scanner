@@ -97,4 +97,28 @@ assert(warning.includes('PIF rank 2'));
 assert(warning.includes('3 wins from 4 recorded runs'));
 assert(warning.includes('too little relevant form'));
 
+
+const fullField={race_id:'all-eight',all_runners:[
+ ...horses,
+ {horse:'Runner Four',horse_id:'d',display_rank:4,quote:{decimal:19}},
+ {horse:'Runner Five',horse_id:'e',display_rank:5,quote:{decimal:31}},
+ {horse:'Runner Six',horse_id:'f',display_rank:6,quote:{decimal:5}},
+ {horse:'Runner Seven',horse_id:'g',display_rank:7,quote:{decimal:42},conditions_supported:false},
+ {horse:'Runner Eight',horse_id:'h',display_rank:8,quote:{decimal:63}}
+],top_three:horses};
+context.fullField=fullField;
+const fullPanel=vm.runInContext('marketPanel(fullField)',context);
+for(const h of fullField.all_runners){
+ assert(fullPanel.includes(h.horse),'Every runner must be selectable: '+h.horse);
+}
+vm.runInContext("marketState(fullField).horse='7'",context);
+assert.equal(vm.runInContext('marketQuote(fullField,marketState(fullField))',context),'63');
+const formCard=vm.runInContext("row({horse:'Sample Runner',horse_id:'d',display_rank:4,jockey_name:'Jockey',trainer_name:'Trainer',evidence_facts:{official_rating:98,course_wins:1,course_starts:3,trainer_30d:{wins:4,runs:20},jockey_30d:{wins:2,runs:15},similar_trip_top_three:2,similar_trip_starts:4,similar_going_top_three:1,similar_going_starts:5}},'Flat',{race_id:'test',all_runners:[{horse_id:'d',evidence_facts:{official_rating:98}},{horse_id:'z',evidence_facts:{official_rating:100}}]})",context);
+for(const bar of ['Ability','Course','Trainer','Distance','Jockey','Going']){
+ assert(formCard.includes('>'+bar+'</span>'),'Missing evidence bar: '+bar);
+}
+assert(formCard.includes('Choose this runner for comparison'));
+assert(doc.includes('(r.all_runners||r.top_three||[]).map(h=>row(h,r.type,r))'),'Full-field must render without a hidden ranks 4+ expander');
+assert(!doc.includes("'<details class=\"other-runners\""),'Old runner expander must not be rendered');
+
 console.log('PIF Racing V2 market cards: payout calculations, rank integrity and no-price checks passed');
