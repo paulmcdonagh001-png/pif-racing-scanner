@@ -182,9 +182,9 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <div><strong>Racing V2</strong><small>Independent scanner · Research beta</small></div>
 <a href="./database.html">Racing database</a>
 </header>
-<h1>Five race types. Five separate formulas.</h1>
-<p>Each race uses its <strong>own specialist research formula</strong>: All-Weather, Flat Turf, Hurdles, Chases or National Hunt Flat. Where supplied on the pre-race Racing API racecard, provider Performance Rating (PR) and Flat-only Speed Rating (SR) are blended with the existing course, going, distance, trainer, jockey and form analysis. Unavailable ratings are never treated as zero.</p>
-<div class="notice"><strong>Top three rankings are back.</strong> Every race uses its relevant specialist formula. Races with little past form show a <strong>provisional top three</strong> with an extra warning, not a confident betting selection. No model has proven value. The old general formula is still tracked separately.</div>
+<h1>Race Conditions Assessment · PIF Racing V2</h1>
+<p><strong>First understand today's race. Then rank every horse against its requirements.</strong> Separate All-Weather, Flat Turf, Hurdles, Chases and NH Flat models adjust priorities for actual race distance, going, class and field size. Racing API ratings and verified historical evidence remain part of the assessment. Unknown pace and weather are not invented.</p>
+<div class="notice"><strong>New: Conditions-led top three.</strong> Each race explains its key demands, with individual strengths and concerns. Prior rankings are retained for forward comparison. The new weighting rules are experimental and <strong>not yet validated for betting</strong>.</div>
 <section id="signin" class="card" hidden>
 <h2>Private access</h2>
 <p>Use your existing PIF Racing scanner access code.</p>
@@ -874,7 +874,7 @@ function render(){
  const hidden=matches.length-rs.length;
  get('summary').textContent=rs.length+' races shown · '+entries.length+' available'+
    (hidden?' · '+hidden+' already off (hidden)':'')+
-   ' · Race-specific experimental rankings · not verified value';
+   ' · Conditions-led experimental rankings · not verified value';
  get('races').innerHTML=rs.map(r=>'<details class="meeting" data-race-key="'+escapeHtml(raceKey(r))+'"'+(collapsedRaces.has(raceKey(r))?'':' open')+'>'+
  '<summary class="meeting-heading"><div><div class="meeting-title">'+escapeHtml(britishTime(r.off_utc))+' '+escapeHtml(r.course)+'</div>'+
  (r.race_name?'<div class="details">'+escapeHtml(r.race_name)+'</div>':'')+
@@ -938,7 +938,7 @@ async function reload(){
     throw Error('Racing API history could not be verified ('+String(data.error_type||'source error')+'). No substitute predictions have been shown. Retry after two minutes.');
   if(data.status!=='RESEARCH_ONLY'||!String(data.version||'').startsWith('pif-v2-independent-'))
     throw Error('V2 backend version not available. No replacement rankings were shown.');
-  if(data.display_ranking_system!=='FIVE_CODE_SPECIFIC_EXPERIMENTAL')
+  if(!['FIVE_CODE_SPECIFIC_EXPERIMENTAL','FIVE_CODE_RACE_CONDITIONS_V1'].includes(data.display_ranking_system))
     throw Error('Specialist models are not yet active on this backend. Refresh the page; no general-model rankings will be substituted.');
   entries=Array.isArray(data.races)?data.races:[];
   updateFilters();render();updateForwardRecord();
