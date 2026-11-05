@@ -430,6 +430,7 @@ function row(h,raceType){
  const oldRank=numeric(h.conditions_previous_rank);
  const comparison=oldRank!==null&&oldRank!==rank?
   '<p><b>Earlier specialist/API rank:</b> '+oldRank+'. Conditions assessment changed this ordering; not proof of value.</p>':'';
+ const notSelected=h.conditions_supported===false?'<div class="insufficient"><strong>Not selected:</strong> '+(Array.isArray(h.conditions_exclusion_reasons)?h.conditions_exclusion_reasons.map(escapeHtml).join(' · '):'Insufficient independent evidence')+'</div>':'';
  const limited=prior!==null&&prior<3?
    '<div class="low-history">Limited comparable history: '+prior+' recorded '+escapeHtml(raceType)+' runs'+
      (previousForm?'. Previous '+escapeHtml(priorDiscipline)+
@@ -461,15 +462,15 @@ function row(h,raceType){
       why+cautions+
       '<div class="horse-extra-body">'+detailParts.join('')+'</div>'+
     '</div></details>';
- return '<div class="horse'+(rank!==null&&rank<=3?' horse-featured':'')+'">'+
+ return '<div class="horse'+(rank!==null&&rank<=3&&h.conditions_supported!==false?' horse-featured':'')+'">'+
    '<div class="horse-main">'+
-    '<div class="position" aria-label="'+(rank===null?'No supported specialist rank':'Research rank '+rank)+'">'+(rank===null?'—':rank)+'</div>'+
+    '<div class="position" aria-label="'+(h.conditions_supported===false?'Not a supported selection':rank===null?'No supported specialist rank':'Research rank '+rank)+'">'+(rank===null||h.conditions_supported===false?'—':rank)+'</div>'+
     '<div class="horse-intro"><div class="horse-name">'+escapeHtml(h.horse)+'</div>'+
      '<div class="horse-context">'+context.map(escapeHtml).join(' · ')+'</div></div>'+
     '<div class="horse-price"><strong>'+ (hasPrice?price.toFixed(2):'—')+'</strong>'+
      '<span>'+escapeHtml(source)+'</span><small>Indicative odds</small></div>'+
    '</div>'+
-   '<div class="horse-body">'+limited+
+   '<div class="horse-body">'+notSelected+limited+
     '<div class="form-strip"><span class="form-label">RECENT '+escapeHtml(raceType.toUpperCase())+' FORM <small>latest same-type first</small></span>'+
      '<div class="form-values">'+formChips+'</div></div>'+
     more+
@@ -719,6 +720,7 @@ async function updateForwardRecord(){
  }
 }
 function marketDisagreement(r){
+ if(r.conditions_selection_status==='NO_SUPPORTED_SELECTION')return '';
  const ranked=(r.all_runners||[]).filter(h=>Number.isInteger(Number(h.display_rank))&&Number(h.display_rank)>0);
  const quoted=ranked.map(h=>({runner:h,price:Number(h.quote?.decimal)}))
    .filter(x=>Number.isFinite(x.price)&&x.price>1.01);
@@ -826,7 +828,7 @@ function marketPanel(r){
    '<small>'+escapeHtml(quote)+'</small><p>'+escapeHtml(marketResearchAngle(index))+'</p></div>';
  }).join('');
  return '<div class="market-lens"><h3 class="market-lens-heading">Which horse and which bet?</h3>'+
-  '<p class="market-lens-note">Compare the top three from this race. <strong>No verified best bet yet:</strong> ranks are experimental, and a high price alone does not mean value.</p>'+
+  '<p class="market-lens-note">Compare only the runners passing the evidence screen. <strong>No verified best bet yet:</strong> ranks are experimental and a high price alone does not mean value.</p>'+
   '<div class="market-shortlist">'+cards+'</div>'+
   '<details class="market-tool" data-market-race="'+escapeHtml(raceKey(r))+'">'+
   '<summary>Compare £5 bets and bookmaker markets</summary>'+
@@ -987,12 +989,19 @@ function render(){
  ' · '+(r.provider_rating_status==='PROVIDER_RATED'?
     'API '+escapeHtml(r.provider_rating_used||'PR')+' used · ':
     'Supplier ratings not used for this field · ')+
- (r.display_status==='PROVISIONAL_SPECIALIST_RANKING'?'Provisional top three · limited form':
+ (r.conditions_selection_status==='NO_SUPPORTED_SELECTION'?'No supported selection':
+    r.conditions_selection_status==='RESEARCH_SHORTLIST'?
+    String((r.top_three||[]).length)+' evidence-screened research runners · no proven value':
+    r.display_status==='PROVISIONAL_SPECIALIST_RANKING'?'Provisional top three · limited form':
     r.display_status==='SPECIALIST_RESEARCH_ONLY'?'Research top three shown':'No supported ranking')+
  '</div></div>'+
  '<div class="meeting-actions"><small class="meta">'+(Date.parse(r.off_utc)<=now?'Off · result pending':'Research only')+'</small>'+
  '<span class="meeting-control"><span class="meeting-open">Hide race</span><span class="meeting-closed">Show race</span><span class="meeting-arrow" aria-hidden="true">⌄</span></span></div></summary>'+
- (r.display_status==='PROVISIONAL_SPECIALIST_RANKING'?
+ (r.conditions_selection_status==='NO_SUPPORTED_SELECTION'?
+ '<div class="insufficient"><strong>No supported selection in this race.</strong> All runners failed the minimum relevant-form/fitness/market-evidence screen. You can inspect them below, but PIF is not putting forward a top pick.</div>':
+ r.conditions_selection_status==='RESEARCH_SHORTLIST'&&Number(r.conditions_selection_count)<3?
+ '<div class="insufficient"><strong>Fewer than three supported runners.</strong> The others remain visible for research but are not PIF selections. This screen is experimental, not proven profitable.</div>':
+ r.display_status==='PROVISIONAL_SPECIALIST_RANKING'?
  '<div class="insufficient"><strong>Limited form:</strong> '+escapeHtml(r.display_warning||'Provisional ranking only')+'</div>':
  r.display_status!=='SPECIALIST_RESEARCH_ONLY'?
  '<div class="insufficient"><strong>No ranking:</strong> '+escapeHtml(r.display_warning||'Race details could not be verified')+'</div>':'')+
@@ -1003,9 +1012,11 @@ function render(){
  '<details class="other-runners" data-runners-key="'+escapeHtml(raceKey(r))+'"'+
  ((runnerOpenStates.has(raceKey(r))?runnerOpenStates.get(raceKey(r)):
     !['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status))?' open':'')+'><summary>'+
- (['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status)?'Show / hide ranks 4 onward':'Show / hide runners (not ranked)')+
+ (r.conditions_selection_status?'Show / hide remaining runners (not endorsed)':
+  ['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status)?'Show / hide ranks 4 onward':'Show / hide runners (not ranked)')+
  '</summary>'+
- (['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status)?(r.all_runners||[]).slice(3):(r.all_runners||[]))
+ (r.conditions_selection_status?(r.all_runners||[]).slice((r.top_three||[]).length):
+  ['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status)?(r.all_runners||[]).slice(3):(r.all_runners||[]))
    .map(h=>row(h,r.type)).join('')+
  '</details></details>').join('')||
  '<div class="card"><strong>No races in this filter.</strong><p>Try a different course, race type or day.</p></div>';
