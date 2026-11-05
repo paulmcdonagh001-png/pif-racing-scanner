@@ -261,6 +261,11 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
  .horse .evidence-grid{gap:5px 10px}
  .horse .evidence-head{font-size:10px}
 }
+
+.horse .horse-extended{display:block;width:100%;margin:2px 0 0}
+.horse .horse-extended>summary{display:list-item;list-style:disclosure-closed inside;color:#23635b;padding:1px 0 0;font-size:10px}
+.horse .horse-extended[open]>summary{list-style:disclosure-open inside}
+.horse .horse-extended-content{display:block;width:100%;max-width:100%;padding:8px 0}
 </style>
 </head>
 <body>
@@ -658,8 +663,8 @@ function row(h,raceType,race){
    '<div class="evidence-grid">'+bars+'</div>'+
    '<div class="compact-bottom">'+
     '<div class="compact-form"><span>FORM</span><div class="form-values">'+formChips+'</div></div>'+
-    '<div class="compact-actions">'+choose+more+'</div>'+
-   '</div>'+
+    '<div class="compact-actions">'+choose+'</div>'+
+   '</div>'+more+
    ((h.conditions_supported===false||prior!==null&&prior<3)?
      '<div class="compact-flag">'+(h.conditions_supported===false?'Not shortlisted':'')+
      ((h.conditions_supported===false&&prior!==null&&prior<3)?' · ':'')+
