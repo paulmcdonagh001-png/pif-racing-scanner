@@ -266,6 +266,13 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .horse .horse-extended>summary{display:list-item;list-style:disclosure-closed inside;color:#23635b;padding:1px 0 0;font-size:10px}
 .horse .horse-extended[open]>summary{list-style:disclosure-open inside}
 .horse .horse-extended-content{display:block;width:100%;max-width:100%;padding:8px 0}
+
+/* Field-relative evidence display; missing data must never look like bad performance. */
+.horse .evidence-fill.strong{background:#549c20}
+.horse .evidence-fill.medium{background:#c59b2e}
+.horse .evidence-fill.low{background:#d28526}
+.horse .evidence-fill.unrated{background:repeating-linear-gradient(110deg,#a6b3b6 0 4px,#dce3e5 4px 8px);opacity:.8}
+.horse .evidence-head small{font-weight:750;min-width:20px;text-align:right}
 </style>
 </head>
 <body>
@@ -277,7 +284,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 </header>
 <h1>Race Conditions Assessment · PIF Racing V2</h1>
 <p><strong>First understand today's race. Then rank every horse against its requirements.</strong> Separate All-Weather, Flat Turf, Hurdles, Chases and NH Flat models adjust priorities for actual race distance, going, class and field size. Racing API ratings and verified historical evidence remain part of the assessment. Unknown pace and weather are not invented.</p>
-<div class="notice"><strong>New: compact full-field runner cards.</strong> Compare every runner and choose your own horse. Prior rankings are retained for forward comparison. The new weighting rules are experimental and <strong>not yet validated for betting</strong>.</div>
+<div class="notice"><strong>New: comparative evidence bars.</strong> Compare every runner and choose your own horse. Prior rankings are retained for forward comparison. The new weighting rules are experimental and <strong>not yet validated for betting</strong>.</div>
 <section id="signin" class="card" hidden>
 <h2>Private access</h2>
 <p>Use your existing PIF Racing scanner access code.</p>
@@ -573,37 +580,80 @@ function row(h,raceType,race){
    return a!==null&&b!==null&&b>0&&a>=0&&a<=b?
      a+' / '+b+' '+suffix:'No verified comparable record';
  }
- function bar(label,pct,description){
-   const available=pct!==null&&Number.isFinite(pct);
-   const width=available?Math.min(100,Math.max(0,pct)):0;
-   const parts=description.split(' ');
-   const small=label==='Ability'&&parts[0]==='OR'&&Number.isFinite(Number(parts[1]))?
-     'OR '+parts[1]:Number.isFinite(Number(parts[0]))&&parts[1]==='/'&&
-     Number.isFinite(Number(parts[2]))?parts[0]+'/'+parts[2]:
-     (description.startsWith('No previous')||description.startsWith('No recorded'))?'New':'—';
-   return '<div class="evidence-factor" title="'+escapeHtml(description)+'" aria-label="'+
-      escapeHtml(label+': '+description)+'">'+
-    '<div class="evidence-head"><span>'+escapeHtml(label)+'</span>'+
-    '<small>'+escapeHtml(small)+'</small></div>'+
-    '<div class="evidence-track"><div class="evidence-fill'+(!available?' missing':width<35?' low':'')+
-    '" style="width:'+width.toFixed(1)+'%"></div></div>'+
-    '<div class="evidence-sub">'+escapeHtml(description)+'</div></div>';
+ // Each bar is a WITHIN-RACE ranking of evidence, not a raw strike rate.
+ // The smoothing prevents 0 wins in three runs being drawn as zero ability.
+ // No suitable historical data => visibly UNRATED, not scored as weak.
+ const numberOrNull=v=>v===null||v===undefined||v===''?null:
+  (Number.isFinite(Number(v))?Number(v):null);
+ const allField=field.length?field:[h];
+ const prCount=allField.filter(x=>{const n=numberOrNull(x.provider_performance_rating);return n!==null&&n>0;}).length;
+ const orCount=allField.filter(x=>{
+  const f=x.full_history_evidence_facts||x.display_evidence_facts||x.evidence_facts||{};
+  const n=numberOrNull(f.official_rating);return n!==null&&n>0;
+ }).length;
+ const abilityBasis=prCount>=Math.max(2,Math.ceil(allField.length*.65))?'PR':
+  orCount>=2?'OR':prCount>orCount?'PR':'OR';
+ function signal(runner,factor){
+  const f=runner.full_history_evidence_facts||runner.display_evidence_facts||runner.evidence_facts||{};
+  const smooth=(k,n,pseudoK,pseudoN)=>{
+   k=numberOrNull(k);n=numberOrNull(n);
+   return n!==null&&n>0&&k!==null&&k>=0&&k<=n?(k+pseudoK)/(n+pseudoN):null;
+  };
+  if(factor==='Ability'){
+   const x=numberOrNull(abilityBasis==='PR'?runner.provider_performance_rating:f.official_rating);
+   return x!==null&&x>0?x:null;
+  }
+  if(factor==='Trainer')return smooth(f.trainer_30d?.wins,f.trainer_30d?.runs,2,20);
+  if(factor==='Jockey')return smooth(f.jockey_30d?.wins,f.jockey_30d?.runs,2,20);
+  if(factor==='Course'){
+   if(f.course_evidence_status==='COURSE_DATA_UNAVAILABLE')return null;
+   const n=numberOrNull(f.course_starts),p=numberOrNull(f.course_top_three);
+   return p!==null?smooth(p,n,1.5,5):smooth(f.course_wins,n,1,6);
+  }
+  if(factor==='Distance')return smooth(f.similar_trip_top_three,f.similar_trip_starts,1.5,5);
+  if(factor==='Going')return smooth(f.similar_going_top_three,f.similar_going_starts,1.5,5);
+  return null;
+ }
+ function bar(label,description){
+  const value=signal(h,label);
+  const peers=allField.map(x=>signal(x,label))
+   .filter(x=>x!==null&&Number.isFinite(x)).sort((x,y)=>x-y);
+  const hasRating=value!==null&&peers.length>=2;
+  const below=hasRating?peers.filter(x=>x<value-1e-9).length:0;
+  const equal=hasRating?peers.filter(x=>Math.abs(x-value)<=1e-9).length:0;
+  const percentile=hasRating?(below+(equal-1)/2)/(peers.length-1):0;
+  const score=hasRating?Math.round(22+68*percentile):null;
+  const width=score===null?50:score;
+  const level=score===null?'unrated':score>=73?'strong':score>=44?'medium':'low';
+  const text=score===null?'N/R':score>=73?'High':score>=44?'Mid':'Low';
+  const help=description+' · '+(hasRating?
+   'Relative to '+peers.length+' runners with comparable records':
+   'Not enough verified comparison data')+
+   (label==='Ability'?' · '+abilityBasis:'')+
+   ' · Not a win probability';
+  return '<div class="evidence-factor" title="'+escapeHtml(help)+'" aria-label="'+
+   escapeHtml(label+': '+help)+'">'+
+   '<div class="evidence-head"><span>'+escapeHtml(label)+'</span>'+
+   '<small>'+text+'</small></div>'+
+   '<div class="evidence-track"><div class="evidence-fill '+level+
+   '" style="width:'+width+'%"></div></div>'+
+   '<div class="evidence-sub">'+escapeHtml(description)+'</div></div>';
  }
  const trainer=facts.trainer_30d||{},jockey=facts.jockey_30d||{};
- const ability=rating!==null&&rating>0&&minOr!==null?
-   (maxOr===minOr?50:100*(rating-minOr)/(maxOr-minOr)):null;
- const bars=bar('Ability',ability,rating!==null&&rating>0?
-   'OR '+rating+' · relative to this field':'Official rating unavailable')+
-  bar('Course',courseMissing||!winsVerified?null:performance(courseWins,courseRuns),
-    courseMissing?'Course history unverified':(courseRuns===0?'No previous runs at this course':record(courseWins,courseRuns,'course wins')))+
-  bar('Trainer',performance(trainer.wins,trainer.runs),
-    record(trainer.wins,trainer.runs,'wins · last 30d'))+
-  bar('Distance',performance(topTrip,facts.similar_trip_starts),
-    numeric(facts.similar_trip_starts)===0?'No recorded comparable-distance runs':record(topTrip,facts.similar_trip_starts,'top-3 finishes at trip'))+
-  bar('Jockey',performance(jockey.wins,jockey.runs),
-    record(jockey.wins,jockey.runs,'wins · last 30d'))+
-  bar('Going',performance(topGoing,facts.similar_going_starts),
-    numeric(facts.similar_going_starts)===0?'No recorded similar-going runs':record(topGoing,facts.similar_going_starts,'top-3 finishes on going'));
+ const bars=bar('Ability',apiPR!==null&&apiPR>0?
+    'Racing API PR '+apiPR+'; OR '+(rating===null?'not published':rating):
+    rating!==null&&rating>0?'Official rating '+rating:'Official rating unavailable')+
+   bar('Course',courseMissing?'Course history unverified':
+    courseRuns===0?'No previous course runs':
+    numberOrNull(facts.course_top_three)!==null?
+      record(facts.course_top_three,courseRuns,'top-three at course'):
+      record(courseWins,courseRuns,'course wins'))+
+   bar('Trainer',record(trainer.wins,trainer.runs,'wins · last 30 days'))+
+   bar('Distance',numberOrNull(facts.similar_trip_starts)===0?
+     'No similar-distance runs':record(topTrip,facts.similar_trip_starts,'top-three at trip'))+
+   bar('Jockey',record(jockey.wins,jockey.runs,'wins · last 30 days'))+
+   bar('Going',numberOrNull(facts.similar_going_starts)===0?
+     'No similar-going runs':record(topGoing,facts.similar_going_starts,'top-three on going'));
  const chooseIndex=field.findIndex(x=>String(x.horse_id)===String(h.horse_id));
  const choose=chooseIndex<0?'':'<button type="button" class="choose-runner" data-choose-horse="'+
    chooseIndex+'" data-choose-race="'+escapeHtml(raceKey(race))+
@@ -1214,7 +1264,7 @@ function render(){
  r.display_status!=='SPECIALIST_RESEARCH_ONLY'?
  '<div class="insufficient"><strong>No ranking:</strong> '+escapeHtml(r.display_warning||'Race details could not be verified')+'</div>':'')+
  conditionsPanel(r)+
- '<div class="runner-legend"><strong>All '+((r.all_runners||r.top_three||[]).length)+' runners shown.</strong> Rankings are experimental; every horse remains available to inspect and choose.</div>'+
+ '<div class="runner-legend"><strong>All '+((r.all_runners||r.top_three||[]).length)+' runners.</strong> Bars compare each horse against this field, not win chances. N/R (grey) means no reliable comparison, not a poor horse.</div>'+
  (r.all_runners||r.top_three||[]).map(h=>row(h,r.type,r)).join('')+
  marketDisagreement(r)+
  marketPanel(r)+
