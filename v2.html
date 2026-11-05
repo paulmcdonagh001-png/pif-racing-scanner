@@ -1091,6 +1091,24 @@ function marketUIEvent(event){
 }
 get('races').addEventListener('input',marketUIEvent);
 get('races').addEventListener('change',marketUIEvent);
+get('races').addEventListener('click',event=>{
+ const button=event.target.closest('button[data-choose-horse]');
+ if(!button)return;
+ const r=entries.find(x=>raceKey(x)===button.dataset.chooseRace);
+ if(!r)return;
+ const index=Number(button.dataset.chooseHorse);
+ if(!Number.isInteger(index)||index<0||index>=marketRunners(r).length)return;
+ const panel=button.closest('details.meeting')?.querySelector('[data-market-race]');
+ if(!panel)return;
+ const st=marketState(r);
+ st.horse=String(index);
+ if(st.second===st.horse)st.second=String((index+1)%Math.max(1,marketRunners(r).length));
+ const select=panel.querySelector('select[data-market-role="horse"]');
+ if(select)select.value=st.horse;
+ panel.open=true;
+ marketRefresh(panel,true);
+ panel.scrollIntoView({behavior:'smooth',block:'center'});
+});
 
 function conditionsPanel(r){
  const focus=Array.isArray(r.conditions_focus)?r.conditions_focus:[];
