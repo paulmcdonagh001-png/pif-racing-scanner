@@ -876,6 +876,16 @@ function marketUIEvent(event){
 get('races').addEventListener('input',marketUIEvent);
 get('races').addEventListener('change',marketUIEvent);
 
+function conditionsPanel(r){
+ const focus=Array.isArray(r.conditions_focus)?r.conditions_focus:[];
+ if(!r.conditions_version)return '<div class="insufficient"><strong>Conditions assessment not yet available:</strong> Earlier specialist ranking retained because race distance, going or comparable evidence was not verified.</div>';
+ return '<div class="market-lens"><h3 class="market-lens-heading">What matters in this race?</h3>'+
+   '<p class="market-lens-note"><b>Today:</b> '+escapeHtml(r.distance||'Distance unavailable')+' · '+escapeHtml(r.going||'Going unavailable')+' · '+escapeHtml(r.conditions_race_class||'Class unknown')+
+   ' · '+escapeHtml(String(r.field_size||''))+' runners</p>'+
+   '<p class="market-lens-note"><b>Race priorities:</b> '+focus.map(escapeHtml).join(' · ')+'</p>'+
+   '<p class="market-lens-note">'+(r.conditions_provider_checked?'Supplier PR included; ':'Insufficient supplier PR; ')+(r.conditions_weight_checked?'published card weights considered.':'card weights unavailable or incomplete; not scored.')+
+   ' No assumed pace or forecast weather. Experimental research only, not proven value.</p></div>';
+}
 function render(){
  const cv=get('course').value,typ=get('code').value;
  const matches=entries.filter(x=>(cv==='all'||x.course===cv)&&(typ==='all'||raceGroup(x)===typ));
@@ -905,6 +915,7 @@ function render(){
  '<div class="insufficient"><strong>Limited form:</strong> '+escapeHtml(r.display_warning||'Provisional ranking only')+'</div>':
  r.display_status!=='SPECIALIST_RESEARCH_ONLY'?
  '<div class="insufficient"><strong>No ranking:</strong> '+escapeHtml(r.display_warning||'Race details could not be verified')+'</div>':'')+
+ conditionsPanel(r)+
  (r.top_three||[]).map(h=>row(h,r.type)).join('')+
  marketDisagreement(r)+
  marketPanel(r)+
