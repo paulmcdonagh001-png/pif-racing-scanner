@@ -46,7 +46,7 @@ const horses=[
 const race={race_id:'test-Bath',top_three:horses};
 context.race=race;
 const panel=vm.runInContext('marketPanel(race)',context);
-for(const x of ['Which horse and which bet?','Kaleidoscope Eyes','Equion','Thiscouldbefun',
+for(const x of ['Choose any horse','Kaleidoscope Eyes','Equion','Thiscouldbefun',
  'Win quote 8.50','top three','No verified best bet yet','Compare £5 bets and bookmaker markets']){
  assert(panel.toLowerCase().includes(x.toLowerCase()),'Panel missing '+x);
 }
@@ -61,7 +61,7 @@ assert(vm.runInContext("marketResults(sparse,marketState(sparse))",context).incl
 assert(doc.includes('marketPanel(r)+'),'Racecard must contain embedded panel');
 assert(!doc.includes('research_share_pct'),'Do not leak uncalibrated model shares');
 
-const rowStart=script.indexOf('function row(h,raceType){');
+const rowStart=script.indexOf('function row(h,raceType,race){');
 const rowEnd=script.indexOf('async function updateForwardRecord(){',rowStart);
 assert(rowStart>=0&&rowEnd>rowStart);
 vm.runInContext(script.slice(rowStart,rowEnd),context);
@@ -120,5 +120,41 @@ for(const bar of ['Ability','Course','Trainer','Distance','Jockey','Going']){
 assert(formCard.includes('Choose this runner for comparison'));
 assert(doc.includes('(r.all_runners||r.top_three||[]).map(h=>row(h,r.type,r))'),'Full-field must render without a hidden ranks 4+ expander');
 assert(!doc.includes("'<details class=\"other-runners\""),'Old runner expander must not be rendered');
+
+const signalHorse=(id,or,wins,runs,courseWins,courseRuns,distancePlaces,distanceRuns)=>({
+ horse:id,horse_id:id,display_rank:1,
+ evidence_facts:{
+  official_rating:or,
+  trainer_30d:{wins,runs},jockey_30d:{wins,runs},
+  course_wins:courseWins,course_starts:courseRuns,
+  similar_trip_top_three:distancePlaces,similar_trip_starts:distanceRuns,
+  similar_going_top_three:1,similar_going_starts:3
+ }
+});
+const evidenceRace={race_id:'signal-test',all_runners:[
+ signalHorse('a',80,6,30,0,3,0,2),
+ signalHorse('b',70,1,30,0,3,1,2),
+ signalHorse('c',90,2,30,1,3,2,2)
+]};
+context.evidenceRace=evidenceRace;
+const relative=vm.runInContext("row(evidenceRace.all_runners[0],'Flat',evidenceRace)",context);
+assert.equal((relative.match(/class="evidence-factor"/g)||[]).length,6,
+ 'All six comparative factors must be visible');
+assert(relative.includes('evidence-fill strong'),
+ '6 wins / 30 should have strong field-relative standing, not a 20% bar');
+assert(relative.includes('evidence-fill low'),
+ 'A weak relative record should still show a non-zero rating, not an empty bar');
+assert(!relative.includes('width:0%'),
+ 'No recorded win should never produce a visually empty zero-ability bar');
+const unrated=signalHorse('unrated',null,0,0,0,0,0,0);
+unrated.evidence_facts.similar_going_starts=0;
+context.unrated=unrated;
+context.evidenceRace.all_runners.push(unrated);
+const missingHtml=vm.runInContext("row(unrated,'Flat',evidenceRace)",context);
+assert(missingHtml.includes('evidence-fill unrated'),
+ 'Insufficient records should show unrated grey, not a low performance');
+assert(!doc.includes('winning probability') || doc.includes('not a win'),
+ 'No fabricated winning chances');
+
 
 console.log('PIF Racing V2 market cards: payout calculations, rank integrity and no-price checks passed');
