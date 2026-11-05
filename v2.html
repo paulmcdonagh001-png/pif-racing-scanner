@@ -478,7 +478,7 @@ function britishTime(raw){
  try{return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(raw));}catch(_){return '—'}
 }
 function row(h,raceType,race){
- const facts=h.display_evidence_facts||h.evidence_facts||{};
+ const facts=h.full_history_evidence_facts||h.display_evidence_facts||h.evidence_facts||{};
  const numeric=v=>v===null||v===undefined||v===''?null:(Number.isFinite(Number(v))?Number(v):null);
  const count=v=>numeric(v)??0;
  const rank=numeric(h.display_rank);
