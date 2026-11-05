@@ -424,7 +424,7 @@ function row(h,raceType){
 async function updateForwardRecord(){
  if(!token)return;
  const el=get('forward-record');
- const name="Forward results: our five formulas vs original";
+ const name="Forward results: conditions model and earlier formulas";
  const closed=(body)=>'<details><summary>'+name+' (optional)</summary>'+body+'</details>';
  try{
   const data=await request('/v2-performance',{session_token:token});
@@ -632,7 +632,28 @@ async function updateForwardRecord(){
     '<div class="shadow-audit-content">'+original.map(x=>
       '<p>'+escapeHtml(x.code)+': '+number(x.races_frozen)+' recorded races · '+
       number(x.rank1_winners)+' rank-one winners</p>').join('')+'</div></details>':'';
-  el.innerHTML=closed(intro+table+
+  const conditionRegular=Array.isArray(data.conditions_regular_codes)?data.conditions_regular_codes:[];
+  const conditionLimited=Array.isArray(data.conditions_provisional_codes)?data.conditions_provisional_codes:[];
+  const conditionsHeading='<h3>NEW · Race Conditions Assessment</h3>'+
+    '<p>Only rankings frozen before race start are counted. This new model began 5 November 2026; earlier model results below are not attributed to it. There is no validated betting edge.</p>';
+  const conditionCards=categories.flatMap(([label,code])=>
+      [['Regular',conditionRegular],['Limited form',conditionLimited]].map(([tier,group])=>{
+        const r=group.find(x=>x.code===code);
+        if(tier==='Limited form'&&!r?.frozen_races)return '';
+        const done=number(r?.comparable_races),frozen=number(r?.frozen_races);
+        return '<div class="market-short"><strong>'+escapeHtml(label)+(tier==='Limited form'?' · limited form':'')+'</strong>'+
+          '<small>'+frozen+' frozen before off · '+done+' fully comparable</small>'+
+          '<p>'+(done?'Conditions first-choice winners: '+number(r?.shadow_rank1_wins)+
+          ' · Original V2 first-choice winners on same races: '+number(r?.baseline_rank1_wins_same_races):
+          'Awaiting complete results for fair comparison')+'</p></div>';
+      })).join('');
+  const conditionsSummary=conditionsHeading+
+    (data.conditions_model_status==='UNAVAILABLE'?
+     '<p>New-model performance temporarily unavailable.</p>':
+     '<div class="market-shortlist">'+conditionCards+'</div>')+
+    '<p>All counts require a complete, verified result. Original V2 comparison is not a bookmaker-favourite comparison.</p>'+
+    '<h3>Earlier specialist research (separate models)</h3>';
+  el.innerHTML=closed(conditionsSummary+intro+table+
     '<p><strong>Recorded</strong> = predictions saved before the race. '+
     '<strong>Completed</strong> = both methods comparable after verified results. '+
     'Our formula = specialist first choice; old formula = original V2 first choice.</p>'+
