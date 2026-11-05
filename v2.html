@@ -184,7 +184,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 </header>
 <h1>Race Conditions Assessment · PIF Racing V2</h1>
 <p><strong>First understand today's race. Then rank every horse against its requirements.</strong> Separate All-Weather, Flat Turf, Hurdles, Chases and NH Flat models adjust priorities for actual race distance, going, class and field size. Racing API ratings and verified historical evidence remain part of the assessment. Unknown pace and weather are not invented.</p>
-<div class="notice"><strong>New: Conditions-led top three.</strong> Each race explains its key demands, with individual strengths and concerns. Prior rankings are retained for forward comparison. The new weighting rules are experimental and <strong>not yet validated for betting</strong>.</div>
+<div class="notice"><strong>New: full-field runner cards.</strong> Compare every runner and choose your own horse. Prior rankings are retained for forward comparison. The new weighting rules are experimental and <strong>not yet validated for betting</strong>.</div>
 <section id="signin" class="card" hidden>
 <h2>Private access</h2>
 <p>Use your existing PIF Racing scanner access code.</p>
@@ -1036,9 +1036,9 @@ function render(){
     'Supplier ratings not used for this field · ')+
  (r.conditions_selection_status==='NO_SUPPORTED_SELECTION'?'No supported selection':
     r.conditions_selection_status==='RESEARCH_SHORTLIST'?
-    String((r.top_three||[]).length)+' evidence-screened research runners · no proven value':
-    r.display_status==='PROVISIONAL_SPECIALIST_RANKING'?'Provisional top three · limited form':
-    r.display_status==='SPECIALIST_RESEARCH_ONLY'?'Research top three shown':'No supported ranking')+
+    String(r.conditions_selection_count||0)+' shortlisted · full field below':
+    r.display_status==='PROVISIONAL_SPECIALIST_RANKING'?'Provisional ranking · limited form':
+    r.display_status==='SPECIALIST_RESEARCH_ONLY'?'Every runner ranked':'No supported ranking')+
  '</div></div>'+
  '<div class="meeting-actions"><small class="meta">'+(Date.parse(r.off_utc)<=now?'Off · result pending':'Research only')+'</small>'+
  '<span class="meeting-control"><span class="meeting-open">Hide race</span><span class="meeting-closed">Show race</span><span class="meeting-arrow" aria-hidden="true">⌄</span></span></div></summary>'+
@@ -1051,19 +1051,11 @@ function render(){
  r.display_status!=='SPECIALIST_RESEARCH_ONLY'?
  '<div class="insufficient"><strong>No ranking:</strong> '+escapeHtml(r.display_warning||'Race details could not be verified')+'</div>':'')+
  conditionsPanel(r)+
- (r.top_three||[]).map(h=>row(h,r.type)).join('')+
+ '<div class="runner-legend"><strong>All '+((r.all_runners||r.top_three||[]).length)+' runners shown.</strong> Rankings are experimental; every horse remains available to inspect and choose.</div>'+
+ (r.all_runners||r.top_three||[]).map(h=>row(h,r.type,r)).join('')+
  marketDisagreement(r)+
  marketPanel(r)+
- '<details class="other-runners" data-runners-key="'+escapeHtml(raceKey(r))+'"'+
- ((runnerOpenStates.has(raceKey(r))?runnerOpenStates.get(raceKey(r)):
-    !['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status))?' open':'')+'><summary>'+
- (r.conditions_selection_status?'Show / hide remaining runners (not endorsed)':
-  ['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status)?'Show / hide ranks 4 onward':'Show / hide runners (not ranked)')+
- '</summary>'+
- (r.conditions_selection_status?(r.all_runners||[]).slice((r.top_three||[]).length):
-  ['SPECIALIST_RESEARCH_ONLY','PROVISIONAL_SPECIALIST_RANKING'].includes(r.display_status)?(r.all_runners||[]).slice(3):(r.all_runners||[]))
-   .map(h=>row(h,r.type)).join('')+
- '</details></details>').join('')||
+ '</details>').join('')||
  '<div class="card"><strong>No races in this filter.</strong><p>Try a different course, race type or day.</p></div>';
  for(const el of get('races').querySelectorAll('details.meeting')){
    el.addEventListener('toggle',()=>{
