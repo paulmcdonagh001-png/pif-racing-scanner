@@ -324,6 +324,9 @@ function row(h,raceType){
  context.push((prior===null?'Unknown':prior)+' recorded '+raceType+' runs');
  if(previousForm)context.push(previousForm);
  if(days!==null&&days>=0)context.push('Last ran '+days+'d ago');
+ const carried=numeric(h.carried_weight_lbs),claim=numeric(h.jockey_claim_lbs);
+ if(carried!==null&&carried>0)context.push('Card weight '+Math.floor(carried/14)+'st '+(carried%14)+'lb');
+ if(claim!==null&&claim>0)context.push('Jockey claim '+claim+'lb');
  const form=Array.isArray(facts.last_five_finishes)?
    facts.last_five_finishes.filter(Boolean).slice(0,5):[];
  const formChips=form.length?form.map(v=>{
@@ -363,9 +366,16 @@ function row(h,raceType){
  const metrics=courseMetric+
                metric('Distance',topTrip,facts.similar_trip_starts,'top 3 / runs')+
                metric('Going',topGoing,facts.similar_going_starts,'top 3 / runs');
- const factors=h.display_model?[]:Array.isArray(h.ranking_evidence)?
+ const factors=Array.isArray(h.conditions_reasons)&&h.conditions_reasons.length?
+  h.conditions_reasons.filter(x=>typeof x==='string').slice(0,3):
+  h.display_model?[]:Array.isArray(h.ranking_evidence)?
   h.ranking_evidence.filter(x=>typeof x==='string').slice(0,2):[];
- const why=factors.length?'<div class="horse-why"><strong>Model factors</strong> '+factors.map(escapeHtml).join(' · ')+'</div>':'';
+ const why=factors.length?'<div class="horse-why"><strong>Conditions-fit strengths</strong> '+factors.map(escapeHtml).join(' · ')+'</div>':'';
+ const concerns=Array.isArray(h.conditions_cautions)?h.conditions_cautions.slice(0,4):[];
+ const cautions=concerns.length?'<div class="low-history"><strong>Things to check:</strong> '+concerns.map(escapeHtml).join(' · ')+'</div>':'';
+ const oldRank=numeric(h.conditions_previous_rank);
+ const comparison=oldRank!==null&&oldRank!==rank?
+  '<p><b>Earlier specialist/API rank:</b> '+oldRank+'. Conditions assessment changed this ordering; not proof of value.</p>':'';
  const limited=prior!==null&&prior<3?
    '<div class="low-history">Limited comparable history: '+prior+' recorded '+escapeHtml(raceType)+' runs'+
      (previousForm?'. Previous '+escapeHtml(priorDiscipline)+
@@ -387,12 +397,13 @@ function row(h,raceType){
  if(other>0)detailParts.push('<p><b>Other race types:</b> '+(breakDown.length?breakDown.join(' · '):other+' runs')+'</p>');
  if(previousForm)detailParts.push('<p><b>Previous-discipline record:</b> '+escapeHtml(previousForm)+
    '. A novice hurdle can be a first hurdles run without being the horse’s first race. This is context only, not included in the current same-discipline hurdle score.</p>');
+ if(comparison)detailParts.push(comparison);
  if(factors.length)detailParts.push('<p><b>Why the model ranked this horse here:</b> '+
     factors.map(escapeHtml).join(' · ')+'. These are model contributions, not proof of winning chance.</p>');
  const more='<details class="horse-extended"><summary>See course, distance, going &amp; full explanation</summary>'+
     '<div class="horse-extended-content">'+
       '<div class="metric-grid">'+metrics+'</div>'+
-      why+
+      why+cautions+
       '<div class="horse-extra-body">'+detailParts.join('')+'</div>'+
     '</div></details>';
  return '<div class="horse'+(rank!==null&&rank<=3?' horse-featured':'')+'">'+
