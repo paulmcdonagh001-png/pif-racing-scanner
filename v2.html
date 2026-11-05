@@ -899,6 +899,7 @@ const marketKinds=[
  ['each_way_extra','Each Way Extra'],['position_payout','Position payout'],
  ['either_to_win','Either to win']
 ];
+function marketRunners(r){return Array.isArray(r.all_runners)&&r.all_runners.length?r.all_runners:(r.top_three||[]);}
 function marketState(r){
  const id=raceKey(r);
  if(!marketInputState[id])marketInputState[id]={
@@ -925,7 +926,7 @@ function marketQuote(r,state){
  const key=marketQuoteKey(state);
  if(Object.prototype.hasOwnProperty.call(state.quotes,key))return state.quotes[key];
  if(state.market!=='win')return '';
- const horse=(r.top_three||[])[Number(state.horse)];
+ const horse=marketRunners(r)[Number(state.horse)];
  const d=horse?.quote?.decimal;
  return d!==null&&d!==undefined&&Number.isFinite(Number(d))&&Number(d)>1?
   String(d):'';
@@ -960,33 +961,28 @@ function marketResearchAngle(index){
  return 'Third on PIF ranking. Check whether a bigger possible payout compensates for the risk.';
 }
 function marketPanel(r){
- const ranked=(r.top_three||[]).filter(h=>Number(h.display_rank)>0).slice(0,3);
- if(!ranked.length)return '';
+ const runners=marketRunners(r);
+ if(!runners.length)return '';
  const st=marketState(r);
- const cards=ranked.map((h,index)=>{
-  const d=Number(h.quote?.decimal);
-  const quote=Number.isFinite(d)&&d>1?'Win quote '+d.toFixed(2):'Win quote unavailable';
-  return '<div class="market-short"><strong>#'+(index+1)+' '+escapeHtml(h.horse)+'</strong>'+
-   '<small>'+escapeHtml(quote)+'</small><p>'+escapeHtml(marketResearchAngle(index))+'</p></div>';
- }).join('');
- return '<div class="market-lens"><h3 class="market-lens-heading">Which horse and which bet?</h3>'+
-  '<p class="market-lens-note">Compare only the runners passing the evidence screen. <strong>No verified best bet yet:</strong> ranks are experimental and a high price alone does not mean value.</p>'+
-  '<div class="market-shortlist">'+cards+'</div>'+
+ return '<div class="market-lens"><h3 class="market-lens-heading">Choose any horse &amp; compare markets</h3>'+
+  '<p class="market-lens-note">Choose from every runner, not just the top three. These are payout comparisons, not predictions. <strong>No verified best bet yet:</strong> experimental PIF ranks and high odds do not prove betting value.</p>'+
   '<details class="market-tool" data-market-race="'+escapeHtml(raceKey(r))+'">'+
   '<summary>Compare £5 bets and bookmaker markets</summary>'+
-  '<div class="market-tool-inner">'+
-  '<div class="market-tool-grid">'+
+  '<div class="market-tool-inner"><div class="market-tool-grid">'+
   '<label><span>Which horse?</span><select data-market-role="horse">'+
-   ranked.map((h,i)=>'<option value="'+i+'"'+(st.horse===String(i)?' selected':'')+'>'+escapeHtml(h.horse)+'</option>').join('')+
+   runners.map((h,i)=>{
+     const d=Number(h.quote?.decimal);
+     const info=Number.isFinite(d)&&d>1?' · Win quote '+d.toFixed(2):' · Win quote unavailable';
+     return '<option value="'+i+'"'+(st.horse===String(i)?' selected':'')+'>'+escapeHtml(h.horse+info)+'</option>';
+   }).join('')+
   '</select></label>'+
   '<label><span>Bet type</span><select data-market-role="market">'+
    marketKinds.map(([code,name])=>'<option value="'+code+'"'+(st.market===code?' selected':'')+'>'+escapeHtml(name)+'</option>').join('')+
   '</select></label>'+
   '<label><span>Total stake (£)</span><input data-market-role="stake" inputmode="decimal" type="number" min="0.01" step="0.5" value="'+escapeHtml(st.stake)+'"></label>'+
-  '<div class="market-dynamic market-full"></div>'+
-  '</div>'+
+  '<div class="market-dynamic market-full"></div></div>'+
   '<div class="market-result" aria-live="polite"></div>'+
-  '<p class="market-caveat">Also available on bookmakers: Distances, Bet Builder, Tote, Exotics and More Markets. We cannot compare these responsibly without their exact terms and prices. No automatic betting, no proved value, and no Rule 4/dead-heat settlement here.</p>'+
+  '<p class="market-caveat">Also available on bookmakers: Distances, Bet Builder, Tote, Exotics and More Markets. We cannot compare these without their exact prices and terms. No automatic betting, no proven value, and no Rule 4/dead-heat settlement here.</p>'+
   '</div></details></div>';
 }
 function marketDynamic(r,st){
@@ -1002,7 +998,7 @@ function marketDynamic(r,st){
  let html='';
  if(market==='either_to_win'){
   html+='<label class="market-full"><span>Other horse in the bookmaker’s pair</span><select data-market-role="second">'+
-   (r.top_three||[]).slice(0,3).map((h,i)=>'<option value="'+i+'"'+(st.second===String(i)?' selected':'')+'>'+escapeHtml(h.horse)+'</option>').join('')+
+   marketRunners(r).map((h,i)=>'<option value="'+i+'"'+(st.second===String(i)?' selected':'')+'>'+escapeHtml(h.horse)+'</option>').join('')+
    '</select></label>';
  }
  if(['top_finishes','money_back','each_way_extra'].includes(market)){
@@ -1084,7 +1080,7 @@ function marketUIEvent(event){
  const st=marketState(r),role=input.dataset.marketRole,value=input.value;
  if(role==='horse'||role==='market'){
   st[role]=value;
-  if(st.second===st.horse)st.second=String((Number(st.horse)+1)%Math.min(3,(r.top_three||[]).length));
+  if(st.second===st.horse)st.second=String((Number(st.horse)+1)%Math.max(1,marketRunners(r).length));
   marketRefresh(panel,true);
  }else{
   if(role==='odds')st.quotes[marketQuoteKey(st)]=value;
