@@ -603,7 +603,7 @@ function row(h,raceType,race){
     '</div></details>';
  return '<div class="horse'+(rank!==null&&rank<=3&&h.conditions_supported!==false?' horse-featured':'')+'">'+
    '<div class="horse-main">'+
-    '<div class="position" aria-label="'+(h.conditions_supported===false?'Not a supported selection':rank===null?'No supported specialist rank':'Research rank '+rank)+'">'+(rank===null||h.conditions_supported===false?'—':rank)+'</div>'+
+    '<div class="position" aria-label="'+(h.conditions_supported===false?'Not a supported selection':rank===null?'No supported specialist rank':'Research rank '+rank)+'">'+(rank===null?'—':rank)+'</div>'+
     '<div class="horse-intro"><div class="horse-name">'+escapeHtml(h.horse)+'</div>'+
      '<div class="horse-context"><b>J:</b> '+escapeHtml(h.jockey_name||'Unavailable')+'</div>'+
      '<div class="horse-context"><b>T:</b> '+escapeHtml(h.trainer_name||'Unavailable')+'</div></div>'+
