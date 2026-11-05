@@ -323,7 +323,11 @@ function row(h,raceType){
  if(apiSR!==null&&apiSR>0)context.push('Racing API SR '+apiSR);
  context.push((prior===null?'Unknown':prior)+' recorded '+raceType+' runs');
  if(previousForm)context.push(previousForm);
- if(days!==null&&days>=0)context.push('Last ran '+days+'d ago');
+ if(days!==null&&days>=0)context.push('Last '+raceType+' run '+days+'d ago');
+ const anyDays=numeric(facts.latest_any_days);
+ const anyCode=String(facts.latest_any_code||'');
+ const anyFinish=String(facts.latest_any_finish||'');
+ if(anyDays!==null&&anyCode)context.push('Latest all-type run '+anyDays+'d ago ('+anyCode+(anyFinish?' '+anyFinish:'')+')');
  const carried=numeric(h.carried_weight_lbs),claim=numeric(h.jockey_claim_lbs);
  if(carried!==null&&carried>0)context.push('Card weight '+Math.floor(carried/14)+'st '+(carried%14)+'lb');
  if(claim!==null&&claim>0)context.push('Jockey claim '+claim+'lb');
@@ -395,6 +399,7 @@ function row(h,raceType){
  const breakDown=Object.entries(h.other_code_run_types||{}).filter(([k,v])=>count(v)>0)
     .map(([k,v])=>escapeHtml(String(v)+' '+k));
  if(other>0)detailParts.push('<p><b>Other race types:</b> '+(breakDown.length?breakDown.join(' · '):other+' runs')+'</p>');
+ if(other>0&&anyDays===null)detailParts.push('<p><b>Data gap:</b> This saved card records other race types but has not verified the latest run across all disciplines. The date above is for '+escapeHtml(raceType)+' only.</p>');
  if(previousForm)detailParts.push('<p><b>Previous-discipline record:</b> '+escapeHtml(previousForm)+
    '. A novice hurdle can be a first hurdles run without being the horse’s first race. This is context only, not included in the current same-discipline hurdle score.</p>');
  if(comparison)detailParts.push(comparison);
@@ -415,7 +420,7 @@ function row(h,raceType){
      '<span>'+escapeHtml(source)+'</span><small>Indicative odds</small></div>'+
    '</div>'+
    '<div class="horse-body">'+limited+
-    '<div class="form-strip"><span class="form-label">RECENT FORM <small>latest first</small></span>'+
+    '<div class="form-strip"><span class="form-label">RECENT '+escapeHtml(raceType.toUpperCase())+' FORM <small>latest same-type first</small></span>'+
      '<div class="form-values">'+formChips+'</div></div>'+
     more+
    '</div>'+
@@ -900,12 +905,17 @@ get('races').addEventListener('change',marketUIEvent);
 function conditionsPanel(r){
  const focus=Array.isArray(r.conditions_focus)?r.conditions_focus:[];
  if(!r.conditions_version)return '<div class="insufficient"><strong>Conditions assessment not yet available:</strong> Earlier specialist ranking retained because race distance, going or comparable evidence was not verified.</div>';
+ const gaps=Array.isArray(r.conditions_source_gaps)?r.conditions_source_gaps:[];
+ const missingClass=!r.conditions_race_class||r.conditions_race_class==='Not provided';
+ if(missingClass&&!gaps.some(x=>/class/i.test(x)))gaps.push('Race class not available from recorded API fields');
  return '<div class="market-lens"><h3 class="market-lens-heading">What matters in this race?</h3>'+
    '<p class="market-lens-note"><b>Today:</b> '+escapeHtml(r.distance||'Distance unavailable')+' · '+escapeHtml(r.going||'Going unavailable')+' · '+escapeHtml(r.conditions_race_class||'Class unknown')+
    ' · '+escapeHtml(String(r.field_size||''))+' runners</p>'+
    '<p class="market-lens-note"><b>Race priorities:</b> '+focus.map(escapeHtml).join(' · ')+'</p>'+
    '<p class="market-lens-note">'+(r.conditions_provider_checked?'Supplier PR included; ':'Insufficient supplier PR; ')+(r.conditions_weight_checked?'published card weights considered.':'card weights unavailable or incomplete; not scored.')+
-   ' No assumed pace or forecast weather. Experimental research only, not proven value.</p></div>';
+   ' No assumed pace or forecast weather. Experimental research only, not proven value.</p>'+
+   (gaps.length?'<p class="insufficient"><b>Evidence gaps:</b> '+gaps.map(escapeHtml).join(' · ')+'</p>':'')+
+   '</div>';
 }
 function render(){
  const cv=get('course').value,typ=get('code').value;
