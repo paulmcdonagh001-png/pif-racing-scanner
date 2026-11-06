@@ -500,8 +500,8 @@ function row(h,raceType,race){
  // Runner cloth/card number comes from the official racecard, never from the PIF ranking.
  const cardNumber=String(h.card_number||'').trim();
  const hasCardNumber=/^\d+[A-Za-z]?$/.test(cardNumber);
- const cardLabel=hasCardNumber?cardNumber:(rank===null?'—':'R'+rank);
- const cardMeaning=hasCardNumber?'Racecard number '+cardNumber:'PIF research rank '+(rank??'unranked');
+ const cardLabel=hasCardNumber?cardNumber:'—';
+ const cardMeaning=hasCardNumber?'Racecard number '+cardNumber:'Official racecard number unavailable; PIF research rank appears next to horse name';
  const isJumpRace=/^(hurdle|chase)$/i.test(String(raceType||'').trim());
  const jump=isJumpRace&&h.jump_research&&typeof h.jump_research==='object'?h.jump_research:{};
  const jumpKnown=numeric(jump.recent8_known_outcomes);
