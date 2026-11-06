@@ -231,6 +231,8 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .horse .horse-rank{font-size:10px;font-weight:800;color:#18725f;white-space:nowrap;margin-left:6px;vertical-align:baseline}
 .horse .winning-marker{display:inline-block;vertical-align:middle;background:#e3f3de;color:#2f6e30;border:1px solid #8abf83;border-radius:4px;font-size:10px;font-weight:850;line-height:1.1;padding:2px 4px;margin-left:4px;white-space:nowrap}
 .horse .horse-context{font-size:10.5px;line-height:1.3;margin-top:1px}
+.horse .meeting-runner-count{font-size:10px;font-weight:750;color:#197260;white-space:nowrap}
+.meeting-travel-line{font-size:10px;color:#8299a6;margin-top:2px;line-height:1.25}
 .horse .horse-price strong{font-size:16px;padding:6px 3px;border-radius:6px}
 .horse .horse-price small{display:block;font-size:9px;line-height:1.12;margin-top:3px;color:#48626b}
 .horse .horse-body{margin:0}
@@ -498,6 +500,11 @@ function row(h,raceType,race){
  const numeric=v=>v===null||v===undefined||v===''?null:(Number.isFinite(Number(v))?Number(v):null);
  const count=v=>numeric(v)??0;
  const rank=numeric(h.display_rank);
+ const meetingCount=numeric(h.trainer_meeting_runners);
+ const knownMeetingCount=meetingCount!==null&&Number.isInteger(meetingCount)&&meetingCount>=1;
+ const meetingCountLabel=knownMeetingCount?(meetingCount===1?'only runner at meeting':meetingCount+' runners at meeting'):'';
+ const meetingCountHtml=knownMeetingCount?'<span class="meeting-runner-count" title="'+
+   escapeHtml('Declared active runners for this trainer across the full meeting on this date')+'"> · '+escapeHtml(meetingCountLabel)+'</span>':'';
  // Runner cloth/card number comes from the official racecard, never from the PIF ranking.
  const cardNumber=String(h.card_number||'').trim();
  const hasCardNumber=/^\d+[A-Za-z]?$/.test(cardNumber);
@@ -753,6 +760,12 @@ function row(h,raceType,race){
  }
  detailParts.push(recent('Trainer record',tr));
  detailParts.push(recent('Jockey record',jo));
+ if(knownMeetingCount){
+   const stablemates=Array.isArray(h.trainer_meeting_other_horses)?h.trainer_meeting_other_horses.filter(Boolean).slice(0,20):[];
+   detailParts.push('<p><b>Trainer at this meeting:</b> '+escapeHtml(String(meetingCount))+
+    (meetingCount===1?' declared runner (this horse only).':' declared runners.')+
+    (stablemates.length?' Other runners: '+stablemates.map(escapeHtml).join(' · ')+'.':'')+'</p>');
+ }
  if(isFlatRace){
    detailParts.push('<p><b>Speed:</b> '+(apiSR!==null&&apiSR>0?
      'Racing API SR '+apiSR+'. Compared with other available API SR ratings in this field.':
@@ -792,7 +805,7 @@ function row(h,raceType,race){
    '<div class="position" aria-label="'+escapeHtml(cardMeaning)+'">'+escapeHtml(cardLabel)+'</div>'+
    '<div class="horse-intro"><div class="horse-name">'+escapeHtml(h.horse)+badgesHtml+'<span class="horse-rank">PIF #'+escapeHtml(rank??'—')+'</span></div>'+
     '<div class="horse-context">J: '+escapeHtml(h.jockey_name||'Unknown')+'</div>'+
-    '<div class="horse-context">T: '+escapeHtml(h.trainer_name||'Unknown')+'</div></div>'+
+    '<div class="horse-context">T: '+escapeHtml(h.trainer_name||'Unknown')+meetingCountHtml+'</div></div>'+
    '<div class="horse-price"><strong>'+(hasPrice?price.toFixed(2):'—')+'</strong><small>'+escapeHtml(hasPrice?priceSource:'No price')+'</small></div>'+
   '</div>'+
   '<div class="horse-body">'+
@@ -1338,7 +1351,9 @@ function render(){
     String(r.conditions_selection_count||0)+' shortlisted · full field below':
     r.display_status==='PROVISIONAL_SPECIALIST_RANKING'?'Provisional ranking · limited form':
     r.display_status==='SPECIALIST_RESEARCH_ONLY'?'Every runner ranked':'No supported ranking')+
- '</div></div>'+
+ '</div>'+
+ (r.travel_status==='NO_VERIFIED_TRAINER_YARD_LOCATIONS'?'<div class="meeting-travel-line">Longest traveller: N/R · verified trainer-yard distances unavailable</div>':'')+
+ '</div>'+
  '<div class="meeting-actions"><small class="meta">'+(Date.parse(r.off_utc)<=now?'Off · result pending':'Research only')+'</small>'+
  '<span class="meeting-control"><span class="meeting-open">Hide race</span><span class="meeting-closed">Show race</span><span class="meeting-arrow" aria-hidden="true">⌄</span></span></div></summary>'+
  (r.conditions_selection_status==='NO_SUPPORTED_SELECTION'?
