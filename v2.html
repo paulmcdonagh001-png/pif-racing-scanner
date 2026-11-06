@@ -274,6 +274,8 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .horse .evidence-fill.low{background:#d28526}
 .horse .evidence-fill.unrated{background:transparent}
 .horse .evidence-head small{font-weight:750;min-width:20px;text-align:right}
+/* Seven evidence categories on jump races: preserve a balanced compact grid. */
+.horse .evidence-grid>.evidence-factor:last-child:nth-child(odd){grid-column:1/-1}
 </style>
 </head>
 <body>
@@ -500,6 +502,12 @@ function row(h,raceType,race){
  const hasCardNumber=/^\d+[A-Za-z]?$/.test(cardNumber);
  const cardLabel=hasCardNumber?cardNumber:(rank===null?'—':'R'+rank);
  const cardMeaning=hasCardNumber?'Racecard number '+cardNumber:'PIF research rank '+(rank??'unranked');
+ const isJumpRace=/^(hurdle|chase)$/i.test(String(raceType||'').trim());
+ const jump=isJumpRace&&h.jump_research&&typeof h.jump_research==='object'?h.jump_research:{};
+ const jumpKnown=numeric(jump.recent8_known_outcomes);
+ const jumpCompleted=numeric(jump.recent8_completions);
+ const jumpFailed=numeric(jump.recent8_jump_failures);
+ const jumpPulled=numeric(jump.recent8_pulled_up);
  const prior=numeric(h.display_prior_runs??h.prior_runs_recorded);
  const other=count(h.other_code_runs_recorded);
  const transition=h.jump_research&&typeof h.jump_research==='object'?h.jump_research:{};
@@ -610,6 +618,14 @@ function row(h,raceType,race){
    const x=numberOrNull(abilityBasis==='PR'?runner.provider_performance_rating:f.official_rating);
    return x!==null&&x>0?x:null;
   }
+  if(factor==='Jumping'){
+   const j=runner.jump_research||{};
+   const known=numberOrNull(j.recent8_known_outcomes),completed=numberOrNull(j.recent8_completions);
+   // Match the specialist model's *evidence coverage* gate but never invent a rating.
+   // Actual completed races, NOT a measure of jumping technique or winning chance.
+   return known!==null&&known>=3&&known<=8&&completed!==null&&
+    completed>=0&&completed<=known?(completed+2)/(known+3):null;
+  }
   if(factor==='Trainer')return smooth(f.trainer_30d?.wins,f.trainer_30d?.runs,2,20);
   if(factor==='Jockey')return smooth(f.jockey_30d?.wins,f.jockey_30d?.runs,2,20);
   if(factor==='Course'){
@@ -647,9 +663,14 @@ function row(h,raceType,race){
    '<div class="evidence-sub">'+escapeHtml(description)+'</div></div>';
  }
  const trainer=facts.trainer_30d||{},jockey=facts.jockey_30d||{};
+ const jumpingNote=jumpKnown!==null&&jumpKnown>0&&jumpCompleted!==null?
+  jumpCompleted+' completed / '+jumpKnown+' recorded '+raceType.toLowerCase()+' runs (latest 8)'+
+  ' · '+count(jumpFailed)+' fall/unseat/brought down · '+count(jumpPulled)+' pulled up':
+  'No verified '+raceType.toLowerCase()+' completion record';
  const bars=bar('Ability',apiPR!==null&&apiPR>0?
     'Racing API PR '+apiPR+'; OR '+(rating===null?'not published':rating):
     rating!==null&&rating>0?'Official rating '+rating:'Official rating unavailable')+
+   (isJumpRace?bar('Jumping',jumpingNote):'')+
    bar('Course',courseMissing?'Course history unverified':
     courseRuns===0?'No previous course runs':
     numberOrNull(facts.course_top_three)!==null?
@@ -692,6 +713,13 @@ function row(h,raceType,race){
  }
  detailParts.push(recent('Trainer record',facts.trainer_30d));
  detailParts.push(recent('Jockey record',facts.jockey_30d));
+ if(isJumpRace){
+   detailParts.push('<p><b>Jumping (past '+escapeHtml(raceType)+' starts):</b> '+
+    escapeHtml(jumpingNote)+'. '+
+    (jumpKnown!==null&&jumpKnown>=3?
+     'Bar compares recent race-completion records against this field, not jumping technique.':
+     'Fewer than three known outcomes: no comparative bar rating.')+'</p>');
+ }
  const breakDown=Object.entries(h.other_code_run_types||{}).filter(([k,v])=>count(v)>0)
     .map(([k,v])=>escapeHtml(String(v)+' '+k));
  if(other>0)detailParts.push('<p><b>Other race types:</b> '+(breakDown.length?breakDown.join(' · '):other+' runs')+'</p>');
