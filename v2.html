@@ -761,8 +761,8 @@ function row(h,raceType,race){
  }
  if(verifiedBadges.length){
    detailParts.push('<p><b>Previous winning form:</b> '+escapeHtml(verifiedBadges.join(' + '))+
-    ' verified from available earlier '+(isFlatRace?'Flat '+(race?.going||''):'racing')+
-    ' results. Distance matched to within half a furlong; CD requires one win satisfying both.</p>');
+    ' verified from available earlier race results (any surface or discipline).'+
+    ' Distance matched to within half a furlong; CD requires one win satisfying both.</p>');
  }
  if(isJumpRace){
    detailParts.push('<p><b>Jumping (past '+escapeHtml(raceType)+' starts):</b> '+
