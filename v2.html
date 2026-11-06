@@ -224,18 +224,19 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 }
 
 /* Compact field-view: reference-inspired density, no misleading win-score. */
-.horse{margin:5px 8px;padding:9px 10px 7px;border-radius:12px;box-shadow:0 1px 4px #0002}
+.horse{margin:4px 6px;padding:7px 9px 6px;border-radius:10px;box-shadow:0 1px 3px #0002}
 .horse-main{grid-template-columns:24px minmax(0,1fr)74px;align-items:start;gap:7px}
 .horse .position{width:23px;height:23px;border-radius:5px;font-size:11px}
-.horse .horse-name{font-size:16px;line-height:1.13;margin:0 0 2px}
+.horse .horse-name{font-size:16px;line-height:1.12;margin:0 0 1px}
+.horse .horse-rank{font-size:10px;font-weight:800;color:#18725f;white-space:nowrap;margin-left:6px;vertical-align:baseline}
 .horse .horse-context{font-size:10.5px;line-height:1.3;margin-top:1px}
 .horse .horse-price strong{font-size:16px;padding:6px 3px;border-radius:6px}
 .horse .horse-price small{display:block;font-size:9px;line-height:1.12;margin-top:3px;color:#48626b}
 .horse .horse-body{margin:0}
-.horse .evidence-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 12px;margin:6px 0 4px;padding:7px 0 4px;border-top:1px solid #d9e1e3;border-bottom:1px solid #d9e1e3}
+.horse .evidence-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px;margin:5px 0 3px;padding:5px 0 3px;border-top:1px solid #d9e1e3;border-bottom:1px solid #d9e1e3}
 .horse .evidence-head{font-size:10.5px;line-height:1.15}
 .horse .evidence-head small{font-size:9px;white-space:nowrap}
-.horse .evidence-track{height:7px;margin:3px 0 0}
+.horse .evidence-track{height:7px;margin:2px 0 0}
 .horse .evidence-fill{background:#5e972a}
 .horse .evidence-fill.low{background:#db8f2b}
 .horse .evidence-fill.missing{background:#a6b2b4}
@@ -271,7 +272,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .horse .evidence-fill.strong{background:#549c20}
 .horse .evidence-fill.medium{background:#c59b2e}
 .horse .evidence-fill.low{background:#d28526}
-.horse .evidence-fill.unrated{background:repeating-linear-gradient(110deg,#a6b3b6 0 4px,#dce3e5 4px 8px);opacity:.8}
+.horse .evidence-fill.unrated{background:transparent}
 .horse .evidence-head small{font-weight:750;min-width:20px;text-align:right}
 </style>
 </head>
@@ -494,6 +495,11 @@ function row(h,raceType,race){
  const numeric=v=>v===null||v===undefined||v===''?null:(Number.isFinite(Number(v))?Number(v):null);
  const count=v=>numeric(v)??0;
  const rank=numeric(h.display_rank);
+ // Runner cloth/card number comes from the official racecard, never from the PIF ranking.
+ const cardNumber=String(h.card_number||'').trim();
+ const hasCardNumber=/^\d+[A-Za-z]?$/.test(cardNumber);
+ const cardLabel=hasCardNumber?cardNumber:(rank===null?'—':'R'+rank);
+ const cardMeaning=hasCardNumber?'Racecard number '+cardNumber:'PIF research rank '+(rank??'unranked');
  const prior=numeric(h.display_prior_runs??h.prior_runs_recorded);
  const other=count(h.other_code_runs_recorded);
  const transition=h.jump_research&&typeof h.jump_research==='object'?h.jump_research:{};
@@ -507,6 +513,7 @@ function row(h,raceType,race){
  const price=numeric(h.quote?.decimal);
  const hasPrice=price!==null&&price>1;
  const source=hasPrice?String(h.quote?.source||'Quoted'):'No quote';
+ const priceSource=source==='Betfair Exchange'?'Betfair · decimal':source==='Bet365'?'Bet365 · decimal':source+' · decimal';
  const age=String(h.runner_age||'').trim(), stall=numeric(h.draw);
  const rating=numeric(facts.official_rating), days=numeric(facts.days_since_last);
  const apiPR=numeric(h.provider_performance_rating), apiSR=numeric(h.provider_speed_rating);
@@ -623,7 +630,7 @@ function row(h,raceType,race){
   const equal=hasRating?peers.filter(x=>Math.abs(x-value)<=1e-9).length:0;
   const percentile=hasRating?(below+(equal-1)/2)/(peers.length-1):0;
   const score=hasRating?Math.round(22+68*percentile):null;
-  const width=score===null?50:score;
+  const width=score===null?0:score;
   const level=score===null?'unrated':score>=73?'strong':score>=44?'medium':'low';
   const text=score===null?'N/R':score>=73?'High':score>=44?'Mid':'Low';
   const help=description+' · '+(hasRating?
@@ -703,11 +710,11 @@ function row(h,raceType,race){
     '</div></details>';
  return '<div class="horse'+(rank!==null&&rank<=3&&h.conditions_supported!==false?' horse-featured':'')+'">'+
   '<div class="horse-main">'+
-   '<div class="position" aria-label="PIF research rank '+escapeHtml(rank??'unranked')+'">'+(rank===null?'—':rank)+'</div>'+
-   '<div class="horse-intro"><div class="horse-name">'+escapeHtml(h.horse)+'</div>'+
+   '<div class="position" aria-label="'+escapeHtml(cardMeaning)+'">'+escapeHtml(cardLabel)+'</div>'+
+   '<div class="horse-intro"><div class="horse-name">'+escapeHtml(h.horse)+'<span class="horse-rank">PIF #'+escapeHtml(rank??'—')+'</span></div>'+
     '<div class="horse-context">J: '+escapeHtml(h.jockey_name||'Unknown')+'</div>'+
     '<div class="horse-context">T: '+escapeHtml(h.trainer_name||'Unknown')+'</div></div>'+
-   '<div class="horse-price"><strong>'+(hasPrice?price.toFixed(2):'—')+'</strong><small>Decimal odds</small></div>'+
+   '<div class="horse-price"><strong>'+(hasPrice?price.toFixed(2):'—')+'</strong><small>'+escapeHtml(hasPrice?priceSource:'No price')+'</small></div>'+
   '</div>'+
   '<div class="horse-body">'+
    '<div class="evidence-grid">'+bars+'</div>'+
@@ -1264,7 +1271,7 @@ function render(){
  r.display_status!=='SPECIALIST_RESEARCH_ONLY'?
  '<div class="insufficient"><strong>No ranking:</strong> '+escapeHtml(r.display_warning||'Race details could not be verified')+'</div>':'')+
  conditionsPanel(r)+
- '<div class="runner-legend"><strong>All '+((r.all_runners||r.top_three||[]).length)+' runners.</strong> Bars compare each horse against this field, not win chances. N/R (grey) means no reliable comparison, not a poor horse.</div>'+
+ '<div class="runner-legend"><strong>All '+((r.all_runners||r.top_three||[]).length)+' runners.</strong> Card number at left; PIF rank beside the name. Bars use PIF evidence relative to this field, not Racing Post scores or win probabilities. N/R = insufficient records.</div>'+
  (r.all_runners||r.top_three||[]).map(h=>row(h,r.type,r)).join('')+
  marketDisagreement(r)+
  marketPanel(r)+
