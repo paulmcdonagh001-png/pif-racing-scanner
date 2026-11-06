@@ -114,7 +114,7 @@ for(const h of fullField.all_runners){
 vm.runInContext("marketState(fullField).horse='7'",context);
 assert.equal(vm.runInContext('marketQuote(fullField,marketState(fullField))',context),'63');
 const formCard=vm.runInContext("row({horse:'Sample Runner',horse_id:'d',display_rank:4,jockey_name:'Jockey',trainer_name:'Trainer',evidence_facts:{official_rating:98,course_wins:1,course_starts:3,trainer_60d:{wins:7,runs:30},jockey_60d:{wins:4,runs:26},similar_trip_top_three:2,similar_trip_starts:4,similar_going_top_three:1,similar_going_starts:5}},'Flat',{race_id:'test',all_runners:[{horse_id:'d',evidence_facts:{official_rating:98}},{horse_id:'z',evidence_facts:{official_rating:100}}]})",context);
-for(const bar of ['Ability','Course','Distance','Going']){
+for(const bar of ['Ability','Speed','Course','Distance','Going']){
  assert(formCard.includes('>'+bar+'</span>'),'Missing evidence bar: '+bar);
 }
 for(const label of ['Trainer · 60d','Jockey · 60d']){
@@ -142,8 +142,8 @@ const evidenceRace={race_id:'signal-test',all_runners:[
 ]};
 context.evidenceRace=evidenceRace;
 const relative=vm.runInContext("row(evidenceRace.all_runners[0],'Flat',evidenceRace)",context);
-assert.equal((relative.match(/class="evidence-factor"/g)||[]).length,6,
- 'All six comparative factors must be visible');
+assert.equal((relative.match(/class="evidence-factor"/g)||[]).length,7,
+ 'Flat runner must show speed plus six existing factors');
 assert(relative.includes('evidence-fill strong'),
  '6 wins / 30 should have strong field-relative standing, not a 20% bar');
 assert(relative.includes('evidence-fill low'),
@@ -188,6 +188,36 @@ assert(mixedHtml.includes('Jockey · 30d</span><small>N/R</small>'));
 
 assert(missingHtml.includes('evidence-fill unrated'),
  'Insufficient records should show unrated grey, not a low performance');
+// Speed is provider SR, not an inferred rating; on Flat only.
+const fastHorse={horse:'Quick Runner',horse_id:'quick',display_rank:1,
+ provider_speed_rating:103,course_distance_badges:['CD'],
+ evidence_facts:{official_rating:88}};
+const slowHorse={horse:'Slower Runner',horse_id:'slow',display_rank:2,
+ provider_speed_rating:70,course_distance_badges:['C','D'],
+ evidence_facts:{official_rating:85}};
+const speedRace={race_id:'speed-test',going:'Standard',all_runners:[fastHorse,slowHorse]};
+context.speedRace=speedRace;
+const speedHtml=vm.runInContext("row(speedRace.all_runners[0],'Flat',speedRace)",context);
+assert(speedHtml.includes('>Speed</span><small>High</small>'),
+ 'Higher supplier Speed Rating should have higher within-field bar');
+assert(speedHtml.includes('Racing API SR 103'), 'Show actual supplier SR in evidence');
+assert(speedHtml.includes('class="winning-marker"'), 'Show verified course/distance markers');
+assert(speedHtml.includes('>CD</span>'), 'Show single CD badge when same win covered both');
+const separateHtml=vm.runInContext("row(speedRace.all_runners[1],'Flat',speedRace)",context);
+assert(separateHtml.includes('>C</span>') && separateHtml.includes('>D</span>'),
+ 'Separate wins must remain separate C and D flags');
+assert(!separateHtml.includes('>CD</span>'), 'Do not invent a CD win');
+const jumpHtml=vm.runInContext("row(speedRace.all_runners[0],'Hurdle',speedRace)",context);
+assert(!jumpHtml.includes('>Speed</span>'), 'Jump race must not display Flat Speed bar');
+assert(jumpHtml.includes('>Jumping</span>'), 'Jump race retains jumping bar');
+const speedMissing={horse:'Unrated Runner',horse_id:'missing',display_rank:3,
+ provider_speed_rating:null,evidence_facts:{official_rating:80}};
+const missingSpeedRace={race_id:'no-sr',all_runners:[fastHorse,slowHorse,speedMissing]};
+context.missingSpeedRace=missingSpeedRace;
+const speedMissingHtml=vm.runInContext("row(missingSpeedRace.all_runners[2],'Flat',missingSpeedRace)",context);
+assert(speedMissingHtml.includes('Speed</span><small>N/R</small>'),
+ 'Missing supplier SR must be N/R, never a fabricated speed bar');
+
 assert(!doc.includes('winning probability') || doc.includes('not a win'),
  'No fabricated winning chances');
 
