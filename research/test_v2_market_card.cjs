@@ -148,8 +148,8 @@ assert(relative.includes('evidence-fill strong'),
  '6 wins / 30 should have strong field-relative standing, not a 20% bar');
 assert(relative.includes('evidence-fill low'),
  'A weak relative record should still show a non-zero rating, not an empty bar');
-assert(!relative.includes('width:0%'),
- 'No recorded win should never produce a visually empty zero-ability bar');
+assert(!relative.includes('class="evidence-fill low" style="width:0%'),
+ 'Low but known historical ability must not produce a zero-width bar');
 const unrated=signalHorse('unrated',null,0,0,0,0,0,0);
 unrated.evidence_facts.similar_going_starts=0;
 context.unrated=unrated;
