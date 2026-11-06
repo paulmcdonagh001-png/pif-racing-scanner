@@ -608,7 +608,17 @@ function row(h,raceType,race){
  }).length;
  const abilityBasis=prCount>=Math.max(2,Math.ceil(allField.length*.65))?'PR':
   orCount>=2?'OR':prCount>orCount?'PR':'OR';
- function signal(runner,factor){
+ function staffRecord(runner,factor){
+  const f=runner.full_history_evidence_facts||runner.display_evidence_facts||runner.evidence_facts||{};
+  const key=factor==='Trainer'?'trainer':'jockey';
+  const sixty=f[key+'_60d'],thirty=f[key+'_30d'];
+  // Historical snapshots can only show their original, explicitly labelled,
+  // 30-day sample; never present that sample as 60-day form.
+  if(sixty&&typeof sixty==='object')return {days:60,record:sixty};
+  if(thirty&&typeof thirty==='object')return {days:30,record:thirty};
+  return {days:null,record:null};
+ }
+ function signal(runner,factor,staffWindow=null){
   const f=runner.full_history_evidence_facts||runner.display_evidence_facts||runner.evidence_facts||{};
   const smooth=(k,n,pseudoK,pseudoN)=>{
    k=numberOrNull(k);n=numberOrNull(n);
@@ -626,8 +636,11 @@ function row(h,raceType,race){
    return known!==null&&known>=3&&known<=8&&completed!==null&&
     completed>=0&&completed<=known?(completed+2)/(known+3):null;
   }
-  if(factor==='Trainer')return smooth(f.trainer_60d?.wins,f.trainer_60d?.runs,2,20);
-  if(factor==='Jockey')return smooth(f.jockey_60d?.wins,f.jockey_60d?.runs,2,20);
+  if(factor==='Trainer'||factor==='Jockey'){
+   const staff=staffRecord(runner,factor);
+   return staff.record&&staff.days===staffWindow?
+    smooth(staff.record.wins,staff.record.runs,2,20):null;
+  }
   if(factor==='Course'){
    if(f.course_evidence_status==='COURSE_DATA_UNAVAILABLE')return null;
    const n=numberOrNull(f.course_starts),p=numberOrNull(f.course_top_three);
@@ -638,8 +651,11 @@ function row(h,raceType,race){
   return null;
  }
  function bar(label,description){
-  const value=signal(h,label);
-  const peers=allField.map(x=>signal(x,label))
+  const isStaff=label==='Trainer'||label==='Jockey';
+  const period=isStaff?staffRecord(h,label).days:null;
+  const value=signal(h,label,period);
+  // Never compare historic 30-day results against 60-day results.
+  const peers=allField.map(x=>signal(x,label,period))
    .filter(x=>x!==null&&Number.isFinite(x)).sort((x,y)=>x-y);
   const hasRating=value!==null&&peers.length>=2;
   const below=hasRating?peers.filter(x=>x<value-1e-9).length:0;
@@ -656,13 +672,16 @@ function row(h,raceType,race){
    ' · Not a win probability';
   return '<div class="evidence-factor" title="'+escapeHtml(help)+'" aria-label="'+
    escapeHtml(label+': '+help)+'">'+
-   '<div class="evidence-head"><span>'+escapeHtml(label+(label==='Trainer'||label==='Jockey'?' · 60d':''))+'</span>'+
+   '<div class="evidence-head"><span>'+escapeHtml(label+(isStaff?' · '+(period||60)+'d':''))+'</span>'+
    '<small>'+text+'</small></div>'+
    '<div class="evidence-track"><div class="evidence-fill '+level+
    '" style="width:'+width+'%"></div></div>'+
    '<div class="evidence-sub">'+escapeHtml(description)+'</div></div>';
  }
- const trainer=facts.trainer_60d||{},jockey=facts.jockey_60d||{};
+ const tr=staffRecord(h,'Trainer'),jo=staffRecord(h,'Jockey');
+ const trainer=tr.record||{},jockey=jo.record||{};
+ const trainerPeriod=tr.days===30?'wins · saved 30-day scan':'wins · last 60 days';
+ const jockeyPeriod=jo.days===30?'wins · saved 30-day scan':'wins · last 60 days';
  const jumpingNote=jumpKnown!==null&&jumpKnown>0&&jumpCompleted!==null?
   jumpCompleted+' completed / '+jumpKnown+' recorded '+raceType.toLowerCase()+' runs (latest 8)'+
   ' · '+count(jumpFailed)+' fall/unseat/brought down · '+count(jumpPulled)+' pulled up':
@@ -676,10 +695,10 @@ function row(h,raceType,race){
     numberOrNull(facts.course_top_three)!==null?
       record(facts.course_top_three,courseRuns,'top-three at course'):
       record(courseWins,courseRuns,'course wins'))+
-   bar('Trainer',record(trainer.wins,trainer.runs,'wins · last 60 days'))+
+   bar('Trainer',record(trainer.wins,trainer.runs,trainerPeriod))+
    bar('Distance',numberOrNull(facts.similar_trip_starts)===0?
      'No similar-distance runs':record(topTrip,facts.similar_trip_starts,'top-three at trip'))+
-   bar('Jockey',record(jockey.wins,jockey.runs,'wins · last 60 days'))+
+   bar('Jockey',record(jockey.wins,jockey.runs,jockeyPeriod))+
    bar('Going',numberOrNull(facts.similar_going_starts)===0?
      'No similar-going runs':record(topGoing,facts.similar_going_starts,'top-three on going'));
  const chooseIndex=field.findIndex(x=>String(x.horse_id)===String(h.horse_id));
@@ -705,14 +724,15 @@ function row(h,raceType,race){
  const detailParts=[];
  if(h.trainer_name)detailParts.push('<p><b>Trainer:</b> '+escapeHtml(h.trainer_name)+'</p>');
  if(h.jockey_name)detailParts.push('<p><b>Jockey:</b> '+escapeHtml(h.jockey_name)+'</p>');
- function recent(label,data){
-   const n=numeric(data?.runs);
-   return '<p><b>'+label+', last 60 days:</b> '+
+ function recent(label,staff){
+   const data=staff.record||{},n=numeric(data.runs);
+   return '<p><b>'+label+', '+(staff.days||60)+' days'+
+    (staff.days===30?' (saved historical scan)':'')+':</b> '+
     (n!==null&&n>0?count(data.wins)+' wins from '+n+' recorded runs':
-     'No sufficient recorded sample')+'</p>';
+     'No verified sample for this period')+'</p>';
  }
- detailParts.push(recent('Trainer record',facts.trainer_60d));
- detailParts.push(recent('Jockey record',facts.jockey_60d));
+ detailParts.push(recent('Trainer record',tr));
+ detailParts.push(recent('Jockey record',jo));
  if(isJumpRace){
    detailParts.push('<p><b>Jumping (past '+escapeHtml(raceType)+' starts):</b> '+
     escapeHtml(jumpingNote)+'. '+
@@ -1299,7 +1319,7 @@ function render(){
  r.display_status!=='SPECIALIST_RESEARCH_ONLY'?
  '<div class="insufficient"><strong>No ranking:</strong> '+escapeHtml(r.display_warning||'Race details could not be verified')+'</div>':'')+
  conditionsPanel(r)+
- '<div class="runner-legend"><strong>All '+((r.all_runners||r.top_three||[]).length)+' runners.</strong> Card number at left; PIF rank beside the name. Bars use PIF evidence relative to this field, not Racing Post scores or win probabilities. N/R = insufficient records.</div>'+
+ '<div class="runner-legend"><strong>All '+((r.all_runners||r.top_three||[]).length)+' runners.</strong> Trainer/jockey: 60d on new scans; 30d on older saved cards (labelled). Bars compare runners over the same time period, not winning chances. Frozen rankings remain unchanged.</div>'+
  (r.all_runners||r.top_three||[]).map(h=>row(h,r.type,r)).join('')+
  marketDisagreement(r)+
  marketPanel(r)+
