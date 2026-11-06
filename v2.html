@@ -229,6 +229,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .horse .position{width:23px;height:23px;border-radius:5px;font-size:11px}
 .horse .horse-name{font-size:16px;line-height:1.12;margin:0 0 1px}
 .horse .horse-rank{font-size:10px;font-weight:800;color:#18725f;white-space:nowrap;margin-left:6px;vertical-align:baseline}
+.horse .winning-marker{display:inline-block;vertical-align:middle;background:#e3f3de;color:#2f6e30;border:1px solid #8abf83;border-radius:4px;font-size:10px;font-weight:850;line-height:1.1;padding:2px 4px;margin-left:4px;white-space:nowrap}
 .horse .horse-context{font-size:10.5px;line-height:1.3;margin-top:1px}
 .horse .horse-price strong{font-size:16px;padding:6px 3px;border-radius:6px}
 .horse .horse-price small{display:block;font-size:9px;line-height:1.12;margin-top:3px;color:#48626b}
@@ -503,6 +504,16 @@ function row(h,raceType,race){
  const cardLabel=hasCardNumber?cardNumber:'—';
  const cardMeaning=hasCardNumber?'Racecard number '+cardNumber:'Official racecard number unavailable; PIF research rank appears next to horse name';
  const isJumpRace=/^(hurdle|chase)$/i.test(String(raceType||'').trim());
+ const isFlatRace=/^flat$/i.test(String(raceType||'').trim());
+ // Only emit evidence-backed prior winning-form badges from the server.
+ // "C"+"D" in separate boxes means two different winning races, not CD.
+ const verifiedBadges=Array.isArray(h.course_distance_badges)?
+  h.course_distance_badges.filter(x=>['C','D','CD'].includes(x)).slice(0,2):[];
+ const badgesHtml=verifiedBadges.map(b=>'<span class="winning-marker" title="'+
+   escapeHtml(b==='CD'?'Verified course and distance winner in the same race':
+   b==='C'?'Verified winner at this course':'Verified winner at today\'s distance')+
+   '" aria-label="'+escapeHtml(b==='CD'?'Previously won at this course and distance':
+   b==='C'?'Previously won at this course':'Previously won at this distance')+'">'+b+'</span>').join('');
  const jump=isJumpRace&&h.jump_research&&typeof h.jump_research==='object'?h.jump_research:{};
  const jumpKnown=numeric(jump.recent8_known_outcomes);
  const jumpCompleted=numeric(jump.recent8_completions);
@@ -628,6 +639,11 @@ function row(h,raceType,race){
    const x=numberOrNull(abilityBasis==='PR'?runner.provider_performance_rating:f.official_rating);
    return x!==null&&x>0?x:null;
   }
+  if(factor==='Speed'){
+   const value=numberOrNull(runner.provider_speed_rating);
+   // Provider SR only, never OR/PR disguised as measured speed.
+   return value!==null&&value>0&&value<=350?value:null;
+  }
   if(factor==='Jumping'){
    const j=runner.jump_research||{};
    const known=numberOrNull(j.recent8_known_outcomes),completed=numberOrNull(j.recent8_completions);
@@ -689,7 +705,11 @@ function row(h,raceType,race){
  const bars=bar('Ability',apiPR!==null&&apiPR>0?
     'Racing API PR '+apiPR+'; OR '+(rating===null?'not published':rating):
     rating!==null&&rating>0?'Official rating '+rating:'Official rating unavailable')+
-   (isJumpRace?bar('Jumping',jumpingNote):'')+
+   (isJumpRace?bar('Jumping',jumpingNote):
+    isFlatRace?bar('Speed',apiSR!==null&&apiSR>0?
+      'The Racing API pre-race Speed Rating (SR) '+apiSR+
+      ' · relative to other available SR ratings in this field':
+      'Racing API Speed Rating not supplied for this runner'):'')+
    bar('Course',courseMissing?'Course history unverified':
     courseRuns===0?'No previous course runs':
     numberOrNull(facts.course_top_three)!==null?
@@ -733,6 +753,17 @@ function row(h,raceType,race){
  }
  detailParts.push(recent('Trainer record',tr));
  detailParts.push(recent('Jockey record',jo));
+ if(isFlatRace){
+   detailParts.push('<p><b>Speed:</b> '+(apiSR!==null&&apiSR>0?
+     'Racing API SR '+apiSR+'. Compared with other available API SR ratings in this field.':
+     'Racing API has not supplied a verified Speed Rating (SR) for this runner.')+
+     ' This is a supplied pre-race rating, not a measured speed for today or a win probability.</p>');
+ }
+ if(verifiedBadges.length){
+   detailParts.push('<p><b>Previous winning form:</b> '+escapeHtml(verifiedBadges.join(' + '))+
+    ' verified from available earlier '+(isFlatRace?'Flat '+(race?.going||''):'racing')+
+    ' results. Distance matched to within half a furlong; CD requires one win satisfying both.</p>');
+ }
  if(isJumpRace){
    detailParts.push('<p><b>Jumping (past '+escapeHtml(raceType)+' starts):</b> '+
     escapeHtml(jumpingNote)+'. '+
@@ -759,7 +790,7 @@ function row(h,raceType,race){
  return '<div class="horse'+(rank!==null&&rank<=3&&h.conditions_supported!==false?' horse-featured':'')+'">'+
   '<div class="horse-main">'+
    '<div class="position" aria-label="'+escapeHtml(cardMeaning)+'">'+escapeHtml(cardLabel)+'</div>'+
-   '<div class="horse-intro"><div class="horse-name">'+escapeHtml(h.horse)+'<span class="horse-rank">PIF #'+escapeHtml(rank??'—')+'</span></div>'+
+   '<div class="horse-intro"><div class="horse-name">'+escapeHtml(h.horse)+badgesHtml+'<span class="horse-rank">PIF #'+escapeHtml(rank??'—')+'</span></div>'+
     '<div class="horse-context">J: '+escapeHtml(h.jockey_name||'Unknown')+'</div>'+
     '<div class="horse-context">T: '+escapeHtml(h.trainer_name||'Unknown')+'</div></div>'+
    '<div class="horse-price"><strong>'+(hasPrice?price.toFixed(2):'—')+'</strong><small>'+escapeHtml(hasPrice?priceSource:'No price')+'</small></div>'+
@@ -1319,7 +1350,7 @@ function render(){
  r.display_status!=='SPECIALIST_RESEARCH_ONLY'?
  '<div class="insufficient"><strong>No ranking:</strong> '+escapeHtml(r.display_warning||'Race details could not be verified')+'</div>':'')+
  conditionsPanel(r)+
- '<div class="runner-legend"><strong>All '+((r.all_runners||r.top_three||[]).length)+' runners.</strong> Trainer/jockey: 60d on new scans; 30d on older saved cards (labelled). Bars compare runners over the same time period, not winning chances. Frozen rankings remain unchanged.</div>'+
+ '<div class="runner-legend"><strong>All '+((r.all_runners||r.top_three||[]).length)+' runners.</strong> Flat: supplier Speed Rating. Jumps: completion bar. C/D/CD = verified prior wins; no marker means no verified matching win in available data. Trainer/jockey use 60d on new scans, 30d on saved older scans. Ratings are relative, not win probabilities.</div>'+
  (r.all_runners||r.top_three||[]).map(h=>row(h,r.type,r)).join('')+
  marketDisagreement(r)+
  marketPanel(r)+
