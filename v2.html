@@ -626,8 +626,8 @@ function row(h,raceType,race){
    return known!==null&&known>=3&&known<=8&&completed!==null&&
     completed>=0&&completed<=known?(completed+2)/(known+3):null;
   }
-  if(factor==='Trainer')return smooth(f.trainer_30d?.wins,f.trainer_30d?.runs,2,20);
-  if(factor==='Jockey')return smooth(f.jockey_30d?.wins,f.jockey_30d?.runs,2,20);
+  if(factor==='Trainer')return smooth(f.trainer_60d?.wins,f.trainer_60d?.runs,2,20);
+  if(factor==='Jockey')return smooth(f.jockey_60d?.wins,f.jockey_60d?.runs,2,20);
   if(factor==='Course'){
    if(f.course_evidence_status==='COURSE_DATA_UNAVAILABLE')return null;
    const n=numberOrNull(f.course_starts),p=numberOrNull(f.course_top_three);
@@ -656,13 +656,13 @@ function row(h,raceType,race){
    ' · Not a win probability';
   return '<div class="evidence-factor" title="'+escapeHtml(help)+'" aria-label="'+
    escapeHtml(label+': '+help)+'">'+
-   '<div class="evidence-head"><span>'+escapeHtml(label)+'</span>'+
+   '<div class="evidence-head"><span>'+escapeHtml(label+(label==='Trainer'||label==='Jockey'?' · 60d':''))+'</span>'+
    '<small>'+text+'</small></div>'+
    '<div class="evidence-track"><div class="evidence-fill '+level+
    '" style="width:'+width+'%"></div></div>'+
    '<div class="evidence-sub">'+escapeHtml(description)+'</div></div>';
  }
- const trainer=facts.trainer_30d||{},jockey=facts.jockey_30d||{};
+ const trainer=facts.trainer_60d||{},jockey=facts.jockey_60d||{};
  const jumpingNote=jumpKnown!==null&&jumpKnown>0&&jumpCompleted!==null?
   jumpCompleted+' completed / '+jumpKnown+' recorded '+raceType.toLowerCase()+' runs (latest 8)'+
   ' · '+count(jumpFailed)+' fall/unseat/brought down · '+count(jumpPulled)+' pulled up':
@@ -676,10 +676,10 @@ function row(h,raceType,race){
     numberOrNull(facts.course_top_three)!==null?
       record(facts.course_top_three,courseRuns,'top-three at course'):
       record(courseWins,courseRuns,'course wins'))+
-   bar('Trainer',record(trainer.wins,trainer.runs,'wins · last 30 days'))+
+   bar('Trainer',record(trainer.wins,trainer.runs,'wins · last 60 days'))+
    bar('Distance',numberOrNull(facts.similar_trip_starts)===0?
      'No similar-distance runs':record(topTrip,facts.similar_trip_starts,'top-three at trip'))+
-   bar('Jockey',record(jockey.wins,jockey.runs,'wins · last 30 days'))+
+   bar('Jockey',record(jockey.wins,jockey.runs,'wins · last 60 days'))+
    bar('Going',numberOrNull(facts.similar_going_starts)===0?
      'No similar-going runs':record(topGoing,facts.similar_going_starts,'top-three on going'));
  const chooseIndex=field.findIndex(x=>String(x.horse_id)===String(h.horse_id));
@@ -707,12 +707,12 @@ function row(h,raceType,race){
  if(h.jockey_name)detailParts.push('<p><b>Jockey:</b> '+escapeHtml(h.jockey_name)+'</p>');
  function recent(label,data){
    const n=numeric(data?.runs);
-   return '<p><b>'+label+', last 30 days:</b> '+
+   return '<p><b>'+label+', last 60 days:</b> '+
     (n!==null&&n>0?count(data.wins)+' wins from '+n+' recorded runs':
      'No sufficient recorded sample')+'</p>';
  }
- detailParts.push(recent('Trainer record',facts.trainer_30d));
- detailParts.push(recent('Jockey record',facts.jockey_30d));
+ detailParts.push(recent('Trainer record',facts.trainer_60d));
+ detailParts.push(recent('Jockey record',facts.jockey_60d));
  if(isJumpRace){
    detailParts.push('<p><b>Jumping (past '+escapeHtml(raceType)+' starts):</b> '+
     escapeHtml(jumpingNote)+'. '+
@@ -1337,7 +1337,7 @@ async function reload(){
     throw Error('Racing API history could not be verified ('+String(data.error_type||'source error')+'). No substitute predictions have been shown. Retry after two minutes.');
   if(data.status!=='RESEARCH_ONLY'||!String(data.version||'').startsWith('pif-v2-independent-'))
     throw Error('V2 backend version not available. No replacement rankings were shown.');
-  if(!['FIVE_CODE_SPECIFIC_EXPERIMENTAL','FIVE_CODE_RACE_CONDITIONS_V1','FIVE_CODE_RACE_CONDITIONS_V2'].includes(data.display_ranking_system))
+  if(!['FIVE_CODE_SPECIFIC_EXPERIMENTAL','FIVE_CODE_RACE_CONDITIONS_V1','FIVE_CODE_RACE_CONDITIONS_V2','FIVE_CODE_RACE_CONDITIONS_V3'].includes(data.display_ranking_system))
     throw Error('Specialist models are not yet active on this backend. Refresh the page; no general-model rankings will be substituted.');
   entries=Array.isArray(data.races)?data.races:[];
   updateFilters();render();updateForwardRecord();
