@@ -247,6 +247,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .horse .evidence-factor.unrated .evidence-sub{display:block;font-size:9px;line-height:1.22;color:#8b651e;margin-top:3px}
 .horse .horse-rank.is-research{color:#8a6926;font-weight:650}
 .horse .form-chip.form-context{background:#f8efdd;color:#715b2e;border-color:#ead4a4}
+.horse .history-scope{font-size:9.5px;color:#687b81;line-height:1.3;margin-top:4px}
 .horse .compact-bottom{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap}
 .horse .compact-form{display:flex;align-items:center;gap:5px;min-width:0;flex-wrap:wrap}
 .horse .compact-form>span{font-size:9px;font-weight:800;color:#5c747b}
@@ -578,6 +579,17 @@ function row(h,raceType,race){
       type:String(facts.latest_any_code||''),date:String(facts.latest_any_date||'')}]:[]);
  const formSource=form.length?'FORM':fallbackForm.length?
    (allType.length?'FORM · all types':'FORM · last all-type result'):'FORM';
+ const evidenceCategory=String(race?.display_race_code||race?.conditions_race_code||'');
+ const sameCategoryRuns=numeric(facts.display_history_runs);
+ const allCategoryRuns=numeric(facts.display_all_type_runs);
+ const surfaceLabel=evidenceCategory==='Flat AW'?'all-weather':
+   evidenceCategory==='Flat Turf'?'turf':'';
+ const historyScope=surfaceLabel&&sameCategoryRuns===0&&allCategoryRuns>0?
+   'No verified '+surfaceLabel+' starts in this scan; '+
+   allCategoryRuns+' earlier race'+(allCategoryRuns===1?'':'s')+
+   ' in other categories (context only).':
+   allCategoryRuns===0&&prior===0?
+   'No previous runs verified in this scan; trainer and jockey form is separate.':'';
  const formChips=form.length?form.map(v=>{
    const result=String(v);
    const m=result.match(/^(\d+)/);
@@ -721,13 +733,16 @@ function row(h,raceType,race){
      'Verified jump completion record unavailable';
    if(label==='Course')return courseMissing?
      'Verified course history unavailable':
-     'No usable same-type form at this course';
+     surfaceLabel?'No verified '+surfaceLabel+' form at this course':
+     'No verified matching race-type form at this course';
    if(label==='Distance')return numberOrNull(f.similar_trip_starts)===null?
      'Previous race distances unverified':
-     'No usable same-type results near this trip';
+     surfaceLabel?'No verified '+surfaceLabel+' form near this trip':
+     'No matching race-type results near this trip';
    if(label==='Going')return numberOrNull(f.similar_going_starts)===null?
      'Previous going records unverified':
-     'No usable same-type results on this going';
+     surfaceLabel?'No verified '+surfaceLabel+' form on this going':
+     'No matching race-type results on this going';
    if(isStaff)return 'No verified '+(period||60)+'-day win/run record';
    return 'Not enough verified comparable results';
   }
@@ -857,7 +872,9 @@ function row(h,raceType,race){
    '<div class="compact-bottom">'+
     '<div class="compact-form"><span>'+escapeHtml(formSource)+'</span><div class="form-values">'+formChips+'</div></div>'+
     '<div class="compact-actions">'+choose+'</div>'+
-   '</div>'+more+
+   '</div>'+
+   (historyScope?'<div class="history-scope">'+escapeHtml(historyScope)+'</div>':'')+
+   more+
    ((h.conditions_supported===false||prior!==null&&prior<3)?
      '<div class="compact-flag">'+(h.conditions_supported===false?'Not shortlisted':'')+
      ((h.conditions_supported===false&&prior!==null&&prior<3)?' · ':'')+
