@@ -54,8 +54,8 @@ const output = row(vulnerable, 'Hurdle', race);
 for(const phrase of [
   'Lunar Trix', '2.28', 'Research order #1',
   'Official rating not published', 'Verified jump completion record unavailable',
-  'No usable same-type form at this course', 'No usable same-type results near this trip',
-  'No usable same-type results on this going', 'FORM · all types',
+  'No verified matching race-type form at this course', 'No matching race-type results near this trip',
+  'No matching race-type results on this going', 'FORM · all types',
   '1st Flat', 'Not shortlisted', 'Limited form', 'CD',
 ]){
   assert(output.includes(phrase), 'Missing: ' + phrase);
@@ -63,6 +63,30 @@ for(const phrase of [
 assert(!output.includes('PIF #1'), 'Unsupported runner incorrectly advertised as PIF pick');
 assert(!output.includes('No recent finishing positions recorded'), 'Available cross-code form hidden');
 assert(output.includes('evidence-factor unrated'), 'Missing evidence must be labelled');
+// A flat debutant or a horse switching surfaces must not look as if
+// earlier turf form has disappeared merely because it is not AW evidence.
+const crossSurface = {...vulnerable,
+  horse:'Iron Curtain', display_prior_runs:2,
+  full_history_evidence_facts: {...vulnerable.full_history_evidence_facts,
+    last_five_finishes:['5th','2nd'],
+    display_history_runs:0, display_all_type_runs:2,
+    display_all_type_results:[{finish:'5th',type:'Flat',date:'2026-10-11'},{finish:'2nd',type:'Flat',date:'2026-09-20'}],
+  }};
+const awRace = {...race, display_race_code:'Flat AW',
+  all_runners:[crossSurface, rival]};
+const awHtml = row(crossSurface,'Flat',awRace);
+for(const phrase of ['Iron Curtain','No verified all-weather starts in this scan',
+  '2 earlier races','No verified all-weather form at this course',
+  'No verified all-weather form near this trip','No verified all-weather form on this going']){
+  assert(awHtml.includes(phrase),'Missing AW context: '+phrase);
+}
+const debut = {...crossSurface,horse:'Seddeeg',display_prior_runs:0,
+  full_history_evidence_facts:{...crossSurface.full_history_evidence_facts,
+    last_five_finishes:[],display_history_runs:0,display_all_type_runs:0,
+    display_all_type_results:[]}};
+const debutHtml=row(debut,'Flat',{...awRace,all_runners:[debut,rival]});
+assert(debutHtml.includes('No previous runs verified in this scan'),
+  'Debutant should be distinguished from a first-time AW runner');
 const chosen = {...vulnerable, conditions_supported: true, display_rank: 1};
 const selectedRace = {...race, all_runners: [chosen, rival],
   conditions_selection_status: 'RESEARCH_SHORTLIST', conditions_selection_count: 1};
