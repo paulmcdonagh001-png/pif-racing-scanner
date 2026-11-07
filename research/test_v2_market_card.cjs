@@ -142,7 +142,7 @@ const evidenceRace={race_id:'signal-test',all_runners:[
 ]};
 context.evidenceRace=evidenceRace;
 const relative=vm.runInContext("row(evidenceRace.all_runners[0],'Flat',evidenceRace)",context);
-assert.equal((relative.match(/class="evidence-factor"/g)||[]).length,7,
+assert.equal((relative.match(/class="evidence-factor(?: unrated)?"/g)||[]).length,7,
  'Flat runner must show speed plus six existing factors');
 assert(relative.includes('evidence-fill strong'),
  '6 wins / 30 should have strong field-relative standing, not a 20% bar');
