@@ -244,6 +244,9 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .horse .evidence-fill.low{background:#db8f2b}
 .horse .evidence-fill.missing{background:#a6b2b4}
 .horse .evidence-sub{display:none}
+.horse .evidence-factor.unrated .evidence-sub{display:block;font-size:9px;line-height:1.22;color:#8b651e;margin-top:3px}
+.horse .horse-rank.is-research{color:#8a6926;font-weight:650}
+.horse .form-chip.form-context{background:#f8efdd;color:#715b2e;border-color:#ead4a4}
 .horse .compact-bottom{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap}
 .horse .compact-form{display:flex;align-items:center;gap:5px;min-width:0;flex-wrap:wrap}
 .horse .compact-form>span{font-size:9px;font-weight:800;color:#5c747b}
@@ -500,6 +503,11 @@ function row(h,raceType,race){
  const numeric=v=>v===null||v===undefined||v===''?null:(Number.isFinite(Number(v))?Number(v):null);
  const count=v=>numeric(v)??0;
  const rank=numeric(h.display_rank);
+ const isSupportedPick=h.conditions_supported===true&&
+   race?.conditions_selection_status==='RESEARCH_SHORTLIST'&&
+   rank!==null&&rank>=1&&rank<=Math.min(3,Number(race.conditions_selection_count)||0);
+ const rankText=isSupportedPick?'PIF #'+rank:
+   rank!==null?'Research order #'+rank:'No supported rank';
  const meetingCount=numeric(h.trainer_meeting_runners);
  const knownMeetingCount=meetingCount!==null&&Number.isInteger(meetingCount)&&meetingCount>=1;
  const meetingCountLabel=knownMeetingCount?(meetingCount===1?'only runner at meeting':meetingCount+' runners at meeting'):'';
@@ -509,7 +517,7 @@ function row(h,raceType,race){
  const cardNumber=String(h.card_number||'').trim();
  const hasCardNumber=/^\d+[A-Za-z]?$/.test(cardNumber);
  const cardLabel=hasCardNumber?cardNumber:'—';
- const cardMeaning=hasCardNumber?'Racecard number '+cardNumber:'Official racecard number unavailable; PIF research rank appears next to horse name';
+ const cardMeaning=hasCardNumber?'Racecard number '+cardNumber:'Official racecard number unavailable; supported pick or research order appears by the horse name';
  const isJumpRace=/^(hurdle|chase)$/i.test(String(raceType||'').trim());
  const isFlatRace=/^flat$/i.test(String(raceType||'').trim());
  // Only emit evidence-backed prior winning-form badges from the server.
@@ -560,13 +568,26 @@ function row(h,raceType,race){
  if(carried!==null&&carried>0)context.push('Card weight '+Math.floor(carried/14)+'st '+(carried%14)+'lb');
  if(claim!==null&&claim>0)context.push('Jockey claim '+claim+'lb');
  const form=Array.isArray(facts.last_five_finishes)?
-   facts.last_five_finishes.filter(Boolean).slice(0,5):[];
+   facts.last_five_finishes.filter(v=>v&&v!=='Unknown').slice(0,5):[];
+ const allType=Array.isArray(facts.display_all_type_results)?
+   facts.display_all_type_results.filter(v=>v&&typeof v==='object'&&
+     typeof v.finish==='string'&&v.finish.trim()).slice(0,5):[];
+ const lastAny=String(facts.latest_any_finish||'').trim();
+ const fallbackForm=allType.length?allType:
+   (lastAny&&lastAny!=='Unknown'?[{finish:lastAny,
+      type:String(facts.latest_any_code||''),date:String(facts.latest_any_date||'')}]:[]);
+ const formSource=form.length?'FORM':fallbackForm.length?
+   (allType.length?'FORM · all types':'FORM · last all-type result'):'FORM';
  const formChips=form.length?form.map(v=>{
    const result=String(v);
    const m=result.match(/^(\d+)/);
    const placed=m&&Number(m[1])<=3;
    return '<span class="form-chip'+(placed?' form-placed':'')+'">'+escapeHtml(result)+'</span>';
- }).join(''):'<span class="form-missing">No recent finishing positions recorded</span>';
+ }).join(''):fallbackForm.length?fallbackForm.map(v=>
+   '<span class="form-chip form-context" title="'+
+   escapeHtml(String(v.type||'Other race type')+' · '+String(v.date||'Date unverified'))+'">'+
+   escapeHtml(String(v.finish))+' '+escapeHtml(String(v.type||'all types'))+'</span>'
+ ).join(''):'<span class="form-missing">No verified race results available</span>';
  function metric(label,top,bottom,unit){
    const a=numeric(top),b=numeric(bottom);
    const recorded=b!==null&&b>0;
@@ -677,7 +698,7 @@ function row(h,raceType,race){
   const isStaff=label==='Trainer'||label==='Jockey';
   const period=isStaff?staffRecord(h,label).days:null;
   const value=signal(h,label,period);
-  // Never compare historic 30-day results against 60-day results.
+  // Compare records from the same time window and the same evidence basis.
   const peers=allField.map(x=>signal(x,label,period))
    .filter(x=>x!==null&&Number.isFinite(x)).sort((x,y)=>x-y);
   const hasRating=value!==null&&peers.length>=2;
@@ -688,18 +709,40 @@ function row(h,raceType,race){
   const width=score===null?0:score;
   const level=score===null?'unrated':score>=73?'strong':score>=44?'medium':'low';
   const text=score===null?'N/R':score>=73?'High':score>=44?'Mid':'Low';
+  function unratedReason(){
+   if(value!==null&&peers.length<2)return 'Fewer than two comparable horses';
+   if(label==='Ability')return abilityBasis==='PR'?
+     'Racing API performance rating not supplied':
+     'Official rating not published';
+   if(label==='Speed')return 'Racing API speed rating not supplied';
+   if(label==='Jumping')return jumpKnown!==null&&jumpKnown<3?
+     'Only '+jumpKnown+' known jump outcomes; need 3':
+     'Verified jump completion record unavailable';
+   if(label==='Course')return courseMissing?
+     'Verified course history unavailable':
+     'No usable same-type form at this course';
+   if(label==='Distance')return numberOrNull(f.similar_trip_starts)===null?
+     'Previous race distances unverified':
+     'No usable same-type results near this trip';
+   if(label==='Going')return numberOrNull(f.similar_going_starts)===null?
+     'Previous going records unverified':
+     'No usable same-type results on this going';
+   if(isStaff)return 'No verified '+(period||60)+'-day win/run record';
+   return 'Not enough verified comparable results';
+  }
+  const reason=hasRating?'':unratedReason();
   const help=description+' · '+(hasRating?
    'Relative to '+peers.length+' runners with comparable records':
-   'Not enough verified comparison data')+
+   'N/R: '+reason)+
    (label==='Ability'?' · '+abilityBasis:'')+
    ' · Not a win probability';
-  return '<div class="evidence-factor" title="'+escapeHtml(help)+'" aria-label="'+
+  return '<div class="evidence-factor'+(hasRating?'':' unrated')+'" title="'+escapeHtml(help)+'" aria-label="'+
    escapeHtml(label+': '+help)+'">'+
    '<div class="evidence-head"><span>'+escapeHtml(label+(isStaff?' · '+(period||60)+'d':''))+'</span>'+
    '<small>'+text+'</small></div>'+
    '<div class="evidence-track"><div class="evidence-fill '+level+
    '" style="width:'+width+'%"></div></div>'+
-   '<div class="evidence-sub">'+escapeHtml(description)+'</div></div>';
+   '<div class="evidence-sub">'+escapeHtml(hasRating?description:reason)+'</div></div>';
  }
  const tr=staffRecord(h,'Trainer'),jo=staffRecord(h,'Jockey');
  const trainer=tr.record||{},jockey=jo.record||{};
@@ -803,7 +846,7 @@ function row(h,raceType,race){
  return '<div class="horse'+(rank!==null&&rank<=3&&h.conditions_supported!==false?' horse-featured':'')+'">'+
   '<div class="horse-main">'+
    '<div class="position" aria-label="'+escapeHtml(cardMeaning)+'">'+escapeHtml(cardLabel)+'</div>'+
-   '<div class="horse-intro"><div class="horse-name">'+escapeHtml(h.horse)+badgesHtml+'<span class="horse-rank">PIF #'+escapeHtml(rank??'—')+'</span></div>'+
+   '<div class="horse-intro"><div class="horse-name">'+escapeHtml(h.horse)+badgesHtml+'<span class="horse-rank'+(isSupportedPick?'':' is-research')+'">'+escapeHtml(rankText)+'</span></div>'+
     '<div class="horse-context">J: '+escapeHtml(h.jockey_name||'Unknown')+'</div>'+
     '<div class="horse-context">T: '+escapeHtml(h.trainer_name||'Unknown')+meetingCountHtml+'</div></div>'+
    '<div class="horse-price"><strong>'+(hasPrice?price.toFixed(2):'—')+'</strong><small>'+escapeHtml(hasPrice?priceSource:'No price')+'</small></div>'+
@@ -811,7 +854,7 @@ function row(h,raceType,race){
   '<div class="horse-body">'+
    '<div class="evidence-grid">'+bars+'</div>'+
    '<div class="compact-bottom">'+
-    '<div class="compact-form"><span>FORM</span><div class="form-values">'+formChips+'</div></div>'+
+    '<div class="compact-form"><span>'+escapeHtml(formSource)+'</span><div class="form-values">'+formChips+'</div></div>'+
     '<div class="compact-actions">'+choose+'</div>'+
    '</div>'+more+
    ((h.conditions_supported===false||prior!==null&&prior<3)?
@@ -1365,7 +1408,7 @@ function render(){
  r.display_status!=='SPECIALIST_RESEARCH_ONLY'?
  '<div class="insufficient"><strong>No ranking:</strong> '+escapeHtml(r.display_warning||'Race details could not be verified')+'</div>':'')+
  conditionsPanel(r)+
- '<div class="runner-legend"><strong>All '+((r.all_runners||r.top_three||[]).length)+' runners.</strong> Flat: supplier Speed Rating. Jumps: completion bar. C/D/CD = verified prior wins; no marker means no verified matching win in available data. Trainer/jockey use 60d on new scans, 30d on saved older scans. Ratings are relative, not win probabilities.</div>'+
+ '<div class="runner-legend"><strong>All '+((r.all_runners||r.top_three||[]).length)+' runners.</strong> Flat: supplier Speed Rating. Jumps: completion bar. C/D/CD = verified prior wins in any race type; these do not guarantee same-type ratings. N/R shows its source or comparison gap. Research order is not a selection. Trainer/jockey use 60d on new scans, 30d on saved older scans. Ratings are relative, not win probabilities.</div>'+
  (r.all_runners||r.top_three||[]).map(h=>row(h,r.type,r)).join('')+
  marketDisagreement(r)+
  marketPanel(r)+
