@@ -32,6 +32,9 @@ const vulnerable = {
     last_five_finishes: [], official_rating: null,
     trainer_60d: {wins: 8, runs: 32}, jockey_60d: {wins: 5, runs: 28},
     course_evidence_status: 'NO_PREVIOUS_FORM',
+    course_starts: 0, course_wins: 0,
+    similar_trip_starts: 0, similar_trip_top_three: 0,
+    similar_going_starts: 0, similar_going_top_three: 0,
     display_all_type_results: [{finish: '1st', type: 'Flat', date: '2026-10-01'}]
   },
   jump_research: {},
