@@ -4,9 +4,10 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 const html = fs.readFileSync('v2.html', 'utf8');
-const scripts = [...html.matchAll(/<script\\b[^>]*>([\\s\\S]*?)<\\/script>/gi)];
-assert.equal(scripts.length, 1, 'Expected one embedded scanner script');
-const code = scripts[0][1];
+const startScript = html.indexOf('<script>');
+const endScript = html.indexOf('</script>', startScript);
+assert(startScript >= 0 && endScript > startScript, 'Embedded scanner script missing');
+const code = html.slice(startScript + '<script>'.length, endScript);
 const begin = code.indexOf('function row(h,raceType,race){');
 const end = code.indexOf('async function updateForwardRecord(){', begin);
 assert(begin >= 0 && end > begin, 'Compact horse renderer not found');
