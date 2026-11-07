@@ -2,97 +2,45 @@ name: PIF Racing V2 beta page checks
 on:
   push:
     branches: [main, pif-v2-independent-beta-20261026]
-    paths: ['v2.html', '.github/workflows/pif-v2-beta-check.yml']
+    paths:
+      - 'v2.html'
+      - 'research/test_v2_evidence_card.cjs'
+      - 'research/test_v2_market_card.cjs'
+      - '.github/workflows/pif-v2-beta-check.yml'
   pull_request:
     branches: [main]
-    paths: ['v2.html']
+    paths:
+      - 'v2.html'
+      - 'research/test_v2_evidence_card.cjs'
+      - 'research/test_v2_market_card.cjs'
 jobs:
   isolated-beta-page:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Check independent-page JavaScript syntax
+      - name: Verify independent page and JavaScript syntax
         run: |
           python - <<'PY'
-          import pathlib,re
-          doc=pathlib.Path('v2.html').read_text()
-          scripts=re.findall(r'<script>(.*?)</script>',doc,flags=re.S|re.I)
-          assert len(scripts)==1, 'Expected one self-contained script'
-          pathlib.Path('/tmp/pif_v2_beta_script.js').write_text(scripts[0])
-          assert 'v2-races' in scripts[0] and 'session_token' in scripts[0]
-          assert 'Five race types. Five separate formulas.' in doc
-          assert 'Indicative odds' in doc
-          assert 'id="toggle-races"' in doc and 'Collapse all races' in doc
-          assert 'details class="meeting"' in doc
-          assert 'Show race' in doc and 'Hide race' in doc
-          assert 'collapsedRaces' in doc and 'data-race-key' in doc
-          assert 'metric-grid' in doc and 'form-chip' in doc
-          assert 'See course, distance, going &amp; full explanation' in doc
-          assert 'No validated win %' not in doc
-          assert 'Race-specific experimental rankings' in doc
-          assert 'research_share_pct' not in scripts[0]
-          assert 'FIVE_CODE_SPECIFIC_EXPERIMENTAL' in doc and 'display_rank' in doc
+          from pathlib import Path
+          doc = Path('v2.html').read_text()
+          start = doc.find('<script>')
+          end = doc.find('</script>', start)
+          assert start >= 0 and end > start, 'Expected one embedded script'
+          source = doc[start+len('<script>'):end]
+          Path('/tmp/pif_v2_beta_script.js').write_text(source)
+          for fragment in (
+              'v2-races', 'session_token', 'function row(h,raceType,race){',
+              'Research order #', 'conditions_supported', 'display_all_type_results',
+              'unratedReason()', 'function bar(label,description){',
+              'class="evidence-factor', 'course_distance_badges',
+          ):
+              assert fragment in source, 'Missing scanner feature: ' + fragment
+          assert 'id="toggle-races"' in doc
+          assert 'Collapse all races' in doc and 'Show race' in doc
           PY
           node --check /tmp/pif_v2_beta_script.js
-      - name: Test market comparison within V2 racecards
+      - name: Verify missing-evidence cards and shortlist safety
+        run: node research/test_v2_evidence_card.cjs
+      - name: Verify market comparison maths
         run: node research/test_v2_market_card.cjs
-      - name: Check compact evidence cards with real numeric fields
-        run: |
-          node - <<'NODE'
-          const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-          const source=fs.readFileSync('/tmp/pif_v2_beta_script.js','utf8');
-          const begin=source.indexOf('function row(h,raceType){');
-          const end=source.indexOf('async function updateForwardRecord(){',begin);
-          assert(begin!==-1&&end>begin,'Compact horse renderer missing');
-          const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,ch=>({
-            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-          }[ch]));
-          const row=vm.runInNewContext(source.slice(begin,end)+'\nrow;', {escapeHtml});
-          const h={
-            horse:'Jazzit',model_rank:4,display_rank:1,display_model:'Flat Turf model',prior_runs_recorded:17,runner_age:4,
-            draw:3,quote:{decimal:4.5,source:'Betfair Exchange'},trainer_name:'Trainer',
-            jockey_name:'Jockey',ranking_evidence:['Course and trip record'],
-            evidence_facts:{official_rating:55,days_since_last:12,
-              last_five_finishes:['1st','4th','10th','2nd','3rd'],
-              course_wins:1,course_starts:4,similar_trip_top_three:5,
-              similar_trip_starts:7,similar_going_top_three:4,
-              similar_going_starts:5,trainer_30d:{wins:3,runs:30},
-              jockey_30d:{wins:2,runs:30}}
-          };
-          const html=row(h,'Flat');
-          for(const part of ['Jazzit','4.50','Betfair Exchange','OR 55',
-              '1st','10th','Course','Distance','Going','1<span> / 4</span>',
-              '5<span> / 7</span>','4<span> / 5</span>',
-              'See course, distance, going &amp; full explanation','3 wins from 30']) {
-            assert(html.includes(part),'Missing: '+part);
-          }
-          assert(html.includes('Research rank 1'),'Displayed rank must come from specialist, not alpha');
-          assert(!html.includes('Research rank 4'),'Old alpha rank leaked into public UI');
-          const originalFirst=row({...h,model_rank:1,display_rank:null},'Flat');
-          assert(originalFirst.includes('No supported specialist rank'),'Unranked race shows alpha rank');
-          assert(!originalFirst.includes('Research rank 1'),'Alpha rank must not silently substitute');
-          assert(!html.includes('No validated win %'),'Removed placeholder came back');
-          assert(html.includes('<details class="horse-extended">'),'Secondary evidence must be expandable');
-          assert(html.indexOf('metric-grid')>html.indexOf('<details class="horse-extended">'),
-            'Expanded statistics appeared before the disclosure');
-          const sparse=row({horse:'No form',model_rank:4,display_rank:null,prior_runs_recorded:0,
-            quote:null,evidence_facts:{}},'Hurdle');
-          assert(sparse.includes('Limited comparable history'));
-          assert(sparse.includes('No comparable runs'));
-          const noCourse=row({...h,display_evidence_facts:{...h.evidence_facts,
-            course_starts:0,course_wins:0,course_evidence_status:'NOT_RACED_HERE'}},'Flat');
-          assert(noCourse.includes('No recorded runs at this course'),'Zero course starts must not look like missing data');
-          const unknownCourse=row({...h,display_evidence_facts:{...h.evidence_facts,
-            course_starts:0,course_wins:0,course_evidence_status:'COURSE_DATA_UNAVAILABLE'}},'Flat');
-          assert(unknownCourse.includes('Course history unavailable'),'Unknown venue must not assert zero visits');
-          assert(unknownCourse.includes('metric-empty">—</strong>'),'Unverified course visits must not display zero');
-          const omittedCourse=row({...h,display_evidence_facts:{official_rating:55}},'Chase');
-          assert(omittedCourse.includes('Course history unavailable'),'Absent course field must not masquerade as zero');
-          const unverifiedWins=row({...h,display_evidence_facts:{course_starts:3}},'Hurdle');
-          assert(unverifiedWins.includes('Course visits recorded; wins unavailable'),'Missing wins must not display invented zero');
-          const injection=row({horse:'<script>x</script>',model_rank:9,display_rank:null,
-            prior_runs_recorded:0,evidence_facts:{}},'Flat');
-          assert(!injection.includes('<script>'),'Horse field XSS regression');
-          console.log('Compact ranking display, sparse-data disclosure and escaping passed');
-          NODE
