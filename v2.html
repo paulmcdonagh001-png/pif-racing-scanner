@@ -710,6 +710,7 @@ function row(h,raceType,race){
   const level=score===null?'unrated':score>=73?'strong':score>=44?'medium':'low';
   const text=score===null?'N/R':score>=73?'High':score>=44?'Mid':'Low';
   function unratedReason(){
+   const f=h.full_history_evidence_facts||h.display_evidence_facts||h.evidence_facts||{};
    if(value!==null&&peers.length<2)return 'Fewer than two comparable horses';
    if(label==='Ability')return abilityBasis==='PR'?
      'Racing API performance rating not supplied':
