@@ -280,6 +280,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .horse .evidence-fill.medium{background:#c59b2e}
 .horse .evidence-fill.low{background:#d28526}
 .horse .evidence-fill.unrated{background:transparent}
+.horse .evidence-fill.limited{background:#9baeb7}
 .horse .evidence-head small{font-weight:750;min-width:20px;text-align:right}
 /* Seven evidence categories on jump races: preserve a balanced compact grid. */
 .horse .evidence-grid>.evidence-factor:last-child:nth-child(odd){grid-column:1/-1}
@@ -540,7 +541,7 @@ function row(h,raceType,race){
  const transition=h.jump_research&&typeof h.jump_research==='object'?h.jump_research:{};
  const priorDiscipline=String(transition.previous_discipline||'');
  const priorStarts=numeric(transition.previous_discipline_starts);
- const priorWins=numeric(transition.previous_discipline_wins);
+ const priorWins=numeric(transition.previous_discipline_wins_display);
  const previousForm=priorStarts!==null&&priorStarts>0&&
    (priorDiscipline==='NH Flat'||priorDiscipline==='Hurdle')?
    priorDiscipline+': '+priorStarts+' previous runs'+
@@ -584,6 +585,17 @@ function row(h,raceType,race){
  const allCategoryRuns=numeric(facts.display_all_type_runs);
  const surfaceLabel=evidenceCategory==='Flat AW'?'all-weather':
    evidenceCategory==='Flat Turf'?'turf':'';
+ const otherTypes=Object.entries(h.other_code_run_types||{}).filter(([type,n])=>
+   type!==raceType&&numeric(n)!==null&&numeric(n)>0);
+ const earlierContext=isJumpRace&&otherTypes.length?
+   'Other race types: '+otherTypes.map(([type,n])=>n+' '+type+' start'+(Number(n)===1?'':'s')).join(' · ')+
+   ' (context only, not a '+raceType.toLowerCase()+' rating).':'';
+ const crossGoingRuns=numeric(facts.other_type_similar_going_starts);
+ const crossGoingPlaces=numeric(facts.other_type_similar_going_top_three);
+ const crossGoingContext=isJumpRace&&crossGoingRuns!==null&&crossGoingRuns>0?
+   crossGoingRuns+' earlier other-type run'+(crossGoingRuns===1?'':'s')+
+   ' on similar going'+(crossGoingPlaces!==null?' ('+crossGoingPlaces+' top-three)':'')+
+   '; not evidence of '+raceType.toLowerCase()+' suitability.':'';
  const historyScope=surfaceLabel&&sameCategoryRuns===0&&allCategoryRuns>0?
    'No verified '+surfaceLabel+' starts in this scan; '+
    allCategoryRuns+' earlier race'+(allCategoryRuns===1?'':'s')+
@@ -718,37 +730,55 @@ function row(h,raceType,race){
   const equal=hasRating?peers.filter(x=>Math.abs(x-value)<=1e-9).length:0;
   const percentile=hasRating?(below+(equal-1)/2)/(peers.length-1):0;
   const score=hasRating?Math.round(22+68*percentile):null;
-  const width=score===null?0:score;
-  const level=score===null?'unrated':score>=73?'strong':score>=44?'medium':'low';
-  const text=score===null?'N/R':score>=73?'High':score>=44?'Mid':'Low';
+  // A one/two-run jump sample is evidence coverage, never an ability rating.
+  const limitedJump=label==='Jumping'&&!hasRating&&jumpKnown!==null&&
+   jumpKnown>0&&jumpKnown<3&&jumpCompleted!==null;
+  const verifiedZero=!hasRating&&(
+   label==='Jumping'&&jumpKnown===0||
+   label==='Course'&&!courseMissing&&courseRuns===0||
+   label==='Distance'&&numberOrNull((h.full_history_evidence_facts||h.display_evidence_facts||h.evidence_facts||{}).similar_trip_starts)===0||
+   label==='Going'&&numberOrNull((h.full_history_evidence_facts||h.display_evidence_facts||h.evidence_facts||{}).similar_going_starts)===0);
+  const width=limitedJump?Math.round(100*jumpKnown/3):score===null?0:score;
+  const level=limitedJump?'limited':score===null?'unrated':score>=73?'strong':score>=44?'medium':'low';
+  const text=limitedJump?'Limited':verifiedZero?'0 starts':
+   score===null?'N/R':score>=73?'High':score>=44?'Mid':'Low';
   function unratedReason(){
    const f=h.full_history_evidence_facts||h.display_evidence_facts||h.evidence_facts||{};
    if(value!==null&&peers.length<2)return 'Fewer than two comparable horses';
    if(label==='Ability')return abilityBasis==='PR'?
      'Racing API performance rating not supplied':
-     'Official rating not published';
+     (numberOrNull(h.provider_performance_rating)===null?
+      'Official rating not published; API performance rating also unavailable':
+      'Official rating not published; too few comparable API ratings');
    if(label==='Speed')return 'Racing API speed rating not supplied';
-   if(label==='Jumping')return jumpKnown!==null&&jumpKnown<3?
-     'Only '+jumpKnown+' known jump outcomes; need 3':
+   if(label==='Jumping')return jumpKnown===0?
+     '0 recorded '+raceType.toLowerCase()+' outcomes in available history':
+     jumpKnown!==null&&jumpKnown<3?
+     'Only '+jumpKnown+' known jump outcomes; need 3 for a comparative rating':
      'Verified jump completion record unavailable';
    if(label==='Course')return courseMissing?
      'Verified course history unavailable':
-     surfaceLabel?'No verified '+surfaceLabel+' form at this course':
-     'No verified matching race-type form at this course';
+     courseRuns===0?
+     '0 recorded '+(surfaceLabel||raceType.toLowerCase())+' starts at this course':
+     'Fewer than two comparable horses with course form';
    if(label==='Distance')return numberOrNull(f.similar_trip_starts)===null?
      'Previous race distances unverified':
-     surfaceLabel?'No verified '+surfaceLabel+' form near this trip':
-     'No matching race-type results near this trip';
+     numberOrNull(f.similar_trip_starts)===0?
+     '0 recorded same-type starts near this trip':
+     'Fewer than two comparable horses with trip form';
    if(label==='Going')return numberOrNull(f.similar_going_starts)===null?
      'Previous going records unverified':
-     surfaceLabel?'No verified '+surfaceLabel+' form on this going':
-     'No matching race-type results on this going';
+     numberOrNull(f.similar_going_starts)===0?
+     '0 recorded same-type starts on this going':
+     'Fewer than two comparable horses with going form';
    if(isStaff)return 'No verified '+(period||60)+'-day win/run record';
    return 'Not enough verified comparable results';
   }
   const reason=hasRating?'':unratedReason();
   const help=description+' · '+(hasRating?
    'Relative to '+peers.length+' runners with comparable records':
+   limitedJump?'Limited sample: bar shows '+jumpKnown+' of 3 recorded outcomes, not performance':
+   verifiedZero?'No matching recorded starts: '+reason:
    'N/R: '+reason)+
    (label==='Ability'?' · '+abilityBasis:'')+
    ' · Not a win probability';
@@ -874,6 +904,8 @@ function row(h,raceType,race){
     '<div class="compact-actions">'+choose+'</div>'+
    '</div>'+
    (historyScope?'<div class="history-scope">'+escapeHtml(historyScope)+'</div>':'')+
+   (earlierContext?'<div class="history-scope">'+escapeHtml(earlierContext)+'</div>':'')+
+   (crossGoingContext?'<div class="history-scope">'+escapeHtml(crossGoingContext)+'</div>':'')+
    more+
    ((h.conditions_supported===false||prior!==null&&prior<3)?
      '<div class="compact-flag">'+(h.conditions_supported===false?'Not shortlisted':'')+
@@ -1426,7 +1458,7 @@ function render(){
  r.display_status!=='SPECIALIST_RESEARCH_ONLY'?
  '<div class="insufficient"><strong>No ranking:</strong> '+escapeHtml(r.display_warning||'Race details could not be verified')+'</div>':'')+
  conditionsPanel(r)+
- '<div class="runner-legend"><strong>All '+((r.all_runners||r.top_three||[]).length)+' runners.</strong> Flat: supplier Speed Rating. Jumps: completion bar. C/D/CD = verified prior wins in any race type; these do not guarantee same-type ratings. N/R shows its source or comparison gap. Research order is not a selection. Trainer/jockey use 60d on new scans, 30d on saved older scans. Ratings are relative, not win probabilities.</div>'+
+ '<div class="runner-legend"><strong>All '+((r.all_runners||r.top_three||[]).length)+' runners.</strong> Flat: supplier Speed Rating. Jumps: completion bar. C/D/CD = verified prior wins in any race type; these do not guarantee same-type ratings. N/R means unavailable data or no valid peer comparison; 0 starts means no matching runs in available records; Limited jumping shows sample coverage, not ability. Other race-type form is context only. Research order is not a selection. Trainer/jockey use 60d on new scans, 30d on saved older scans. Ratings are relative, not win probabilities.</div>'+
  (r.all_runners||r.top_three||[]).map(h=>row(h,r.type,r)).join('')+
  marketDisagreement(r)+
  marketPanel(r)+
