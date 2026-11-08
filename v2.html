@@ -541,7 +541,7 @@ function row(h,raceType,race){
  const transition=h.jump_research&&typeof h.jump_research==='object'?h.jump_research:{};
  const priorDiscipline=String(transition.previous_discipline||'');
  const priorStarts=numeric(transition.previous_discipline_starts);
- const priorWins=numeric(transition.previous_discipline_wins_display);
+ const priorWins=numeric(transition.previous_discipline_wins_display??transition.previous_discipline_wins);
  const previousForm=priorStarts!==null&&priorStarts>0&&
    (priorDiscipline==='NH Flat'||priorDiscipline==='Hurdle')?
    priorDiscipline+': '+priorStarts+' previous runs'+
