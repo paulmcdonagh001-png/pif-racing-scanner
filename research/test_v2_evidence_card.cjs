@@ -54,8 +54,8 @@ const output = row(vulnerable, 'Hurdle', race);
 for(const phrase of [
   'Lunar Trix', '2.28', 'Research order #1',
   'Official rating not published', 'Verified jump completion record unavailable',
-  'No verified matching race-type form at this course', 'No matching race-type results near this trip',
-  'No matching race-type results on this going', 'FORM · all types',
+  '0 recorded hurdle starts at this course', '0 recorded same-type starts near this trip',
+  '0 recorded same-type starts on this going', 'FORM · all types',
   '1st Flat', 'Not shortlisted', 'Limited form', 'CD',
 ]){
   assert(output.includes(phrase), 'Missing: ' + phrase);
@@ -76,8 +76,8 @@ const awRace = {...race, display_race_code:'Flat AW',
   all_runners:[crossSurface, rival]};
 const awHtml = row(crossSurface,'Flat',awRace);
 for(const phrase of ['Iron Curtain','No verified all-weather starts in this scan',
-  '2 earlier races','No verified all-weather form at this course',
-  'No verified all-weather form near this trip','No verified all-weather form on this going']){
+  '2 earlier races','0 recorded all-weather starts at this course',
+  '0 recorded same-type starts near this trip','0 recorded same-type starts on this going']){
   assert(awHtml.includes(phrase),'Missing AW context: '+phrase);
 }
 const debut = {...crossSurface,horse:'Seddeeg',display_prior_runs:0,
@@ -87,6 +87,29 @@ const debut = {...crossSurface,horse:'Seddeeg',display_prior_runs:0,
 const debutHtml=row(debut,'Flat',{...awRace,all_runners:[debut,rival]});
 assert(debutHtml.includes('No previous runs verified in this scan'),
   'Debutant should be distinguished from a first-time AW runner');
+// Sandown-style novice hurdler: one completed hurdle, earlier bumper form,
+ // no official rating and no same-code form on the advertised going.
+const novice = {...vulnerable, horse:'Nimba',display_rank:1,
+  other_code_runs_recorded:2,other_code_run_types:{'NH Flat':2},
+  jump_research:{recent8_known_outcomes:1,recent8_completions:1},
+  full_history_evidence_facts:{...vulnerable.full_history_evidence_facts,
+    course_evidence_status:'NOT_RACED_HERE',
+    display_all_type_runs:3,display_history_runs:1,
+    other_type_similar_going_starts:2,
+    other_type_similar_going_top_three:1}};
+const noviceRace={...race,all_runners:[novice,rival]};
+const noviceHtml=row(novice,'Hurdle',noviceRace);
+for(const phrase of ['Limited','33%','Only 1 known jump outcomes',
+  'Other race types: 2 NH Flat starts','2 earlier other-type runs on similar going',
+  'not evidence of hurdle suitability','Official rating not published']){
+  assert(noviceHtml.includes(phrase),'Missing novice context: '+phrase);
+}
+assert(noviceHtml.includes('<span>Jumping</span><small>Limited</small>'),
+  'Jumping sample must not claim an ability rating');
+const zeroJumpHtml=row({...novice,
+  jump_research:{recent8_known_outcomes:0,recent8_completions:0}},'Hurdle',noviceRace);
+assert(zeroJumpHtml.includes('<span>Jumping</span><small>0 starts</small>'),
+ 'A verified zero-start jump record should not appear as a supplier failure');
 const chosen = {...vulnerable, conditions_supported: true, display_rank: 1};
 const selectedRace = {...race, all_runners: [chosen, rival],
   conditions_selection_status: 'RESEARCH_SHORTLIST', conditions_selection_count: 1};
