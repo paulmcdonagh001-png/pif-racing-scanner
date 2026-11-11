@@ -6,6 +6,7 @@ on:
       - 'v2.html'
       - 'research/test_v2_evidence_card.cjs'
       - 'research/test_v2_market_card.cjs'
+      - 'research/test_v2_day_retry.cjs'
       - '.github/workflows/pif-v2-beta-check.yml'
   pull_request:
     branches: [main]
@@ -13,6 +14,7 @@ on:
       - 'v2.html'
       - 'research/test_v2_evidence_card.cjs'
       - 'research/test_v2_market_card.cjs'
+      - 'research/test_v2_day_retry.cjs'
 jobs:
   isolated-beta-page:
     runs-on: ubuntu-latest
@@ -44,3 +46,5 @@ jobs:
         run: node research/test_v2_evidence_card.cjs
       - name: Verify market comparison maths
         run: node research/test_v2_market_card.cjs
+      - name: Verify day switch and connection recovery
+        run: node research/test_v2_day_retry.cjs
