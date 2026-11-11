@@ -334,6 +334,7 @@ const KEY='pif-racing-remembered-v1';
 const get=id=>document.getElementById(id);
 const escapeHtml=value=>String(value==null?'':value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 let token='',day='today',entries=[],loading=false;
+let reloadSeq=0,networkFailures=0;
 let refreshBusy=false,refreshTimer=null;
 function showScanProgress(done,total){
  const steps=Number(total)>1?' · '+Math.max(0,Number(done)||0)+' / '+Number(total)+' source steps':'';
@@ -377,7 +378,20 @@ get('login-form').addEventListener('submit',async event=>{
  }catch(error){status('Sign-in failed: '+error.message,true)}
 });
 document.querySelectorAll('[data-day]').forEach(b=>b.addEventListener('click',()=>{
- day=b.dataset.day;document.querySelectorAll('[data-day]').forEach(x=>x.classList.toggle('selected',x.dataset.day===day));
+ const newDay=b.dataset.day;
+ if(newDay!==day){
+   day=newDay;
+   reloadSeq++; // Discard any in-flight response from the previous day.
+   networkFailures=0;
+   loading=false;
+   entries=[];
+   get('summary').textContent='Loading '+day+' racecards…';
+   get('races').innerHTML='<div class="card"><strong>Loading '+escapeHtml(day)+
+     ' racing…</strong><p>Only verified '+escapeHtml(day)+
+     ' rankings will be shown here.</p></div>';
+   get('loaded-time').textContent='Awaiting '+day+' rankings';
+ }
+ document.querySelectorAll('[data-day]').forEach(x=>x.classList.toggle('selected',x.dataset.day===day));
  get('fresh-scan').hidden=day!=='today';
  reload().then(()=>{if(day==='today')resumeFreshScanStatus()});
 }));
@@ -1498,49 +1512,79 @@ function render(){
  get('races').querySelectorAll('.market-tool').forEach(panel=>marketRefresh(panel,true));
 }
 async function reload(){
- if(!token||loading)return;
+ if(!token)return;
+ const requestDay=day,seq=++reloadSeq;
  loading=true;get('reload').disabled=true;
- status('Loading independent V2 racing analysis…');
+ status('Loading '+requestDay+' independent V2 racing analysis…');
  try{
-  const data=await request('/v2-races',{session_token:token,day});
-  if(data.status==='PREPARING'){
-    const done=Number(data.progress?.done||0),total=Number(data.progress?.total||0);
-    status('Fetching '+day+'’s race histories from Racing API… '+(total>1?done+' / '+total+' steps':'Preparing source data')+'. Completed daily rankings will be saved.');
-    get('races').innerHTML='<div class="card"><strong>V2 analysis is preparing</strong><p>First scan may take a few minutes. Completed V2 rankings will be saved so you can reopen earlier races without rescanning.</p></div>';
-    setTimeout(()=>{if(token)reload()},7000);
-    return;
-  }
-  if(data.status==='SOURCE_UNAVAILABLE')
-    throw Error('Racing API history could not be verified ('+String(data.error_type||'source error')+'). No substitute predictions have been shown. Retry after two minutes.');
-  if(data.status!=='RESEARCH_ONLY'||!String(data.version||'').startsWith('pif-v2-independent-'))
-    throw Error('V2 backend version not available. No replacement rankings were shown.');
-  if(!['FIVE_CODE_SPECIFIC_EXPERIMENTAL','FIVE_CODE_RACE_CONDITIONS_V1','FIVE_CODE_RACE_CONDITIONS_V2','FIVE_CODE_RACE_CONDITIONS_V3','FIVE_CODE_RACE_CONDITIONS_V4'].includes(data.display_ranking_system))
-    throw Error('Specialist models are not yet active on this backend. Refresh the page; no general-model rankings will be substituted.');
-  entries=Array.isArray(data.races)?data.races:[];
-  updateFilters();render();updateForwardRecord();
-  const manual=data.snapshot_status==='MANUAL_FRESH_SCAN';
-  const saved=manual||data.snapshot_status==='SAVED_DATABASE';
-  const savedAt=saved&&data.snapshot_saved_utc?new Date(data.snapshot_saved_utc):null;
-  const saveTime=savedAt&&!Number.isNaN(savedAt.valueOf())?
-    savedAt.toLocaleString('en-GB',{timeZone:'Europe/London',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
-  const savedLabel=manual?'Fresh scan saved '+saveTime:
-    saved?'Rankings saved '+saveTime:
-    'Analysis loaded '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-  get('loaded-time').dataset.savedLabel=savedLabel;
-  get('loaded-time').dataset.snapshotUtc=data.snapshot_saved_utc||'';
-  get('loaded-time').textContent=refreshBusy&&day==='today'?
-    (showScanProgress(),get('loaded-time').textContent):savedLabel;
-  const ledger=data.ledger_status==='FROZEN'?'V2 forward results tracking active':
+   const data=await request('/v2-races',{session_token:token,day:requestDay});
+   // Tab changes invalidate old responses, including errors and retry timers.
+   if(seq!==reloadSeq||requestDay!==day)return;
+   if(data.status==='PREPARING'){
+     networkFailures=0;
+     const done=Number(data.progress?.done||0),total=Number(data.progress?.total||0);
+     status('Preparing '+requestDay+' race histories from Racing API… '+(total>1?done+' / '+total+' steps':'Preparing source data')+'. Saved earlier predictions remain preserved.');
+     get('summary').textContent='Preparing '+requestDay+' racecards…';
+     get('races').innerHTML='<div class="card"><strong>Preparing '+escapeHtml(requestDay)+
+       ' racing analysis</strong><p>Racing API history is being assessed. Earlier-day rankings will not be substituted.</p></div>';
+     setTimeout(()=>{if(token&&seq===reloadSeq&&day===requestDay)reload()},7000);
+     return;
+   }
+   if(data.status==='SOURCE_UNAVAILABLE')
+     throw Error('Racing API history could not be verified ('+String(data.error_type||'source error')+'). No substitute predictions have been shown. Retry after two minutes.');
+   if(data.status!=='RESEARCH_ONLY'||!String(data.version||'').startsWith('pif-v2-independent-'))
+     throw Error('V2 backend version not available. No replacement rankings were shown.');
+   if(!['FIVE_CODE_SPECIFIC_EXPERIMENTAL','FIVE_CODE_RACE_CONDITIONS_V1','FIVE_CODE_RACE_CONDITIONS_V2','FIVE_CODE_RACE_CONDITIONS_V3','FIVE_CODE_RACE_CONDITIONS_V4'].includes(data.display_ranking_system))
+     throw Error('Specialist models are not yet active on this backend. Refresh the page; no general-model rankings will be substituted.');
+   entries=Array.isArray(data.races)?data.races:[];
+   networkFailures=0;
+   updateFilters();render();updateForwardRecord();
+   const manual=data.snapshot_status==='MANUAL_FRESH_SCAN';
+   const saved=manual||data.snapshot_status==='SAVED_DATABASE';
+   const savedAt=saved&&data.snapshot_saved_utc?new Date(data.snapshot_saved_utc):null;
+   const saveTime=savedAt&&!Number.isNaN(savedAt.valueOf())?
+     savedAt.toLocaleString('en-GB',{timeZone:'Europe/London',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+   const savedLabel=manual?'Fresh scan saved '+saveTime:
+     saved?'Rankings saved '+saveTime:
+     'Analysis loaded '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+   get('loaded-time').dataset.savedLabel=savedLabel;
+   get('loaded-time').dataset.snapshotUtc=data.snapshot_saved_utc||'';
+   get('loaded-time').textContent=refreshBusy&&requestDay==='today'?
+     (showScanProgress(),get('loaded-time').textContent):savedLabel;
+   const ledger=data.ledger_status==='FROZEN'?'V2 forward results tracking active':
      'Forward results tracking paused while database is recovered';
-  status('V2 beta · '+(manual?'freshly scanned remaining races':
-     saved?'saved daily rankings (no rescan)':
-     'Racing API initial analysis'+(data.snapshot_status==='MEMORY_ONLY'?' · not yet saved':''))
-     +' · '+ledger+' · no validated value selections');
+   status('V2 beta · '+(manual?'freshly scanned remaining races':
+      saved?'saved daily rankings (no rescan)':
+      'Racing API initial analysis'+(data.snapshot_status==='MEMORY_ONLY'?' · not yet saved':''))
+      +' · '+ledger+' · no validated value selections');
  }catch(err){
-  if(/session_expired|unauthorised/.test(err.message)){token='';localStorage.removeItem(KEY);authUi()}
-  status('V2 unavailable: '+err.message,true);
-  get('races').innerHTML='<div class="card"><strong>V2 is temporarily unavailable.</strong><p>Please retry V2 in a moment; no old-model selections will be substituted.</p></div>';
- }finally{loading=false;get('reload').disabled=false}
+   if(seq!==reloadSeq||requestDay!==day)return;
+   if(/session_expired|unauthorised/.test(err.message)){
+     token='';localStorage.removeItem(KEY);authUi();
+   }
+   const transient=Boolean(token)&&
+     (/Failed to fetch|NetworkError|Load failed|AbortError|timed out/i.test(err.message)||
+      err.name==='TypeError'||err.name==='AbortError');
+   if(!entries.length){
+     get('summary').textContent='No verified '+requestDay+' races loaded';
+     get('races').innerHTML='<div class="card"><strong>'+escapeHtml(requestDay)+
+       ' data temporarily unavailable.</strong><p>No old-model or other-day rankings have been substituted. Use Reload saved rankings to retry.</p></div>';
+   }
+   if(transient&&networkFailures<3){
+     networkFailures++;
+     status('Connection interrupted while loading '+requestDay+
+       '. Reconnecting automatically ('+networkFailures+'/3)…',true);
+     setTimeout(()=>{if(token&&seq===reloadSeq&&day===requestDay)reload()},7000);
+   }else{
+     networkFailures=0;
+     status('V2 '+requestDay+' unavailable: '+err.message+
+       '. Use Reload saved rankings to retry.',true);
+   }
+ }finally{
+   if(seq===reloadSeq){
+     loading=false;get('reload').disabled=false;
+   }
+ }
 }
 authUi();if(token)reload().then(resumeFreshScanStatus);
 setInterval(()=>{if(token&&!loading&&day==='today')render()},60000);
