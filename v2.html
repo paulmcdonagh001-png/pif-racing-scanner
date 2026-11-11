@@ -182,6 +182,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .horse .position{background:#dbf0e8;border:1px solid #8ebdaf;color:#195c50;width:33px;height:33px}
 .horse .horse-name{font-size:18px;color:#163d3e}
 .horse .horse-context{font-size:12px;color:#48626b;line-height:1.45}
+.horse .claim-context{color:#835e22;font-weight:700;font-size:11px;line-height:1.4}
 .horse .horse-price strong{color:#fff;background:#c9212b;border-radius:8px;padding:11px 4px;text-align:center;font-size:19px}
 .horse .horse-price span,.horse .horse-price small{color:#4c6470;text-align:center;margin-top:4px}
 .horse .horse-body{margin:8px 0 0}
@@ -794,6 +795,14 @@ function row(h,raceType,race){
  const trainer=tr.record||{},jockey=jo.record||{};
  const trainerPeriod=tr.days===30?'wins · saved 30-day scan':'wins · last 60 days';
  const jockeyPeriod=jo.days===30?'wins · saved 30-day scan':'wins · last 60 days';
+ const claimStatus=String(h.conditions_claim_status||'');
+ const claimRecord=jo.days===60&&numeric(jockey.runs)!==null?
+   count(jockey.wins)+' wins / '+count(jockey.runs)+' rides (60d)':
+   '60-day jockey record unavailable';
+ const claimSummary=claim!==null&&claim>0?
+   'Claim '+claim+'lb · '+claimRecord+' · '+
+   (claimStatus==='FORM_SUPPORTED'?'small experimental score adjustment':'context only; not scored'):'';
+
  const jumpingNote=jumpKnown!==null&&jumpKnown>0&&jumpCompleted!==null?
   jumpCompleted+' completed / '+jumpKnown+' recorded '+raceType.toLowerCase()+' runs (latest 8)'+
   ' · '+count(jumpFailed)+' fall/unseat/brought down · '+count(jumpPulled)+' pulled up':
@@ -849,6 +858,11 @@ function row(h,raceType,race){
  }
  detailParts.push(recent('Trainer record',tr));
  detailParts.push(recent('Jockey record',jo));
+ if(claim!==null&&claim>0){
+   detailParts.push('<p><b>Jockey weight allowance:</b> '+
+     escapeHtml(String(h.conditions_claim_note||claim+'lb claim, not yet evaluated'))+
+     '. Published racecard weight is never reduced a second time. A claim alone does not establish an advantage.</p>');
+ }
  if(knownMeetingCount){
    const stablemates=Array.isArray(h.trainer_meeting_other_horses)?h.trainer_meeting_other_horses.filter(Boolean).slice(0,20):[];
    detailParts.push('<p><b>Trainer at this meeting:</b> '+escapeHtml(String(meetingCount))+
@@ -894,7 +908,8 @@ function row(h,raceType,race){
    '<div class="position" aria-label="'+escapeHtml(cardMeaning)+'">'+escapeHtml(cardLabel)+'</div>'+
    '<div class="horse-intro"><div class="horse-name">'+escapeHtml(h.horse)+badgesHtml+'<span class="horse-rank'+(isSupportedPick?'':' is-research')+'">'+escapeHtml(rankText)+'</span></div>'+
     '<div class="horse-context">J: '+escapeHtml(h.jockey_name||'Unknown')+'</div>'+
-    '<div class="horse-context">T: '+escapeHtml(h.trainer_name||'Unknown')+meetingCountHtml+'</div></div>'+
+    '<div class="horse-context">T: '+escapeHtml(h.trainer_name||'Unknown')+meetingCountHtml+'</div>'+
+    (claimSummary?'<div class="horse-context claim-context">'+escapeHtml(claimSummary)+'</div>':'')+'</div>'+
    '<div class="horse-price"><strong>'+(hasPrice?price.toFixed(2):'—')+'</strong><small>'+escapeHtml(hasPrice?priceSource:'No price')+'</small></div>'+
   '</div>'+
   '<div class="horse-body">'+
@@ -1415,6 +1430,9 @@ function conditionsPanel(r){
    ' · '+escapeHtml(String(r.field_size||''))+' runners</p>'+
    '<p class="market-lens-note"><b>Race priorities:</b> '+focus.map(escapeHtml).join(' · ')+'</p>'+
    '<p class="market-lens-note">'+(r.conditions_provider_checked?'Supplier PR included; ':'Insufficient supplier PR; ')+(r.conditions_weight_checked?'published card weights considered.':'card weights unavailable or incomplete; not scored.')+
+   (Number(r.conditions_claim_scored_count)>0?
+     ' Credible jockey claims receive a small adjustment within the existing weight factor; no claim is subtracted again.':
+     ' No claim/form adjustment was scored without sufficient evidence.')+
    ' No assumed pace or forecast weather. Experimental research only, not proven value.</p>'+
    (gaps.length?'<p class="insufficient"><b>Evidence gaps:</b> '+gaps.map(escapeHtml).join(' · ')+'</p>':'')+
    '</div>';
@@ -1496,7 +1514,7 @@ async function reload(){
     throw Error('Racing API history could not be verified ('+String(data.error_type||'source error')+'). No substitute predictions have been shown. Retry after two minutes.');
   if(data.status!=='RESEARCH_ONLY'||!String(data.version||'').startsWith('pif-v2-independent-'))
     throw Error('V2 backend version not available. No replacement rankings were shown.');
-  if(!['FIVE_CODE_SPECIFIC_EXPERIMENTAL','FIVE_CODE_RACE_CONDITIONS_V1','FIVE_CODE_RACE_CONDITIONS_V2','FIVE_CODE_RACE_CONDITIONS_V3'].includes(data.display_ranking_system))
+  if(!['FIVE_CODE_SPECIFIC_EXPERIMENTAL','FIVE_CODE_RACE_CONDITIONS_V1','FIVE_CODE_RACE_CONDITIONS_V2','FIVE_CODE_RACE_CONDITIONS_V3','FIVE_CODE_RACE_CONDITIONS_V4'].includes(data.display_ranking_system))
     throw Error('Specialist models are not yet active on this backend. Refresh the page; no general-model rankings will be substituted.');
   entries=Array.isArray(data.races)?data.races:[];
   updateFilters();render();updateForwardRecord();
