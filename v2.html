@@ -1524,20 +1524,26 @@ function travelMeetingSummary(group){
    '≈'+Math.round(Number(summary.distance_miles))+' mi'+coverage):
    'No trainer-base mileage available';
  const rows=group.slice().sort((a,b)=>Date.parse(a.off_utc)-Date.parse(b.off_utc)).map(r=>{
-  const info=r.race_longest_traveller||null;
+  const hasRaceCoverage=Number.isFinite(Number(r.race_travel_coverage_total)) &&
+    Number(r.race_travel_coverage_total)>0 &&
+    Number.isFinite(Number(r.race_travel_coverage_known));
+  const info=hasRaceCoverage?(r.race_longest_traveller||null):null;
   const runners=r.all_runners||[];
   const flagged=runners.find(h=>h.race_travel_flag);
-  const name=flagged?String(flagged.horse||'Horse not identified'):
+  const name=!hasRaceCoverage?'Traveller data pending':
+    flagged?String(flagged.horse||'Horse not identified'):
     info?'Mapped leader not visible':'No mapped traveller';
   const distance=info&&Number.isFinite(Number(info.distance_miles))?
     '≈'+Math.round(Number(info.distance_miles))+' mi':'—';
-  const known=Number(r.race_travel_coverage_known||0);
-  const total=Number(r.race_travel_coverage_total||r.field_size||0);
+  const known=hasRaceCoverage?Number(r.race_travel_coverage_known):null;
+  const total=hasRaceCoverage?Number(r.race_travel_coverage_total):null;
   return '<div class="travel-summary-row" title="'+
-     escapeHtml(known+' of '+total+' race runners mapped; straight-line estimates')+'">'+
+     escapeHtml(hasRaceCoverage?known+' of '+total+' race runners mapped; straight-line estimates':
+       'Race-level traveller coverage not yet supplied by this scan')+'">'+
      '<span class="travel-summary-time">'+escapeHtml(britishTime(r.off_utc))+'</span>'+
      '<span class="travel-summary-name">'+escapeHtml(name)+
-     ' <span style="color:#abc3cf">('+known+'/'+total+')</span></span>'+
+     (hasRaceCoverage?' <span style="color:#abc3cf">('+known+'/'+total+')</span>':'')+
+     '</span>'+
      '<span class="travel-summary-miles">'+escapeHtml(distance)+'</span></div>';
  }).join('');
  return '<section class="meeting-traveller-summary" aria-label="'+escapeHtml(course+' travellers')+'">'+
