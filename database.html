@@ -387,7 +387,7 @@ el('login-form').addEventListener('submit',async ev=>{
 });
 (async()=>{try{session=auth()}catch(_){}
  if(!session){el('locked').hidden=false;status('Sign in below to access the live racing database.');return}
- el('content').hidden=false;status('Checking your private session…');
+ el('content').hidden=false;status('Signed in · read-only access to live historical records');
  try{stats((await api({action:'overview'})).data)}catch(e){el('stats').textContent='Database counts unavailable: '+e.message}
  await loadRecent();
 })();
