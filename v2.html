@@ -237,6 +237,8 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .horse .winning-marker{display:inline-block;vertical-align:middle;background:#e3f3de;color:#2f6e30;border:1px solid #8abf83;border-radius:4px;font-size:10px;font-weight:850;line-height:1.1;padding:2px 4px;margin-left:4px;white-space:nowrap}
 .horse .horse-context{font-size:10.5px;line-height:1.3;margin-top:1px}
 .horse .meeting-runner-count{font-size:10px;font-weight:750;color:#197260;white-space:nowrap}
+.horse .horse-travel-flag{font-size:10px;font-weight:750;color:#875600;background:#fff0ca;border-radius:5px;padding:3px 6px;margin-top:4px;display:inline-block}
+.horse .horse-travel-flag span{font-weight:550;color:#6d6049}
 .meeting-travel-line{font-size:10px;color:#8299a6;margin-top:2px;line-height:1.25}
 .horse .horse-price strong{font-size:16px;padding:6px 3px;border-radius:6px}
 .horse .horse-price small{display:block;font-size:9px;line-height:1.12;margin-top:3px;color:#48626b}
@@ -532,6 +534,14 @@ function row(h,raceType,race){
  const meetingCount=numeric(h.trainer_meeting_runners);
  const knownMeetingCount=meetingCount!==null&&Number.isInteger(meetingCount)&&meetingCount>=1;
  const meetingCountLabel=knownMeetingCount?(meetingCount===1?'only runner at meeting':meetingCount+' runners at meeting'):'';
+ const travelMiles=numeric(h.travel_miles);
+ const travelFlag=String(h.travel_flag||'');
+ const travelHtml=(travelMiles!==null&&travelFlag)?
+   '<div class="horse-travel-flag" title="'+
+   escapeHtml('Estimated straight-line miles from the documented trainer-base town, not driving distance. '+
+     'Coverage: '+String(race?.travel_coverage_known||0)+' of '+String(race?.travel_coverage_total||'?')+' declared runners')+'">'+
+   (travelFlag==='FURTHEST_ESTIMATED'?'Furthest estimated traveller':'Furthest mapped traveller')+
+   ' · ≈'+Math.round(travelMiles)+' mi <span>(straight-line)</span></div>':'';
  const meetingCountHtml=knownMeetingCount?'<span class="meeting-runner-count" title="'+
    escapeHtml('Declared active runners for this trainer across the full meeting on this date')+'"> · '+escapeHtml(meetingCountLabel)+'</span>':'';
  // Runner cloth/card number comes from the official racecard, never from the PIF ranking.
@@ -927,6 +937,7 @@ function row(h,raceType,race){
    '<div class="horse-intro"><div class="horse-name">'+escapeHtml(h.horse)+badgesHtml+'<span class="horse-rank'+(isSupportedPick?'':' is-research')+'">'+escapeHtml(rankText)+'</span></div>'+
     '<div class="horse-context">J: '+escapeHtml(h.jockey_name||'Unknown')+'</div>'+
     '<div class="horse-context">T: '+escapeHtml(h.trainer_name||'Unknown')+meetingCountHtml+'</div>'+
+    travelHtml+
     (claimSummary?'<div class="horse-context claim-context">'+escapeHtml(claimSummary)+'</div>':'')+'</div>'+
    '<div class="horse-price"><strong>'+(hasPrice?price.toFixed(2):'—')+'</strong><small>'+escapeHtml(hasPrice?priceSource:'No price')+'</small></div>'+
   '</div>'+
@@ -1454,6 +1465,9 @@ function raceNotes(r){
  return '<details class="race-notes"><summary>Race notes &amp; ratings guide</summary>'+
    '<div class="race-notes-inner"><p><b>Status:</b> '+escapeHtml(selection)+
    '. Rankings are not verified win probabilities.</p>'+
+   (Number(r.travel_coverage_total)>0?'<p><b>Trainer-base coverage:</b> '+
+    escapeHtml(String(r.travel_coverage_known||0))+' / '+
+    escapeHtml(String(r.travel_coverage_total))+' runners · straight-line estimates only.</p>':'')+
    conditionsPanel(r)+
    '<p><b>Guide:</b> C/D/CD = previous course/distance wins (any race type). '+
    'N/R = unavailable or no valid comparison; 0 starts = no matching recorded runs. '+
