@@ -240,6 +240,15 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .horse .horse-travel-flag{font-size:10px;font-weight:750;color:#875600;background:#fff0ca;border-radius:5px;padding:3px 6px;margin-top:4px;display:inline-block}
 .horse .horse-travel-flag span{font-weight:550;color:#6d6049}
 .meeting-travel-line{font-size:10px;color:#8299a6;margin-top:2px;line-height:1.25}
+.meeting-traveller-summary{margin:10px 5px 6px;border:1px solid #386478;background:#142e42;border-radius:10px;padding:9px 11px;color:#ebf3f5}
+.meeting-traveller-summary .travel-summary-title{font-size:13px;font-weight:800;line-height:1.3}
+.meeting-traveller-summary .travel-summary-leader{font-size:11px;color:#ebd49e;margin:3px 0 6px}
+.meeting-traveller-summary .travel-summary-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px;border-top:1px solid #365164;padding:4px 0;font-size:11px;line-height:1.3}
+.meeting-traveller-summary .travel-summary-time{color:#acc7d7;flex-shrink:0;min-width:37px}
+.meeting-traveller-summary .travel-summary-name{flex:1;min-width:0;overflow-wrap:anywhere}
+.meeting-traveller-summary .travel-summary-miles{white-space:nowrap;font-weight:800}
+.meeting-traveller-summary .travel-summary-note{font-size:9px;color:#adc4ce;line-height:1.3;margin-top:4px}
+@media(max-width:480px){.meeting-traveller-summary{margin:8px 3px 4px;padding:8px}.meeting-traveller-summary .travel-summary-row{font-size:10px;gap:5px}}
 .horse .horse-price strong{font-size:16px;padding:6px 3px;border-radius:6px}
 .horse .horse-price small{display:block;font-size:9px;line-height:1.12;margin-top:3px;color:#48626b}
 .horse .horse-body{margin:0}
@@ -555,12 +564,19 @@ function row(h,raceType,race){
  const knownMeetingCount=meetingCount!==null&&Number.isInteger(meetingCount)&&meetingCount>=1;
  const meetingCountLabel=knownMeetingCount?(meetingCount===1?'only runner at meeting':meetingCount+' runners at meeting'):'';
  const travelMiles=numeric(h.travel_miles);
- const travelFlag=String(h.travel_flag||'');
+ const raceTravelFlag=String(h.race_travel_flag||'');
+ const meetingTravelFlag=String(h.travel_flag||'');
+ const travelFlag=raceTravelFlag||meetingTravelFlag;
+ const travelLabel=raceTravelFlag?
+   (raceTravelFlag==='LONGEST_RACE_ESTIMATED'?'Longest in race':'Longest mapped in race'):
+   (meetingTravelFlag==='FURTHEST_ESTIMATED'?'Longest at meeting':'Longest mapped at meeting');
  const travelHtml=(travelMiles!==null&&travelFlag)?
    '<div class="horse-travel-flag" title="'+
-   escapeHtml('Estimated straight-line miles from the documented trainer-base town, not driving distance. '+
-     'Coverage: '+String(race?.travel_coverage_known||0)+' of '+String(race?.travel_coverage_total||'?')+' declared runners')+'">'+
-   (travelFlag==='FURTHEST_ESTIMATED'?'Furthest estimated traveller':'Furthest mapped traveller')+
+   escapeHtml('Estimated straight-line distance from trainer-base town, not driving mileage. '+
+     'Race coverage: '+String(race?.race_travel_coverage_known??race?.travel_coverage_known??0)+
+     ' of '+String(race?.race_travel_coverage_total??race?.travel_coverage_total??'?')+
+     ' declared runners')+'">'+
+   escapeHtml(travelLabel)+(raceTravelFlag&&meetingTravelFlag?' · meeting leader':'')+
    ' · ≈'+Math.round(travelMiles)+' mi <span>(straight-line)</span></div>':'';
  const meetingCountHtml=knownMeetingCount?'<span class="meeting-runner-count" title="'+
    escapeHtml('Declared active runners for this trainer across the full meeting on this date')+'"> · '+escapeHtml(meetingCountLabel)+'</span>':'';
@@ -1494,6 +1510,41 @@ function raceNotes(r){
    'Flat bars use supplier Speed Ratings; jumping bars show recorded completion evidence. '+
    'Trainer/jockey: 60 days on new scans, 30 days on older saved scans.</p></div></details>';
 }
+function travelMeetingSummary(group){
+ if(!group.length)return '';
+ const course=String(group[0].course||'Meeting');
+ const summary=group.find(r=>r.longest_traveller)?.longest_traveller||null;
+ const hasLeader=summary&&Number.isFinite(Number(summary.distance_miles));
+ const meetingRunner=group.flatMap(r=>r.all_runners||[]).find(h=>h.travel_flag);
+ const meetingName=meetingRunner?String(meetingRunner.horse||''):'';
+ const scope=summary?.scope==='FULL_MEETING'?'Longest at meeting':'Longest mapped at meeting';
+ const coverage=(summary&&Number(summary.total)>0)?
+   ' · '+String(summary.known)+'/'+String(summary.total)+' mapped':'';
+ const top=hasLeader?(scope+': '+(meetingName?meetingName+' · ':'')+
+   '≈'+Math.round(Number(summary.distance_miles))+' mi'+coverage):
+   'No trainer-base mileage available';
+ const rows=group.slice().sort((a,b)=>Date.parse(a.off_utc)-Date.parse(b.off_utc)).map(r=>{
+  const info=r.race_longest_traveller||null;
+  const runners=r.all_runners||[];
+  const flagged=runners.find(h=>h.race_travel_flag);
+  const name=flagged?String(flagged.horse||'Horse not identified'):
+    info?'Mapped leader not visible':'No mapped traveller';
+  const distance=info&&Number.isFinite(Number(info.distance_miles))?
+    '≈'+Math.round(Number(info.distance_miles))+' mi':'—';
+  const known=Number(r.race_travel_coverage_known||0);
+  const total=Number(r.race_travel_coverage_total||r.field_size||0);
+  return '<div class="travel-summary-row" title="'+
+     escapeHtml(known+' of '+total+' race runners mapped; straight-line estimates')+'">'+
+     '<span class="travel-summary-time">'+escapeHtml(britishTime(r.off_utc))+'</span>'+
+     '<span class="travel-summary-name">'+escapeHtml(name)+
+     ' <span style="color:#abc3cf">('+known+'/'+total+')</span></span>'+
+     '<span class="travel-summary-miles">'+escapeHtml(distance)+'</span></div>';
+ }).join('');
+ return '<section class="meeting-traveller-summary" aria-label="'+escapeHtml(course+' travellers')+'">'+
+  '<div class="travel-summary-title">🚚 '+escapeHtml(course)+' · Longest travellers by race</div>'+
+  '<div class="travel-summary-leader">'+escapeHtml(top)+'</div>'+rows+
+  '<div class="travel-summary-note">Estimated straight-line miles from mapped trainer towns, not road distances. Partial coverage cannot establish the true longest traveller.</div></section>';
+}
 function render(){
  const cv=get('course').value,typ=get('code').value;
  const matches=entries.filter(x=>(cv==='all'||x.course===cv)&&(typ==='all'||raceGroup(x)===typ));
@@ -1504,7 +1555,18 @@ function render(){
  get('summary').textContent=rs.length+' races shown · '+entries.length+' available'+
    (hidden?' · '+hidden+' already off (hidden)':'')+
    '';
- get('races').innerHTML=rs.map(r=>'<details class="meeting" data-race-key="'+escapeHtml(raceKey(r))+'"'+(collapsedRaces.has(raceKey(r))?'':' open')+'>'+
+ const meetingGroups=new Map();
+ for(const r of rs){
+  const key=String(r.date||day)+'|'+String(r.course||'');
+  if(!meetingGroups.has(key))meetingGroups.set(key,[]);
+  meetingGroups.get(key).push(r);
+ }
+ const displayedSummaries=new Set();
+ get('races').innerHTML=rs.map(r=>{
+  const key=String(r.date||day)+'|'+String(r.course||'');
+  const meetingHeader=displayedSummaries.has(key)?'':travelMeetingSummary(meetingGroups.get(key)||[]);
+  displayedSummaries.add(key);
+  return meetingHeader+'<details class="meeting" data-race-key="'+escapeHtml(raceKey(r))+'"'+(collapsedRaces.has(raceKey(r))?'':' open')+'>'+
  '<summary class="meeting-heading"><div><div class="meeting-title">'+escapeHtml(britishTime(r.off_utc))+' '+escapeHtml(r.course)+'</div>'+
  (r.race_name?'<div class="details">'+escapeHtml(r.race_name)+'</div>':'')+
  '<div class="meta">'+escapeHtml(raceGroup(r))+
@@ -1523,7 +1585,8 @@ function render(){
  raceNotes(r)+
  marketDisagreement(r)+
  marketPanel(r)+
- '</details>').join('')||
+ '</details>';
+ }).join('')||
  '<div class="card"><strong>No races in this filter.</strong><p>Try a different course, race type or day.</p></div>';
  for(const el of get('races').querySelectorAll('details.meeting')){
    el.addEventListener('toggle',()=>{
