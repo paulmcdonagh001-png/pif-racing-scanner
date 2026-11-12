@@ -75,7 +75,7 @@ form{display:flex;gap:8px;margin-top:13px}
 <header><div class="logo">P</div><div><h1>Racing Database</h1><small>PIF Racing · Private Owners Hub</small></div><nav><a href="./index.html">Today's scanner</a><a href="./race-research.html">Research notes</a></nav></header>
 <section class="intro"><h2>Explore the evidence behind the rankings</h2><p>Real historical results, horse form, jockey records, trainers, track performance and going conditions. Read-only; nothing here changes the scanner's formula.</p>
 <div id="status" role="status" aria-live="polite" class="fine">Checking your private scanner session…</div></section>
-<section class="panel" id="locked" hidden><h2>Private access required</h2><p class="muted">Open the main PIF Racing scanner and sign in using your existing code. Then return here. Your PIN is never stored on this page.</p><a class="button" href="./index.html">Open scanner login</a></section>
+<section class="panel" id="locked" hidden><h2>Sign in to view results</h2><p class="muted">Enter your existing scanner access code here. It is used only to sign in and is not saved on this page.</p><form id="login-form"><label for="pin" class="fine">Scanner access code</label><input id="pin" type="password" autocomplete="off" required minlength="8"><button class="primary" type="submit">Sign in</button></form><p id="login-error" class="fine" role="alert" hidden></p></section>
 <section id="content" hidden>
  <section class="panel"><h2>Live database overview</h2><div id="stats" class="grid"><div class="fine">Loading verified counts…</div></div><p class="fine" id="freshness"></p></section>
  <section class="panel"><h2>Find a horse, jockey, trainer or course</h2>
@@ -95,7 +95,8 @@ form{display:flex;gap:8px;margin-top:13px}
 </main>
 <script>
 'use strict';
-const API='https://pif-racing-paper.onrender.com/database-explorer';
+const API_ROOT='https://pif-racing-paper.onrender.com';
+const API=API_ROOT+'/database-explorer';
 const KEY='pif-racing-remembered-v1';
 const el=id=>document.getElementById(id);
 const esc=v=>String(v??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -113,7 +114,7 @@ async function api(payload){
   const res=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},
    body:JSON.stringify({...payload,session_token:session}),cache:'no-store',referrerPolicy:'no-referrer',signal:controller.signal});
   const data=await res.json();
-  if(res.status===401){session='';el('content').hidden=true;el('locked').hidden=false;status('Login expired. Please sign in again.');throw Error('Session expired')}
+  if(res.status===401){session='';localStorage.removeItem(KEY);el('content').hidden=true;el('locked').hidden=false;status('Login expired. Sign in below to continue.');throw Error('Session expired')}
   if(!res.ok||!data.ok)throw Error(data.error||'Data request failed');
   return data;
  }finally{clearTimeout(timeout)}
@@ -368,9 +369,25 @@ el('detail').addEventListener('click',e=>{
 el('recent').addEventListener('click',e=>{const b=e.target.closest('[data-race]');if(b)openRace(b.dataset.race)});
 el('close-detail').addEventListener('click',()=>el('detail').hidden=true);
 el('refresh').addEventListener('click',loadRecent);
+el('login-form').addEventListener('submit',async ev=>{
+ ev.preventDefault();const pin=el('pin').value.trim();
+ el('login-error').hidden=true;status('Signing in…');
+ try{
+  const res=await fetch(API_ROOT+'/session',{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},
+   body:JSON.stringify({pin}),cache:'no-store',referrerPolicy:'no-referrer'});
+  const data=await res.json();
+  if(!res.ok||!data.ok)throw Error(data.error==='incorrect_code'?'That access code was not accepted.':'Sign-in failed. Please try again.');
+  session=data.session_token;
+  localStorage.setItem(KEY,JSON.stringify({session_token:session,expires_at:data.expires_at}));
+  el('pin').value='';el('locked').hidden=true;el('content').hidden=false;
+  status('Signed in · read-only access to live historical records');
+  try{stats((await api({action:'overview'})).data)}catch(e){el('stats').textContent='Database counts unavailable: '+e.message;return}
+  await loadRecent();
+ }catch(e){el('login-error').textContent=e.message;el('login-error').hidden=false;status('Sign-in failed. Check the code and try again.')}
+});
 (async()=>{try{session=auth()}catch(_){}
- if(!session){el('locked').hidden=false;status('Sign in to your main scanner to access the live racing database.');return}
- el('content').hidden=false;status('Authenticated · read-only access to live historical records');
+ if(!session){el('locked').hidden=false;status('Sign in below to access the live racing database.');return}
+ el('content').hidden=false;status('Checking your private session…');
  try{stats((await api({action:'overview'})).data)}catch(e){el('stats').textContent='Database counts unavailable: '+e.message}
  await loadRecent();
 })();
