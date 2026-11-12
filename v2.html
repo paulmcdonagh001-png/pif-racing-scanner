@@ -306,6 +306,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <section id="signin" class="card" hidden>
 <h2>Private access</h2>
 <p>Use your existing PIF Racing scanner access code.</p>
+<p id="signin-message" class="error" role="alert" hidden></p>
 <form id="login-form">
 <label for="pin">Scanner access code</label>
 <input id="pin" type="password" autocomplete="off" required minlength="8">
@@ -318,6 +319,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <button type="button" data-day="tomorrow">Tomorrow</button>
 </div>
 <div class="row"><button id="reload" class="secondary" type="button">Reload saved rankings</button><button id="fresh-scan" type="button">Fresh scan today</button><button id="toggle-races" class="secondary" type="button">Collapse all races</button><span id="loaded-time" class="meta"></span></div>
+<div id="fresh-scan-feedback" role="status" aria-live="polite" hidden></div>
 <p class="meta" id="fresh-scan-note">Fresh scan: fetches up-to-date Racing API information and recalculates races still to run. Earlier predictions are preserved for results testing. Reload uses saved rankings without new API calls.</p>
 <div class="filters">
 <div><label for="course">Racecourse</label><select id="course"><option value="all">All courses</option></select></div>
@@ -363,6 +365,19 @@ function updateRaceToggle(){
 try{const session=JSON.parse(localStorage.getItem(KEY)||'null');if(session&&Date.parse(session.expires_at)>Date.now()+30000)token=session.session_token||'';}catch(_){}
 function status(s,isError=false){get('status').textContent=s;get('status').className=isError?'error':''}
 function authUi(){get('signin').hidden=Boolean(token);get('application').hidden=!token}
+function scanStatus(message,isError=false){
+ status(message,isError);
+ const note=get('fresh-scan-feedback');
+ note.textContent=message;note.className=isError?'error':'meta';note.hidden=false;
+}
+function signInRequired(){
+ token='';localStorage.removeItem(KEY);
+ if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null}
+ refreshBusy=false;refreshControls();authUi();
+ get('signin-message').textContent='Your previous Racing session is no longer valid. Sign in again to use Fresh scan today.';
+ get('signin-message').hidden=false;
+ status('Racing login required. Sign in again to run a fresh scan.',true);
+}
 async function request(path,payload){
  const controller=new AbortController(),limit=setTimeout(()=>controller.abort(),65000);
  try{
@@ -370,6 +385,10 @@ async function request(path,payload){
    headers:{'Content-Type':'text/plain;charset=UTF-8'},
    body:JSON.stringify(payload),signal:controller.signal,referrerPolicy:'no-referrer'});
   const data=await resp.json();
+  if(resp.status===401&&data.error==='session_expired'){
+   signInRequired();
+   throw Error('Login session rejected. Please sign in again.');
+  }
   if(!resp.ok||!data.ok)throw Error(data.error||'Service unavailable');
   return data;
  }finally{clearTimeout(limit)}
@@ -380,7 +399,8 @@ get('login-form').addEventListener('submit',async event=>{
   const data=await request('/session',{pin});
   token=data.session_token;
   localStorage.setItem(KEY,JSON.stringify({session_token:token,expires_at:data.expires_at}));
-  get('pin').value='';authUi();await reload();resumeFreshScanStatus();
+  get('pin').value='';get('signin-message').hidden=true;
+  get('fresh-scan-feedback').hidden=true;authUi();await reload();resumeFreshScanStatus();
  }catch(error){status('Sign-in failed: '+error.message,true)}
 });
 document.querySelectorAll('[data-day]').forEach(b=>b.addEventListener('click',()=>{
@@ -417,7 +437,7 @@ async function resumeFreshScanStatus(){
   if(response.status==='REFRESH_RUNNING'){
    refreshBusy=true;refreshControls();
    showScanProgress(response.progress?.done,response.progress?.total);
-   status('Fresh Racing API scan running on the server; old rankings remain visible until it finishes.');
+   scanStatus('Fresh Racing API scan running on the server; old rankings remain visible until it finishes.');
    if(refreshTimer)clearTimeout(refreshTimer);
    refreshTimer=setTimeout(pollFreshScan,6000);
   }else if(response.status==='REFRESH_COMPLETE'&&response.completed_utc){
@@ -425,7 +445,7 @@ async function resumeFreshScanStatus(){
    const completed=Date.parse(response.completed_utc);
    if(Number.isFinite(completed)&&(!Number.isFinite(current)||completed>current+1500)){
     await reload();
-    status('Latest completed fresh scan loaded; earlier race predictions preserved.');
+    scanStatus('Latest completed fresh scan loaded; earlier race predictions preserved.');
    }
   }
  }catch(_){
@@ -436,20 +456,20 @@ async function freshScanToday(){
  if(!token||day!=='today'||refreshBusy)return;
  refreshBusy=true;refreshControls();
  showScanProgress();
- status('Requesting fresh Racing API scan for remaining races today…');
+ scanStatus('Requesting fresh Racing API scan for remaining races today…');
  try{
   const response=await request('/v2-refresh',{session_token:token,day:'today',action:'start'});
   if(response.status==='REFRESH_RUNNING'){
-    status('Fresh scan started. Earlier rankings remain visible while new source data is fetched.');
+    scanStatus('Fresh scan started. Earlier rankings remain visible while new source data is fetched.');
     if(refreshTimer)clearTimeout(refreshTimer);
     refreshTimer=setTimeout(pollFreshScan,6000);
     return;
   }
   restoreSavedLabel();
-  status(response.message||response.error||'Fresh scan could not be started.',true);
+  scanStatus(response.message||response.error||'Fresh scan could not be started.',true);
  }catch(err){
   restoreSavedLabel();
-  status('Fresh scan unavailable: '+err.message,true);
+  scanStatus('Fresh scan unavailable: '+err.message,true);
  }finally{
   if(!refreshTimer){refreshBusy=false;refreshControls();}
  }
@@ -461,7 +481,7 @@ async function pollFreshScan(){
   if(response.status==='REFRESH_RUNNING'){
     const done=Number(response.progress?.done||0),total=Number(response.progress?.total||0);
     showScanProgress(done,total);
-    status('Fresh scan in progress: '+(total>1?done+' / '+total+' source steps':'fetching updated racecards')+'. Existing rankings are still visible.');
+    scanStatus('Fresh scan in progress: '+(total>1?done+' / '+total+' source steps':'fetching updated racecards')+'. Existing rankings are still visible.');
     refreshTimer=setTimeout(pollFreshScan,6000);
     return;
   }
@@ -471,16 +491,16 @@ async function pollFreshScan(){
     const current=Date.parse(get('loaded-time').dataset.snapshotUtc||'');
     const completed=Date.parse(response.completed_utc||'');
     const upToDate=Number.isFinite(current)&&Number.isFinite(completed)&&current>=completed-1500;
-    status(upToDate?
+    scanStatus(upToDate?
       'Fresh scan completed and saved rankings updated. Earlier pre-race forecasts preserved.':
       'Fresh scan finished, but the page could not confirm the new saved timestamp. Press Reload saved rankings.',!upToDate);
     return;
   }
   restoreSavedLabel();
-  status(response.message||('Fresh scan did not finish: '+(response.error_type||response.status)),true);
+  scanStatus(response.message||('Fresh scan did not finish: '+(response.error_type||response.status)),true);
  }catch(err){
   restoreSavedLabel();
-  status('Fresh scan status temporarily unavailable: '+err.message,true);
+  scanStatus('Fresh scan status temporarily unavailable: '+err.message,true);
  }finally{
   if(!refreshTimer){refreshBusy=false;refreshControls();}
  }
