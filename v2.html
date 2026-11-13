@@ -1583,7 +1583,7 @@ function render(){
   return Math.abs(profit-Math.round(profit))<0.06?Math.round(profit)+'/1':Number(value).toFixed(2)+' decimal';
  };
  valueHost.innerHTML='<div class="card"><h2>Potential value candidates · trial</h2>'+
-   '<p>These are supported top-three PIF horses priced 8/1–20/1 where the market ranks the horse at least two places lower. The rule is experimental; it is not a calibrated chance of winning.</p>'+
+   '<p>Any odds can qualify. We flag supported top-three PIF horses when the market ranks them at least two places lower. This finds a disagreement worth reviewing; it is not yet proof of value because the model does not have calibrated win probabilities.</p>'+
    (valueCandidates.length?
     '<div class="market-shortlist">'+valueCandidates.map(({race,candidate})=>
      '<div class="market-short"><strong>'+escapeHtml(britishTime(candidate.off_utc))+' · '+
