@@ -1033,18 +1033,20 @@ async function updateForwardRecord(){
     '<p><strong>Waiting for completed comparisons.</strong> The system is saving eligible choices before races start. Official winners appear here once settled.</p>';
   const valueTrial=data.value_trial||{};
   const valueOverall=valueTrial.overall||{};
+  const calibrationRows=valueTrial.calibration||[];
+  const readyBands=calibrationRows.filter(x=>x.ready).length;
   const valueSummary=data.value_trial_status==='UNAVAILABLE'?
     '<h3>Potential value trial · results</h3><p>Trial tracking temporarily unavailable; no results have been inferred.</p>':
     '<h3>Potential value trial · results</h3>'+
     '<p>'+escapeHtml(valueTrial.rule||'Trial selection rule unavailable.')+'</p>'+
-    '<div class="market-short"><strong>'+number(valueOverall.candidates)+' candidates recorded · '+
+    '<div class="market-short"><strong>'+number(valueOverall.candidates)+' value candidates recorded · '+
       number(valueOverall.settled_bets)+' settled £1 win tests · '+number(valueOverall.upcoming_today)+' still to run</strong>'+
       '<small>'+number(valueOverall.wins)+' wins · '+number(valueOverall.places)+' finished in the top three · '+
       number(valueOverall.non_runners)+' non-runners excluded</small>'+
       '<p>Net win-test result: £'+Number(valueOverall.win_profit||0).toFixed(2)+
       (valueOverall.win_roi_pct===null||valueOverall.win_roi_pct===undefined?' · ROI waiting for results':
        ' · return on stakes '+Number(valueOverall.win_roi_pct).toFixed(1)+'%')+'</p></div>'+
-    '<p>£1 win per candidate; 2% commission deducted from winning profit. Top-three finishes are not counted as paid each-way places; actual each-way terms are not yet recorded. Trial only, not a proven edge.</p>';
+    '<p>Calibration: '+readyBands+' of '+calibrationRows.length+' race-type/rank bands ready. Each needs at least 100 settled runners from 50 races. £1 win per candidate; 2% commission deducted from winning profit. Trial only. Each-way returns are not calculated.</p>';
   // Fair comparison against the favourite uses every runner's price frozen
   // before the off from one source, and requires a fully settled race.
   // Normal and limited-form specialist versions MUST remain separate.
@@ -1582,17 +1584,20 @@ function render(){
   const profit=Number(value)-1;
   return Math.abs(profit-Math.round(profit))<0.06?Math.round(profit)+'/1':Number(value).toFixed(2)+' decimal';
  };
- valueHost.innerHTML='<div class="card"><h2>Potential value candidates · trial</h2>'+
-   '<p>Any odds can qualify. We flag supported top-three PIF horses when the market ranks them at least two places lower. This finds a disagreement worth reviewing; it is not yet proof of value because the model does not have calibrated win probabilities.</p>'+
+ valueHost.innerHTML='<div class="card"><h2>Potential value candidates · historical trial</h2>'+
+   '<p>Any odds can qualify. We compare the horse’s past win rate for its race type and PIF rank band with the break-even chance at its current odds. A candidate appears only when there are at least 100 settled runners across 50 races and the conservative 95% lower estimate still beats break-even. This is a cautious trial, not a guarantee.</p>'+
    (valueCandidates.length?
     '<div class="market-shortlist">'+valueCandidates.map(({race,candidate})=>
      '<div class="market-short"><strong>'+escapeHtml(britishTime(candidate.off_utc))+' · '+
        escapeHtml(candidate.course)+' · '+escapeHtml(candidate.horse)+'</strong>'+
-       '<small>Odds about '+escapeHtml(oddsLabel(candidate.decimal_odds))+
-       ' · PIF #'+Number(candidate.display_rank)+' · market #'+Number(candidate.market_rank)+'</small>'+
+       '<small>Odds '+escapeHtml(oddsLabel(candidate.decimal_odds))+
+       ' · PIF #'+Number(candidate.display_rank)+' · historical band win rate '+
+       (Number(candidate.historical_win_probability)*100).toFixed(1)+'% · cautious estimate '+
+       (Number(candidate.confidence_floor)*100).toFixed(1)+'% · break-even '+
+       (Number(candidate.break_even_probability)*100).toFixed(1)+'%</small>'+
        '<p>'+escapeHtml(candidate.reason)+'</p></div>').join('')+'</div>':
-    '<p><strong>No horses meet the trial rule in the races currently shown.</strong></p>')+
-   '<p>Use the price shown as a starting check; this list is being tracked against official results.</p></div>';
+    '<p><strong>No evidence-backed value candidates in the races currently shown.</strong></p><p>Calibration is being built from every frozen runner and official result. The tracker will show candidates only when the historical evidence clears the break-even test.</p>')+
+   '<p>Prices are from the saved scan; 2% commission is assumed on winning profit.</p></div>';
  const meetingGroups=new Map();
  for(const r of rs){
   const key=String(r.date||day)+'|'+String(r.course||'');
