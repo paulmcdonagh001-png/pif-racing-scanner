@@ -337,6 +337,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <label class="row" style="display:flex;align-items:center;gap:8px;font-size:12px;margin:11px 0"><input id="show-started" type="checkbox" style="width:auto;min-width:16px" /> Show races already off (for review)</label>
 <div id="forward-record" class="card"><details><summary>Research results &amp; testing (optional)</summary><p>Checking results tracking status…</p></details></div>
 <div id="summary">Open today's racing to view the independent V2 rankings.</div>
+<div id="value-trial-list"></div>
 <div id="races"></div>
 </section>
 <div id="status" role="status" aria-live="polite"></div>
@@ -1030,6 +1031,20 @@ async function updateForwardRecord(){
   const intro=nCompleted?
     '<p><strong>Results so far:</strong> These are completed races where both choices were saved before the off. Winners are counted, not just favourites.</p>':
     '<p><strong>Waiting for completed comparisons.</strong> The system is saving eligible choices before races start. Official winners appear here once settled.</p>';
+  const valueTrial=data.value_trial||{};
+  const valueOverall=valueTrial.overall||{};
+  const valueSummary=data.value_trial_status==='UNAVAILABLE'?
+    '<h3>Potential value trial · results</h3><p>Trial tracking temporarily unavailable; no results have been inferred.</p>':
+    '<h3>Potential value trial · results</h3>'+
+    '<p>'+escapeHtml(valueTrial.rule||'Trial selection rule unavailable.')+'</p>'+
+    '<div class="market-short"><strong>'+number(valueOverall.candidates)+' candidates recorded · '+
+      number(valueOverall.settled_bets)+' settled £1 win tests · '+number(valueOverall.upcoming_today)+' still to run</strong>'+
+      '<small>'+number(valueOverall.wins)+' wins · '+number(valueOverall.places)+' finished in the top three · '+
+      number(valueOverall.non_runners)+' non-runners excluded</small>'+
+      '<p>Net win-test result: £'+Number(valueOverall.win_profit||0).toFixed(2)+
+      (valueOverall.win_roi_pct===null||valueOverall.win_roi_pct===undefined?' · ROI waiting for results':
+       ' · return on stakes '+Number(valueOverall.win_roi_pct).toFixed(1)+'%')+'</p></div>'+
+    '<p>£1 win per candidate; 2% commission deducted from winning profit. Top-three finishes are not counted as paid each-way places; actual each-way terms are not yet recorded. Trial only, not a proven edge.</p>';
   // Fair comparison against the favourite uses every runner's price frozen
   // before the off from one source, and requires a fully settled race.
   // Normal and limited-form specialist versions MUST remain separate.
@@ -1219,7 +1234,7 @@ async function updateForwardRecord(){
           ' · Original V2 first-choice winners on same races: '+number(r?.baseline_rank1_wins_same_races):
           'Awaiting complete results for fair comparison')+'</p></div>';
       })).join('');
-  const conditionsSummary=conditionsHeading+
+  const conditionsSummary=valueSummary+conditionsHeading+
     (data.conditions_model_status==='UNAVAILABLE'?
      '<p>New-model performance temporarily unavailable.</p>':
      '<div class="market-shortlist">'+conditionCards+'</div>')+
@@ -1561,6 +1576,23 @@ function render(){
  get('summary').textContent=rs.length+' races shown · '+entries.length+' available'+
    (hidden?' · '+hidden+' already off (hidden)':'')+
    '';
+ const valueHost=get('value-trial-list');
+ const valueCandidates=rs.flatMap(r=>(r.conditions_value_candidates||[]).map(c=>({race:r,candidate:c})));
+ const oddsLabel=value=>{
+  const profit=Number(value)-1;
+  return Math.abs(profit-Math.round(profit))<0.06?Math.round(profit)+'/1':Number(value).toFixed(2)+' decimal';
+ };
+ valueHost.innerHTML='<div class="card"><h2>Potential value candidates · trial</h2>'+
+   '<p>These are supported top-three PIF horses priced 8/1–20/1 where the market ranks the horse at least two places lower. The rule is experimental; it is not a calibrated chance of winning.</p>'+
+   (valueCandidates.length?
+    '<div class="market-shortlist">'+valueCandidates.map(({race,candidate})=>
+     '<div class="market-short"><strong>'+escapeHtml(britishTime(candidate.off_utc))+' · '+
+       escapeHtml(candidate.course)+' · '+escapeHtml(candidate.horse)+'</strong>'+
+       '<small>Odds about '+escapeHtml(oddsLabel(candidate.decimal_odds))+
+       ' · PIF #'+Number(candidate.display_rank)+' · market #'+Number(candidate.market_rank)+'</small>'+
+       '<p>'+escapeHtml(candidate.reason)+'</p></div>').join('')+'</div>':
+    '<p><strong>No horses meet the trial rule in the races currently shown.</strong></p>')+
+   '<p>Use the price shown as a starting check; this list is being tracked against official results.</p></div>';
  const meetingGroups=new Map();
  for(const r of rs){
   const key=String(r.date||day)+'|'+String(r.course||'');
