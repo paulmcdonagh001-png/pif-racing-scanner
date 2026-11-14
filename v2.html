@@ -314,7 +314,22 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .ew-no-bet{font-size:16px;font-weight:850;color:#f7d396}
 .ew-gain{font-size:12px;font-weight:750;color:#8fe6c3}
 .ew-source{font-size:10px;color:#b3c7d1}
-@media(max-width:480px){.ew-race{padding:10px 11px}.ew-horse{font-size:18px}.ew-odds{font-size:17px}}
+.ew-race{margin:6px 0;padding:8px 11px}
+.ew-choice{padding-top:6px}
+.ew-race-top{font-size:13px}
+.ew-race-meta{display:none}
+.ew-cloth{display:inline-flex;align-items:center;justify-content:center;border:1px solid #6f95aa;border-radius:5px;background:#223e51;color:#fff;min-width:27px;height:27px;flex-shrink:0;font-size:14px}
+.ew-horse{display:flex;gap:8px;align-items:center;font-size:18px;min-width:0}
+.ew-odds{font-size:18px}
+.ew-gain{margin-top:4px;font-size:12px}
+.ew-more{margin-top:5px}
+.ew-more>summary{cursor:pointer;font-size:11px;color:#a9d5e9;padding:3px 0}
+.ew-more[open]{padding:4px 0 2px}
+.ew-adjust{display:flex;gap:8px;flex-wrap:wrap;margin:7px 0}
+.ew-adjust label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:#bed2df;flex:1;min-width:105px}
+.ew-adjust select{width:100%;font-size:12px;min-height:32px}
+.ew-inline-no{margin:5px 0 1px;font-size:12px}
+@media(max-width:480px){.ew-race{padding:8px 10px}.ew-horse{font-size:17px}.ew-odds{font-size:17px}}
 </style>
 </head>
 <body>
@@ -1600,52 +1615,81 @@ function ewOddsLabel(decimal){
  if(Math.abs(profit-Math.round(profit))<0.001)return Math.round(profit)+'/1';
  return profit.toFixed(1)+'/1';
 }
+const ewTermChoices=Object.create(null);
 function eachWayCard(r,now){
  const off=Date.parse(r.off_utc);
- const info='<div class="ew-race-top"><span>'+escapeHtml(britishTime(r.off_utc))+
-   ' · '+escapeHtml(r.course)+'</span><span class="meta">'+
-   escapeHtml(raceGroup(r))+'</span></div>'+
-   '<div class="ew-race-meta">'+escapeHtml(r.race_name||'')+
-   (r.distance?' · '+escapeHtml(r.distance):'')+'</div>';
+ const sourceName=escapeHtml(String(r.course||''));
+ const kind=escapeHtml(raceGroup(r));
+ const key=String(r.race_id||'');
+ const top='<div class="ew-race-top"><span>'+escapeHtml(britishTime(r.off_utc))+
+   ' · '+sourceName+'</span><span class="meta">'+kind+'</span></div>';
+ const raceInfo=escapeHtml(r.race_name||'')+
+   (r.distance?' · '+escapeHtml(r.distance):'');
  const pick=r.each_way_pick;
  const frozen=r.each_way_status==='EACH_WAY_FROZEN_PICK';
  if(!['EACH_WAY_FORM_CANDIDATE','EACH_WAY_FROZEN_PICK'].includes(r.each_way_status)||!pick){
-   return '<section class="ew-race">'+info+
-     '<div class="ew-choice"><div class="ew-no-bet">NO EACH-WAY PICK</div>'+
-     '<p class="ew-reason">'+escapeHtml(r.each_way_reason||'No suitable form-and-market each-way prospect.')+
-     '</p></div></section>';
+   return '<section class="ew-race">'+top+
+     '<div class="ew-choice ew-inline-no"><strong>NO EACH-WAY PICK</strong> · '+
+     escapeHtml(r.each_way_reason||'No suitable form and market evidence.')+
+     '</div><details class="ew-more"><summary>Race details</summary><div class="ew-source">'+raceInfo+
+     '</div></details></section>';
  }
  const price=Number(pick.decimal_odds);
- const profit=Number(pick.place_only_profit_gbp);
- const seen=Date.parse(pick.quote_observed_utc||'');
- const stale=Number.isFinite(seen)&&now-seen>90*60000;
- const places=Number(pick.assumed_paid_places||3);
- const profitLabel=Number.isFinite(profit)?'£'+profit.toFixed(2):'—';
- const verifiedResult=frozen&&pick.result_status==='SETTLED';
- const resultLine=frozen?
-   '<div class="ew-source"><strong>'+
-   (verifiedResult?(pick.won?'WON':pick.top_three_finish?'FINISHED TOP THREE':'UNPLACED'):
-    'OFFICIAL RESULT PENDING')+
-   '</strong>'+(verifiedResult&&pick.finish_position?
-    ' · Position '+Number(pick.finish_position):'')+'</div>':'';
- const researchLine=frozen?
-   '<div class="ew-source">First-frozen pre-race selection · Not retrospectively changed.</div>':
-   '<div class="ew-source">PIF #'+Number(pick.pif_rank||0)+
-   ' · Market #'+Number(pick.market_rank||0)+
-   ' · Estimated top-'+places+' chance '+Number(pick.estimated_place_chance_pct||0).toFixed(0)+'% (unvalidated)</div>';
- return '<section class="ew-race">'+info+
-   '<div class="ew-choice"><div class="ew-flag">'+
-   (frozen?'FIRST-FROZEN PRE-OFF PICK':'EACH-WAY PROSPECT · PLACE-FOCUSED')+
-   '</div><div class="ew-choice-head"><div class="ew-horse">'+escapeHtml(pick.horse)+
-   '</div><div class="ew-odds">'+escapeHtml(ewOddsLabel(price))+'</div></div>'+
-   '<p class="ew-reason">'+escapeHtml(pick.reason||'Recent placing evidence and market support.')+'</p>'+
-   '<div class="ew-gain">Place only: +'+escapeHtml(profitLabel)+
-   ' on £5 each way if '+places+'-place, 1/5 terms apply.</div>'+
-   researchLine+resultLine+
-   (stale?'<p class="ew-terms"><strong>Price may be stale: press Fresh scan today.</strong></p>':'')+
-   '<p class="ew-terms">'+escapeHtml(pick.terms_warning||'Bookmaker terms not verified.')+
-   '</p></div></section>';
+ const prefs=ewTermChoices[key]||{};
+ const places=[2,3].includes(Number(prefs.places))?Number(prefs.places):
+   Number(pick.assumed_paid_places||2);
+ const fraction=[.20,.25].includes(Number(prefs.fraction))?Number(prefs.fraction):
+   Number(pick.assumed_place_fraction||.20);
+ const placeFractionLabel=fraction===.25?'1/4':'1/5';
+ const gain=Number.isFinite(price)?5*fraction*(price-1)-5:null;
+ const gainLabel=gain===null?'—':(gain>=0?'+':'−')+'£'+Math.abs(gain).toFixed(2);
+ const cloth=Number(pick.card_number);
+ const numberTag=Number.isInteger(cloth)&&cloth>0&&cloth<100?
+   '<span class="ew-cloth" aria-label="Racecard number '+cloth+'">'+cloth+'</span>':
+   '<span class="ew-source">No verified number</span>';
+ const timestamp=Date.parse(pick.quote_observed_utc||'');
+ const stale=Number.isFinite(timestamp)&&now-timestamp>90*60000;
+ const rawEstimate=places===2?pick.estimated_top_two_chance_pct:
+   pick.estimated_top_three_chance_pct;
+ const estimate=rawEstimate==null?'not available':
+   Number(rawEstimate).toFixed(0)+'% (unvalidated)';
+ const resultPos=Number(pick.finish_position);
+ const hasResult=frozen&&pick.result_status==='SETTLED';
+ const result=hasResult?(pick.won?'WON':Number.isInteger(resultPos)&&resultPos<=places?
+   'PLACED '+resultPos+'th':'NOT PLACED'):'OFFICIAL RESULT PENDING';
+ const why=escapeHtml(pick.reason||'Recent placing evidence and suitable race conditions.');
+ const options=(vals,current)=>vals.map(v=>'<option value="'+v[0]+'"'+
+   (String(current)===v[0]?' selected':'')+'>'+v[1]+'</option>').join('');
+ const bookmakerControls=!frozen?
+   '<div class="ew-adjust">'+
+   '<label>Paid places<select data-ew-race="'+escapeHtml(key)+'" data-ew-role="places">'+
+   options([['2','2 places'],['3','3 places']],places)+'</select></label>'+
+   '<label>Place fraction<select data-ew-race="'+escapeHtml(key)+'" data-ew-role="fraction">'+
+   options([['0.2','1/5 odds'],['0.25','1/4 odds']],fraction)+'</select></label>'+
+   '</div>':'';
+ return '<section class="ew-race" data-ew-key="'+escapeHtml(key)+'">'+top+
+   '<div class="ew-choice">'+
+   '<div class="ew-choice-head"><div class="ew-horse">'+numberTag+
+   '<span>'+escapeHtml(pick.horse)+'</span></div>'+
+   '<div class="ew-odds">'+escapeHtml(ewOddsLabel(price))+'</div></div>'+
+   '<div class="ew-gain"><span class="ew-gain-num">'+gainLabel+'</span> place-only, '+
+   '<span class="ew-gain-terms">'+places+' places · '+placeFractionLabel+'</span>'+
+   ' (£5 each way)</div>'+
+   (frozen?'<div class="ew-source"><strong>'+escapeHtml(result)+'</strong>'+
+     (hasResult&&Number.isInteger(resultPos)?' · Finish '+resultPos:'')+'</div>':'')+
+   (stale?'<div class="ew-terms">Indicative price may be stale — refresh before using.</div>':'')+
+   '<details class="ew-more"><summary>Why this horse · bookmaker terms</summary>'+
+   '<div class="ew-source">'+raceInfo+'</div>'+
+   '<p class="ew-reason">'+why+'</p>'+
+   bookmakerControls+
+   '<div class="ew-source">Source: '+escapeHtml(pick.odds_source||'Not recorded')+
+   ' · PIF #'+(pick.pif_rank||'—')+' · Market #'+(pick.market_rank||'—')+'</div>'+
+   '<div class="ew-source">Model top-<span class="ew-est-places">'+places+
+   '</span> chance: <span class="ew-est">'+escapeHtml(estimate)+'</span></div>'+
+   '<p class="ew-terms">Win price is indicative. The bookmaker-paid places and fraction are not automatically verified; set them to the offer you see. Model estimates are not proven value.</p>'+
+   '</details></div></section>';
 }
+
 function render(){
  const cv=get('course').value,typ=get('code').value;
  const matches=entries.filter(x=>(cv==='all'||x.course===cv)&&(typ==='all'||raceGroup(x)===typ));
@@ -1737,6 +1781,41 @@ async function reload(){
    }
  }
 }
+get('races').addEventListener('change',ev=>{
+ const el=ev.target;
+ if(!el||!el.matches('select[data-ew-role]'))return;
+ const key=el.getAttribute('data-ew-race');
+ const role=el.getAttribute('data-ew-role');
+ if(!key||!['places','fraction'].includes(role))return;
+ const val=Number(el.value);
+ if(role==='places'&&![2,3].includes(val))return;
+ if(role==='fraction'&&![.2,.25].includes(val))return;
+ if(!ewTermChoices[key]){
+   const r=entries.find(x=>String(x.race_id||'')===key);
+   const p=r?.each_way_pick||{};
+   ewTermChoices[key]={
+     places:Number(p.assumed_paid_places||2),
+     fraction:Number(p.assumed_place_fraction||.2)
+   };
+ }
+ ewTermChoices[key][role]=val;
+ const card=el.closest('[data-ew-key]');
+ if(!card)return;
+ const r=entries.find(x=>String(x.race_id||'')===key);
+ const pick=r?.each_way_pick;
+ if(!pick)return;
+ const prefs=ewTermChoices[key];
+ const gain=5*prefs.fraction*(Number(pick.decimal_odds)-1)-5;
+ card.querySelector('.ew-gain-num').textContent=
+   (gain>=0?'+':'−')+'£'+Math.abs(gain).toFixed(2);
+ card.querySelector('.ew-gain-terms').textContent=
+   prefs.places+' places · '+(prefs.fraction===.25?'1/4':'1/5');
+ const est=prefs.places===2?pick.estimated_top_two_chance_pct:
+   pick.estimated_top_three_chance_pct;
+ card.querySelector('.ew-est-places').textContent=String(prefs.places);
+ card.querySelector('.ew-est').textContent=
+   est==null?'not available':Number(est).toFixed(0)+'% (unvalidated)';
+});
 authUi();if(token)reload().then(resumeFreshScanStatus);
 setInterval(()=>{if(token&&!loading&&day==='today')render()},60000);
 </script>
