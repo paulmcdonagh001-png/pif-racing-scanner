@@ -1012,7 +1012,7 @@ function row(h,raceType,race){
 async function updateForwardRecord(){
  if(!token)return;
  const el=get('forward-record');
- const name="Forward results: conditions model and earlier formulas";
+ const name="Each-way paper results & earlier model testing";
  const closed=(body)=>'<details><summary>'+name+' (optional)</summary>'+body+'</details>';
  try{
   const data=await request('/v2-performance',{session_token:token});
@@ -1251,7 +1251,18 @@ async function updateForwardRecord(){
           ' · Original V2 first-choice winners on same races: '+number(r?.baseline_rank1_wins_same_races):
           'Awaiting complete results for fair comparison')+'</p></div>';
       })).join('');
-  const conditionsSummary=valueSummary+conditionsHeading+
+  const ew=data.each_way_paper||{};
+  const ewSummary=data.each_way_paper_status==='UNAVAILABLE'?
+    '<h3>Each-way paper results</h3><p>Results tracking is temporarily unavailable.</p>':
+    '<h3>Each-way paper results</h3>'+
+    '<p><strong>'+number(ew.picks_frozen)+' pre-race picks · '+
+    number(ew.settled)+' settled · '+number(ew.wins)+' winners · '+
+    number(ew.placed_non_winners)+' placed without winning</strong></p>'+
+    '<p>Modelled profit/loss: £'+Number(ew.hypothetical_profit_gbp||0).toFixed(2)+
+    (ew.hypothetical_roi_pct==null?' · awaiting settled picks':
+     ' · ROI '+Number(ew.hypothetical_roi_pct).toFixed(1)+'%')+'</p>'+
+    '<p>Paper only: £5 each way, 1/5 odds, three paid places. These terms are assumed, not verified bookmaker offers; actual returns may differ.</p>';
+  const conditionsSummary=ewSummary+valueSummary+conditionsHeading+
     (data.conditions_model_status==='UNAVAILABLE'?
      '<p>New-model performance temporarily unavailable.</p>':
      '<div class="market-shortlist">'+conditionCards+'</div>')+
