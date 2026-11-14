@@ -325,8 +325,8 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <a href="./database.html">Racing database</a>
 </header>
 <h1>PIF Racing · Each-Way Picks</h1>
-<p class="ew-guide">One horse per race when the historical win/place evidence supports a conditional each-way angle. Otherwise: <strong>No bet</strong>. The full field is analysed internally.</p>
-<div class="notice"><strong>Experimental, not a proven betting system.</strong> Odds are indicative. Place-only returns assume 1/5 odds and three paid places, not verified bookmaker terms. Check live odds, places and non-runners.</div>
+<p class="ew-guide"><strong>Each-way selections are temporarily paused.</strong> The early research angles have not demonstrated reliable placing performance. No new staking selections are being issued while the results are audited.</p>
+<div class="notice"><strong>Selection safety pause:</strong> Do not treat earlier each-way research angles as bets. Historical performance is being assessed using pre-race frozen picks and official results. Previously shown prices and place terms were only indicative.</div>
 <section id="signin" class="card" hidden>
 <h2>Private access</h2>
 <p>Use your existing PIF Racing scanner access code.</p>
@@ -1614,7 +1614,8 @@ function eachWayCard(r,now){
    'UNVALIDATED_EACH_WAY_ANGLE'].includes(r.each_way_status);
  if(!candidate){
    return '<section class="ew-race" data-race-key="'+escapeHtml(key)+'">'+info+
-      '<div class="ew-choice"><div class="ew-no-bet">NO EACH-WAY BET</div>'+
+      '<div class="ew-choice"><div class="ew-no-bet">'+(r.each_way_status==='PAUSED_VALIDATION'?
+      'EACH-WAY MODEL PAUSED':'NO EACH-WAY BET')+'</div>'+
       '<p class="ew-reason">'+escapeHtml(r.each_way_reason||
       'No supported candidate; no selection has been manufactured.')+
       '</p></div></section>';
@@ -1665,7 +1666,10 @@ function render(){
  const rs=matches.filter(x=>showStarted||day!=='today'||Date.parse(x.off_utc)>now);
  const calibrated=rs.filter(r=>r.each_way_status==='CONDITIONAL_EACH_WAY_RESEARCH'&&r.each_way_pick).length;
  const provisional=rs.filter(r=>r.each_way_status==='UNVALIDATED_EACH_WAY_ANGLE'&&r.each_way_pick).length;
- get('summary').textContent=rs.length+' races · '+provisional+' unvalidated each-way angles · '+
+ const paused=rs.length>0&&rs.every(r=>r.each_way_status==='PAUSED_VALIDATION');
+ get('summary').textContent=paused?
+   rs.length+' races · each-way model paused pending results validation':
+   rs.length+' races · '+provisional+' unvalidated each-way angles · '+
    calibrated+' calibrated paper candidates · '+(rs.length-calibrated-provisional)+' no bet'+
    (matches.length!==rs.length?' · races already off hidden':'');
  get('value-trial-list').innerHTML='';
