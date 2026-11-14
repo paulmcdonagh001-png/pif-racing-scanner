@@ -1623,6 +1623,13 @@ function eachWayCard(r,now){
  const price=Number(p.decimal_odds),profit=Number(p.place_only_profit_gbp);
  const placeTxt=Number.isFinite(profit)?('+'+'£'+profit.toFixed(2)):'—';
  const warning=String(p.terms_warning||'Bookmaker place terms are not verified.');
+ const seen=Date.parse(p.quote_observed_utc||'');
+ const oldQuote=Number.isFinite(seen)&&now-seen>90*60*1000;
+ const quoteTiming=Number.isFinite(seen)?
+   ' · Price seen '+escapeHtml(britishTime(p.quote_observed_utc))+' UK':
+   ' · Quote timestamp unavailable';
+ const staleNotice=oldQuote?
+   '<p class="ew-terms"><strong>STALE QUOTE: Press Fresh scan today before considering this horse. The displayed odds may have changed.</strong></p>':'';
  const explanation=provisional?
    '<p class="ew-reason"><strong>PIF #'+Number(p.pif_rank)+
    ' vs indicative win-market #'+Number(p.market_rank)+'</strong> · '+
@@ -1644,9 +1651,9 @@ function eachWayCard(r,now){
    '<div class="ew-gain">If placed but not first: '+escapeHtml(placeTxt)+
    ' modelled profit on £5 each way (£10 total).</div>'+
    '<div class="ew-source">Indicative WIN quote: '+escapeHtml(p.odds_source||'Source not recorded')+
-   (provisional?' · No validated place probability':
+   quoteTiming+(provisional?' · No validated place probability':
     ' · Calibration sample '+Number(p.calibration_runners||0)+' runners')+'</div>'+
-   '<p class="ew-terms">'+escapeHtml(warning)+
+   staleNotice+'<p class="ew-terms">'+escapeHtml(warning)+
    ' Actual each-way odds and number of paid places must be checked.</p>'+
    '</div></section>';
 }
