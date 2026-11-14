@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#081725">
-<title>PIF Racing V2 | Independent research rankings</title>
-<meta name="description" content="Private, research-only PIF Racing V2 independent all-races ranking beta. No validated betting value.">
+<title>PIF Racing V2 | Each-way selections</title>
+<meta name="description" content="PIF Racing V2: one conditional each-way research selection per race, or no bet.">
 <style>
 :root{color-scheme:dark;--bg:#081725;--card:#11283b;--panel:#163146;--line:#304b60;--ink:#f1f6f9;--muted:#a9becc;--mint:#81dec0;--amber:#f7d396}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Arial,sans-serif}
@@ -300,18 +300,33 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .horse .evidence-head small{font-weight:750;min-width:20px;text-align:right}
 /* Seven evidence categories on jump races: preserve a balanced compact grid. */
 .horse .evidence-grid>.evidence-factor:last-child:nth-child(odd){grid-column:1/-1}
+.ew-guide{font-size:12px;line-height:1.5;color:#d6e5ed;margin:6px 0 12px}
+.ew-race{background:#11283b;border:1px solid #385669;border-radius:12px;margin:9px 0;padding:11px 13px}
+.ew-race-top{display:flex;justify-content:space-between;gap:9px;align-items:baseline;font-size:14px;font-weight:800}
+.ew-race-meta{font-size:11px;color:#a9c5d3;margin:3px 0 8px}
+.ew-choice{border-top:1px solid #375266;padding-top:9px}
+.ew-choice-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ew-horse{font-size:20px;font-weight:850;line-height:1.1;overflow-wrap:anywhere}
+.ew-odds{font-size:19px;color:#8fe6c3;font-weight:850;white-space:nowrap}
+.ew-flag{font-size:10px;color:#dceee5;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.ew-reason{font-size:11px;line-height:1.4;margin:6px 0;color:#d6e5ed}
+.ew-terms{font-size:10px;line-height:1.38;color:#c6bca4;margin:5px 0 0}
+.ew-no-bet{font-size:16px;font-weight:850;color:#f7d396}
+.ew-gain{font-size:12px;font-weight:750;color:#8fe6c3}
+.ew-source{font-size:10px;color:#b3c7d1}
+@media(max-width:480px){.ew-race{padding:10px 11px}.ew-horse{font-size:18px}.ew-odds{font-size:17px}}
 </style>
 </head>
 <body>
 <main>
 <header>
 <div class="logo">PIF</div>
-<div><strong>Racing V2</strong><small>Independent scanner · Research beta</small></div>
+<div><strong>Racing V2</strong><small>Each-way selections · Research beta</small></div>
 <a href="./database.html">Racing database</a>
 </header>
-<h1>Race Conditions Assessment · PIF Racing V2</h1>
-<p><strong>First understand today's race. Then rank every horse against its requirements.</strong> Separate All-Weather, Flat Turf, Hurdles, Chases and NH Flat models adjust priorities for actual race distance, going, class and field size. Racing API ratings and verified historical evidence remain part of the assessment. Unknown pace and weather are not invented.</p>
-<div class="notice"><strong>New: comparative evidence bars.</strong> Compare every runner and choose your own horse. Prior rankings are retained for forward comparison. The new weighting rules are experimental and <strong>not yet validated for betting</strong>.</div>
+<h1>PIF Racing · Each-Way Picks</h1>
+<p class="ew-guide">One horse per race when the historical win/place evidence supports a conditional each-way angle. Otherwise: <strong>No bet</strong>. The full field is analysed internally.</p>
+<div class="notice"><strong>Experimental, not a proven betting system.</strong> Odds are indicative. Place-only returns assume 1/5 odds and three paid places, not verified bookmaker terms. Check live odds, places and non-runners.</div>
 <section id="signin" class="card" hidden>
 <h2>Private access</h2>
 <p>Use your existing PIF Racing scanner access code.</p>
@@ -327,7 +342,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <button type="button" class="selected" data-day="today">Today</button>
 <button type="button" data-day="tomorrow">Tomorrow</button>
 </div>
-<div class="row"><button id="reload" class="secondary" type="button">Reload saved rankings</button><button id="fresh-scan" type="button">Fresh scan today</button><button id="toggle-races" class="secondary" type="button">Collapse all races</button><span id="loaded-time" class="meta"></span></div>
+<div class="row"><button id="reload" class="secondary" type="button">Reload saved rankings</button><button id="fresh-scan" type="button">Fresh scan today</button><button id="toggle-races" class="secondary" type="button" hidden>Collapse all races</button><span id="loaded-time" class="meta"></span></div>
 <div id="fresh-scan-feedback" role="status" aria-live="polite" hidden></div>
 <p class="meta" id="fresh-scan-note">Fresh scan: fetches up-to-date Racing API information and recalculates races still to run. Earlier predictions are preserved for results testing. Reload uses saved rankings without new API calls.</p>
 <div class="filters">
@@ -336,13 +351,13 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 </div>
 <label class="row" style="display:flex;align-items:center;gap:8px;font-size:12px;margin:11px 0"><input id="show-started" type="checkbox" style="width:auto;min-width:16px" /> Show races already off (for review)</label>
 <div id="forward-record" class="card"><details><summary>Research results &amp; testing (optional)</summary><p>Checking results tracking status…</p></details></div>
-<div id="summary">Open today's racing to view the independent V2 rankings.</div>
+<div id="summary">Loading each-way selections…</div>
 <div id="value-trial-list"></div>
 <div id="races"></div>
 </section>
 <div id="status" role="status" aria-live="polite"></div>
 <footer>
-PIF Racing V2 is the active scanner interface. Rankings are experimental and are not calibrated win/place probabilities. Same-type history may omit previous NH Flat or other-code races; such history is identified separately. Historical models are archived for comparison only. Prices are indicative. No wagering functions are provided.
+PIF Racing V2 is a research-only each-way screen. No bet placement is provided. Any candidate uses provisional historical calibration and assumed three-place, one-fifth terms; actual bookmaker prices and paid places must be checked. No positive return is guaranteed.
 </footer>
 </main>
 <script>
@@ -1568,84 +1583,63 @@ function travelMeetingSummary(group){
   '<div class="travel-summary-leader">'+escapeHtml(top)+'</div>'+rows+
   '<div class="travel-summary-note">Estimated straight-line miles from mapped trainer towns, not road distances. Partial coverage cannot establish the true longest traveller.</div></section>';
 }
+function ewOddsLabel(decimal){
+ const profit=Number(decimal)-1;
+ if(!Number.isFinite(profit)||profit<=0)return '—';
+ if(Math.abs(profit-Math.round(profit))<0.001)return Math.round(profit)+'/1';
+ return profit.toFixed(1)+'/1';
+}
+function eachWayCard(r,now){
+ const key=raceKey(r);
+ const off=Date.parse(r.off_utc);
+ const started=Number.isFinite(off)&&off<=now;
+ const info='<div class="ew-race-top"><span>'+escapeHtml(britishTime(r.off_utc))+
+   ' · '+escapeHtml(r.course)+'</span><span class="meta">'+
+   escapeHtml(raceGroup(r))+'</span></div>'+
+   '<div class="ew-race-meta">'+escapeHtml(r.race_name||'')+
+   (r.distance?' · '+escapeHtml(r.distance):'')+'</div>';
+ const p=r.each_way_pick;
+ if(!p||r.each_way_status!=='CONDITIONAL_EACH_WAY_RESEARCH'){
+   return '<section class="ew-race" data-race-key="'+escapeHtml(key)+'">'+info+
+      '<div class="ew-choice"><div class="ew-no-bet">NO EACH-WAY BET</div>'+
+      '<p class="ew-reason">'+escapeHtml(r.each_way_reason||
+      'Insufficient verified each-way evidence; no recommendation.')+
+      '</p></div></section>';
+ }
+ const price=Number(p.decimal_odds),profit=Number(p.place_only_profit_gbp);
+ const placeTxt=Number.isFinite(profit)?('+'+'£'+profit.toFixed(2)):'—';
+ const warning=String(p.terms_warning||'Bookmaker place terms are not verified.');
+ return '<section class="ew-race" data-race-key="'+escapeHtml(key)+'">'+info+
+   '<div class="ew-choice"><div class="ew-flag">'+
+   (started?'Pre-off research snapshot':'Conditional each-way research pick')+'</div>'+
+   '<div class="ew-choice-head"><div class="ew-horse">'+escapeHtml(p.horse)+
+   '</div><div class="ew-odds">'+escapeHtml(ewOddsLabel(price))+'</div></div>'+
+   '<p class="ew-reason">Historical matched runners: '+
+   (100*Number(p.historical_top_three_rate)).toFixed(1)+'% top-three, '+
+   (100*Number(p.historical_win_rate)).toFixed(1)+'% wins. '+
+   'Not a guaranteed placing chance for this horse.</p>'+
+   '<div class="ew-gain">Place only: '+escapeHtml(placeTxt)+
+   ' profit on £5 each way (£10 total), if the three-place terms apply.</div>'+
+   '<div class="ew-source">Indicative win price: '+escapeHtml(p.odds_source||'Source not recorded')+
+   ' · Historical sample: '+Number(p.calibration_runners||0)+' runners</div>'+
+   '<p class="ew-terms">'+escapeHtml(warning)+
+   ' The modelled conservative value test is research only, not proof of a profitable bet.</p>'+
+   '</div></section>';
+}
 function render(){
  const cv=get('course').value,typ=get('code').value;
  const matches=entries.filter(x=>(cv==='all'||x.course===cv)&&(typ==='all'||raceGroup(x)===typ));
  const now=Date.now();
  const showStarted=get('show-started').checked;
  const rs=matches.filter(x=>showStarted||day!=='today'||Date.parse(x.off_utc)>now);
- const hidden=matches.length-rs.length;
- get('summary').textContent=rs.length+' races shown · '+entries.length+' available'+
-   (hidden?' · '+hidden+' already off (hidden)':'')+
-   '';
- const valueHost=get('value-trial-list');
- const valueCandidates=rs.flatMap(r=>(r.conditions_value_candidates||[]).map(c=>({race:r,candidate:c})));
- const oddsLabel=value=>{
-  const profit=Number(value)-1;
-  return Math.abs(profit-Math.round(profit))<0.06?Math.round(profit)+'/1':Number(value).toFixed(2)+' decimal';
- };
- valueHost.innerHTML='<div class="card"><h2>Potential value candidates · historical trial</h2>'+
-   '<p>Any odds can qualify. We compare the horse’s past win rate for its race type and PIF rank band with the break-even chance at its current odds. A candidate appears only when there are at least 100 settled runners across 50 races and the conservative 95% lower estimate still beats break-even. This is a cautious trial, not a guarantee.</p>'+
-   (valueCandidates.length?
-    '<div class="market-shortlist">'+valueCandidates.map(({race,candidate})=>
-     '<div class="market-short"><strong>'+escapeHtml(britishTime(candidate.off_utc))+' · '+
-       escapeHtml(candidate.course)+' · '+escapeHtml(candidate.horse)+'</strong>'+
-       '<small>Odds '+escapeHtml(oddsLabel(candidate.decimal_odds))+
-       ' · PIF #'+Number(candidate.display_rank)+' · historical band win rate '+
-       (Number(candidate.historical_win_probability)*100).toFixed(1)+'% · cautious estimate '+
-       (Number(candidate.confidence_floor)*100).toFixed(1)+'% · break-even '+
-       (Number(candidate.break_even_probability)*100).toFixed(1)+'%</small>'+
-       '<p>'+escapeHtml(candidate.reason)+'</p></div>').join('')+'</div>':
-    '<p><strong>No evidence-backed value candidates in the races currently shown.</strong></p><p>Calibration is being built from every frozen runner and official result. The tracker will show candidates only when the historical evidence clears the break-even test.</p>')+
-   '<p>Prices are from the saved scan; 2% commission is assumed on winning profit.</p></div>';
- const meetingGroups=new Map();
- for(const r of rs){
-  const key=String(r.date||day)+'|'+String(r.course||'');
-  if(!meetingGroups.has(key))meetingGroups.set(key,[]);
-  meetingGroups.get(key).push(r);
- }
- const displayedSummaries=new Set();
- get('races').innerHTML=rs.map(r=>{
-  const key=String(r.date||day)+'|'+String(r.course||'');
-  const meetingHeader=displayedSummaries.has(key)?'':travelMeetingSummary(meetingGroups.get(key)||[]);
-  displayedSummaries.add(key);
-  return meetingHeader+'<details class="meeting" data-race-key="'+escapeHtml(raceKey(r))+'"'+(collapsedRaces.has(raceKey(r))?'':' open')+'>'+
- '<summary class="meeting-heading"><div><div class="meeting-title">'+escapeHtml(britishTime(r.off_utc))+' '+escapeHtml(r.course)+'</div>'+
- (r.race_name?'<div class="details">'+escapeHtml(r.race_name)+'</div>':'')+
- '<div class="meta">'+escapeHtml(raceGroup(r))+
- (r.age_band?' · '+escapeHtml(r.age_band):'')+
- ' · '+escapeHtml(r.distance)+' · '+escapeHtml(r.going)+' · '+r.field_size+' runners</div>'+
- '<div class="race-model-line"><strong>'+escapeHtml(r.display_model||'Specialist model unavailable')+'</strong>'+
- ' · '+(r.conditions_selection_status==='NO_SUPPORTED_SELECTION'?'No supported pick':
-    r.conditions_selection_status==='RESEARCH_SHORTLIST'?
-    String(r.conditions_selection_count||0)+' supported':
-    r.display_status==='PROVISIONAL_SPECIALIST_RANKING'?'Limited form':'Research order')+
- '</div>'+
- '</div>'+
- '<div class="meeting-actions"><small class="meta">'+(Date.parse(r.off_utc)<=now?'Off · result pending':'Research only')+'</small>'+
- '<span class="meeting-control"><span class="meeting-open">Hide race</span><span class="meeting-closed">Show race</span><span class="meeting-arrow" aria-hidden="true">⌄</span></span></div></summary>'+
- (r.all_runners||r.top_three||[]).map(h=>row(h,r.type,r)).join('')+
- raceNotes(r)+
- marketDisagreement(r)+
- marketPanel(r)+
- '</details>';
- }).join('')||
- '<div class="card"><strong>No races in this filter.</strong><p>Try a different course, race type or day.</p></div>';
- for(const el of get('races').querySelectorAll('details.meeting')){
-   el.addEventListener('toggle',()=>{
-     if(el.open)collapsedRaces.delete(el.dataset.raceKey);
-     else collapsedRaces.add(el.dataset.raceKey);
-     updateRaceToggle();
-   });
- }
- updateRaceToggle();
- get('races').querySelectorAll('details.other-runners').forEach(el=>{
-   el.addEventListener('toggle',()=>{
-     runnerOpenStates.set(el.dataset.runnersKey,el.open);
-   });
- });
- get('races').querySelectorAll('.market-tool').forEach(panel=>marketRefresh(panel,true));
+ const selected=rs.filter(r=>r.each_way_status==='CONDITIONAL_EACH_WAY_RESEARCH'&&r.each_way_pick).length;
+ get('summary').textContent=rs.length+' races · '+selected+' conditional each-way research picks · '+
+   (rs.length-selected)+' no bet'+(matches.length!==rs.length?' · races already off hidden':'');
+ get('value-trial-list').innerHTML='';
+ get('races').innerHTML=rs.map(r=>eachWayCard(r,now)).join('')||
+   '<div class="card"><strong>No races in this filter.</strong><p>Choose another date, course or race type.</p></div>';
 }
+
 async function reload(){
  if(!token)return;
  const requestDay=day,seq=++reloadSeq;
