@@ -325,8 +325,8 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <a href="./database.html">Racing database</a>
 </header>
 <h1>PIF Racing · Each-Way Picks</h1>
-<p class="ew-guide"><strong>Each-way selections are temporarily paused.</strong> The early research angles have not demonstrated reliable placing performance. No new staking selections are being issued while the results are audited.</p>
-<div class="notice"><strong>Selection safety pause:</strong> Do not treat earlier each-way research angles as bets. Historical performance is being assessed using pre-race frozen picks and official results. Previously shown prices and place terms were only indicative.</div>
+<p class="ew-guide">One each-way candidate per race when form, suitability and the indicative market support a realistic place prospect. Otherwise, <strong>No bet</strong>.</p>
+<div class="notice"><strong>New place-focused model.</strong> Uses recent placings, course/distance form and the market as a starting point. Model estimates and each-way terms are unvalidated; verify the bookmaker's actual places and price.</div>
 <section id="signin" class="card" hidden>
 <h2>Private access</h2>
 <p>Use your existing PIF Racing scanner access code.</p>
@@ -1601,62 +1601,39 @@ function ewOddsLabel(decimal){
  return profit.toFixed(1)+'/1';
 }
 function eachWayCard(r,now){
- const key=raceKey(r);
  const off=Date.parse(r.off_utc);
- const started=Number.isFinite(off)&&off<=now;
  const info='<div class="ew-race-top"><span>'+escapeHtml(britishTime(r.off_utc))+
    ' · '+escapeHtml(r.course)+'</span><span class="meta">'+
    escapeHtml(raceGroup(r))+'</span></div>'+
    '<div class="ew-race-meta">'+escapeHtml(r.race_name||'')+
    (r.distance?' · '+escapeHtml(r.distance):'')+'</div>';
- const p=r.each_way_pick;
- const candidate=!!p&&['CONDITIONAL_EACH_WAY_RESEARCH',
-   'UNVALIDATED_EACH_WAY_ANGLE'].includes(r.each_way_status);
- if(!candidate){
-   return '<section class="ew-race" data-race-key="'+escapeHtml(key)+'">'+info+
-      '<div class="ew-choice"><div class="ew-no-bet">'+(r.each_way_status==='PAUSED_VALIDATION'?
-      'EACH-WAY MODEL PAUSED':'NO EACH-WAY BET')+'</div>'+
-      '<p class="ew-reason">'+escapeHtml(r.each_way_reason||
-      'No supported candidate; no selection has been manufactured.')+
-      '</p></div></section>';
+ const pick=r.each_way_pick;
+ if(r.each_way_status!=='EACH_WAY_FORM_CANDIDATE'||!pick){
+   return '<section class="ew-race">'+info+
+     '<div class="ew-choice"><div class="ew-no-bet">NO EACH-WAY PICK</div>'+
+     '<p class="ew-reason">'+escapeHtml(r.each_way_reason||'No suitable form-and-market each-way prospect.')+
+     '</p></div></section>';
  }
- const provisional=r.each_way_status==='UNVALIDATED_EACH_WAY_ANGLE';
- const price=Number(p.decimal_odds),profit=Number(p.place_only_profit_gbp);
- const placeTxt=Number.isFinite(profit)?('+'+'£'+profit.toFixed(2)):'—';
- const warning=String(p.terms_warning||'Bookmaker place terms are not verified.');
- const seen=Date.parse(p.quote_observed_utc||'');
- const oldQuote=Number.isFinite(seen)&&now-seen>90*60*1000;
- const quoteTiming=Number.isFinite(seen)?
-   ' · Price seen '+escapeHtml(britishTime(p.quote_observed_utc))+' UK':
-   ' · Quote timestamp unavailable';
- const staleNotice=oldQuote?
-   '<p class="ew-terms"><strong>STALE QUOTE: Press Fresh scan today before considering this horse. The displayed odds may have changed.</strong></p>':'';
- const explanation=provisional?
-   '<p class="ew-reason"><strong>PIF #'+Number(p.pif_rank)+
-   ' vs indicative win-market #'+Number(p.market_rank)+'</strong> · '+
-   escapeHtml(p.reason||'PIF model and indicative market disagree, but no statistical value is proven.')+
-   '</p>':
-   '<p class="ew-reason">'+escapeHtml(p.reason||'Calibrated historical research case.')+
-   ' Similar past runners: '+
-   (100*Number(p.historical_top_three_rate)).toFixed(1)+'% top-three, '+
-   (100*Number(p.historical_win_rate)).toFixed(1)+'% winners. '+
-   'Not an individual horse probability.</p>';
- return '<section class="ew-race" data-race-key="'+escapeHtml(key)+'">'+info+
+ const price=Number(pick.decimal_odds);
+ const profit=Number(pick.place_only_profit_gbp);
+ const seen=Date.parse(pick.quote_observed_utc||'');
+ const stale=Number.isFinite(seen)&&now-seen>90*60000;
+ const places=Number(pick.assumed_paid_places||3);
+ const profitLabel=Number.isFinite(profit)?'£'+profit.toFixed(2):'—';
+ return '<section class="ew-race">'+info+
    '<div class="ew-choice"><div class="ew-flag">'+
-   (started?'Pre-off research snapshot':
-    provisional?'UNVALIDATED EACH-WAY ANGLE · NOT CONFIRMED VALUE':
-    'CALIBRATED PAPER CANDIDATE · VERIFY BOOKMAKER TERMS')+'</div>'+
-   '<div class="ew-choice-head"><div class="ew-horse">'+escapeHtml(p.horse)+
+   (Number.isFinite(off)&&off<=now?'PRE-OFF RESEARCH RECORD':'EACH-WAY PROSPECT · PLACE-FOCUSED')+
+   '</div><div class="ew-choice-head"><div class="ew-horse">'+escapeHtml(pick.horse)+
    '</div><div class="ew-odds">'+escapeHtml(ewOddsLabel(price))+'</div></div>'+
-   explanation+
-   '<div class="ew-gain">If placed but not first: '+escapeHtml(placeTxt)+
-   ' modelled profit on £5 each way (£10 total).</div>'+
-   '<div class="ew-source">Indicative WIN quote: '+escapeHtml(p.odds_source||'Source not recorded')+
-   quoteTiming+(provisional?' · No validated place probability':
-    ' · Calibration sample '+Number(p.calibration_runners||0)+' runners')+'</div>'+
-   staleNotice+'<p class="ew-terms">'+escapeHtml(warning)+
-   ' Actual each-way odds and number of paid places must be checked.</p>'+
-   '</div></section>';
+   '<p class="ew-reason">'+escapeHtml(pick.reason||'Recent placing evidence and market support.')+'</p>'+
+   '<div class="ew-gain">Place only: +'+escapeHtml(profitLabel)+
+   ' on £5 each way if '+places+'-place, 1/5 terms apply.</div>'+
+   '<div class="ew-source">PIF #'+Number(pick.pif_rank||0)+
+   ' · Market #'+Number(pick.market_rank||0)+
+   ' · Estimated top-'+places+' chance '+Number(pick.estimated_place_chance_pct||0).toFixed(0)+'% (not calibrated)</div>'+
+   (stale?'<p class="ew-terms"><strong>Price may be stale: press Fresh scan today.</strong></p>':'')+
+   '<p class="ew-terms">'+escapeHtml(pick.terms_warning||'Bookmaker terms not verified.')+
+   '</p></div></section>';
 }
 function render(){
  const cv=get('course').value,typ=get('code').value;
@@ -1664,14 +1641,9 @@ function render(){
  const now=Date.now();
  const showStarted=get('show-started').checked;
  const rs=matches.filter(x=>showStarted||day!=='today'||Date.parse(x.off_utc)>now);
- const calibrated=rs.filter(r=>r.each_way_status==='CONDITIONAL_EACH_WAY_RESEARCH'&&r.each_way_pick).length;
- const provisional=rs.filter(r=>r.each_way_status==='UNVALIDATED_EACH_WAY_ANGLE'&&r.each_way_pick).length;
- const paused=rs.length>0&&rs.every(r=>r.each_way_status==='PAUSED_VALIDATION');
- get('summary').textContent=paused?
-   rs.length+' races · each-way model paused pending results validation':
-   rs.length+' races · '+provisional+' unvalidated each-way angles · '+
-   calibrated+' calibrated paper candidates · '+(rs.length-calibrated-provisional)+' no bet'+
-   (matches.length!==rs.length?' · races already off hidden':'');
+ const picks=rs.filter(r=>r.each_way_status==='EACH_WAY_FORM_CANDIDATE'&&r.each_way_pick).length;
+ get('summary').textContent=rs.length+' races · '+picks+' each-way prospects · '+
+   (rs.length-picks)+' no pick'+(matches.length!==rs.length?' · races already off hidden':'');
  get('value-trial-list').innerHTML='';
  get('races').innerHTML=rs.map(r=>eachWayCard(r,now)).join('')||
    '<div class="card"><strong>No races in this filter.</strong><p>Choose another date, course or race type.</p></div>';
