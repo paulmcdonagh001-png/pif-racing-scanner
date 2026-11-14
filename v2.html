@@ -1608,7 +1608,8 @@ function eachWayCard(r,now){
    '<div class="ew-race-meta">'+escapeHtml(r.race_name||'')+
    (r.distance?' · '+escapeHtml(r.distance):'')+'</div>';
  const pick=r.each_way_pick;
- if(r.each_way_status!=='EACH_WAY_FORM_CANDIDATE'||!pick){
+ const frozen=r.each_way_status==='EACH_WAY_FROZEN_PICK';
+ if(!['EACH_WAY_FORM_CANDIDATE','EACH_WAY_FROZEN_PICK'].includes(r.each_way_status)||!pick){
    return '<section class="ew-race">'+info+
      '<div class="ew-choice"><div class="ew-no-bet">NO EACH-WAY PICK</div>'+
      '<p class="ew-reason">'+escapeHtml(r.each_way_reason||'No suitable form-and-market each-way prospect.')+
@@ -1620,17 +1621,27 @@ function eachWayCard(r,now){
  const stale=Number.isFinite(seen)&&now-seen>90*60000;
  const places=Number(pick.assumed_paid_places||3);
  const profitLabel=Number.isFinite(profit)?'£'+profit.toFixed(2):'—';
+ const verifiedResult=frozen&&pick.result_status==='SETTLED';
+ const resultLine=frozen?
+   '<div class="ew-source"><strong>'+
+   (verifiedResult?(pick.won?'WON':pick.top_three_finish?'FINISHED TOP THREE':'UNPLACED'):
+    'OFFICIAL RESULT PENDING')+
+   '</strong>'+(verifiedResult&&pick.finish_position?
+    ' · Position '+Number(pick.finish_position):'')+'</div>':'';
+ const researchLine=frozen?
+   '<div class="ew-source">First-frozen pre-race selection · Not retrospectively changed.</div>':
+   '<div class="ew-source">PIF #'+Number(pick.pif_rank||0)+
+   ' · Market #'+Number(pick.market_rank||0)+
+   ' · Estimated top-'+places+' chance '+Number(pick.estimated_place_chance_pct||0).toFixed(0)+'% (unvalidated)</div>';
  return '<section class="ew-race">'+info+
    '<div class="ew-choice"><div class="ew-flag">'+
-   (Number.isFinite(off)&&off<=now?'PRE-OFF RESEARCH RECORD':'EACH-WAY PROSPECT · PLACE-FOCUSED')+
+   (frozen?'FIRST-FROZEN PRE-OFF PICK':'EACH-WAY PROSPECT · PLACE-FOCUSED')+
    '</div><div class="ew-choice-head"><div class="ew-horse">'+escapeHtml(pick.horse)+
    '</div><div class="ew-odds">'+escapeHtml(ewOddsLabel(price))+'</div></div>'+
    '<p class="ew-reason">'+escapeHtml(pick.reason||'Recent placing evidence and market support.')+'</p>'+
    '<div class="ew-gain">Place only: +'+escapeHtml(profitLabel)+
    ' on £5 each way if '+places+'-place, 1/5 terms apply.</div>'+
-   '<div class="ew-source">PIF #'+Number(pick.pif_rank||0)+
-   ' · Market #'+Number(pick.market_rank||0)+
-   ' · Estimated top-'+places+' chance '+Number(pick.estimated_place_chance_pct||0).toFixed(0)+'% (not calibrated)</div>'+
+   researchLine+resultLine+
    (stale?'<p class="ew-terms"><strong>Price may be stale: press Fresh scan today.</strong></p>':'')+
    '<p class="ew-terms">'+escapeHtml(pick.terms_warning||'Bookmaker terms not verified.')+
    '</p></div></section>';
@@ -1642,8 +1653,10 @@ function render(){
  const showStarted=get('show-started').checked;
  const rs=matches.filter(x=>showStarted||day!=='today'||Date.parse(x.off_utc)>now);
  const picks=rs.filter(r=>r.each_way_status==='EACH_WAY_FORM_CANDIDATE'&&r.each_way_pick).length;
+ const frozen=rs.filter(r=>r.each_way_status==='EACH_WAY_FROZEN_PICK'&&r.each_way_pick).length;
  get('summary').textContent=rs.length+' races · '+picks+' each-way prospects · '+
-   (rs.length-picks)+' no pick'+(matches.length!==rs.length?' · races already off hidden':'');
+   frozen+' recorded earlier picks · '+(rs.length-picks-frozen)+' no pick'+
+   (matches.length!==rs.length?' · races already off hidden':'');
  get('value-trial-list').innerHTML='';
  get('races').innerHTML=rs.map(r=>eachWayCard(r,now)).join('')||
    '<div class="card"><strong>No races in this filter.</strong><p>Choose another date, course or race type.</p></div>';
