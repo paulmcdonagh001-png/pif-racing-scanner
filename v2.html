@@ -1610,31 +1610,44 @@ function eachWayCard(r,now){
    '<div class="ew-race-meta">'+escapeHtml(r.race_name||'')+
    (r.distance?' · '+escapeHtml(r.distance):'')+'</div>';
  const p=r.each_way_pick;
- if(!p||r.each_way_status!=='CONDITIONAL_EACH_WAY_RESEARCH'){
+ const candidate=!!p&&['CONDITIONAL_EACH_WAY_RESEARCH',
+   'UNVALIDATED_EACH_WAY_ANGLE'].includes(r.each_way_status);
+ if(!candidate){
    return '<section class="ew-race" data-race-key="'+escapeHtml(key)+'">'+info+
       '<div class="ew-choice"><div class="ew-no-bet">NO EACH-WAY BET</div>'+
       '<p class="ew-reason">'+escapeHtml(r.each_way_reason||
-      'Insufficient verified each-way evidence; no recommendation.')+
+      'No supported candidate; no selection has been manufactured.')+
       '</p></div></section>';
  }
+ const provisional=r.each_way_status==='UNVALIDATED_EACH_WAY_ANGLE';
  const price=Number(p.decimal_odds),profit=Number(p.place_only_profit_gbp);
  const placeTxt=Number.isFinite(profit)?('+'+'£'+profit.toFixed(2)):'—';
  const warning=String(p.terms_warning||'Bookmaker place terms are not verified.');
+ const explanation=provisional?
+   '<p class="ew-reason"><strong>PIF #'+Number(p.pif_rank)+
+   ' vs indicative win-market #'+Number(p.market_rank)+'</strong> · '+
+   escapeHtml(p.reason||'PIF model and indicative market disagree, but no statistical value is proven.')+
+   '</p>':
+   '<p class="ew-reason">'+escapeHtml(p.reason||'Calibrated historical research case.')+
+   ' Similar past runners: '+
+   (100*Number(p.historical_top_three_rate)).toFixed(1)+'% top-three, '+
+   (100*Number(p.historical_win_rate)).toFixed(1)+'% winners. '+
+   'Not an individual horse probability.</p>';
  return '<section class="ew-race" data-race-key="'+escapeHtml(key)+'">'+info+
    '<div class="ew-choice"><div class="ew-flag">'+
-   (started?'Pre-off research snapshot':'Conditional each-way research pick')+'</div>'+
+   (started?'Pre-off research snapshot':
+    provisional?'UNVALIDATED EACH-WAY ANGLE · NOT CONFIRMED VALUE':
+    'CALIBRATED PAPER CANDIDATE · VERIFY BOOKMAKER TERMS')+'</div>'+
    '<div class="ew-choice-head"><div class="ew-horse">'+escapeHtml(p.horse)+
    '</div><div class="ew-odds">'+escapeHtml(ewOddsLabel(price))+'</div></div>'+
-   '<p class="ew-reason">Historical matched runners: '+
-   (100*Number(p.historical_top_three_rate)).toFixed(1)+'% top-three, '+
-   (100*Number(p.historical_win_rate)).toFixed(1)+'% wins. '+
-   'Not a guaranteed placing chance for this horse.</p>'+
-   '<div class="ew-gain">Place only: '+escapeHtml(placeTxt)+
-   ' profit on £5 each way (£10 total), if the three-place terms apply.</div>'+
-   '<div class="ew-source">Indicative win price: '+escapeHtml(p.odds_source||'Source not recorded')+
-   ' · Historical sample: '+Number(p.calibration_runners||0)+' runners</div>'+
+   explanation+
+   '<div class="ew-gain">If placed but not first: '+escapeHtml(placeTxt)+
+   ' modelled profit on £5 each way (£10 total).</div>'+
+   '<div class="ew-source">Indicative WIN quote: '+escapeHtml(p.odds_source||'Source not recorded')+
+   (provisional?' · No validated place probability':
+    ' · Calibration sample '+Number(p.calibration_runners||0)+' runners')+'</div>'+
    '<p class="ew-terms">'+escapeHtml(warning)+
-   ' The modelled conservative value test is research only, not proof of a profitable bet.</p>'+
+   ' Actual each-way odds and number of paid places must be checked.</p>'+
    '</div></section>';
 }
 function render(){
@@ -1643,9 +1656,11 @@ function render(){
  const now=Date.now();
  const showStarted=get('show-started').checked;
  const rs=matches.filter(x=>showStarted||day!=='today'||Date.parse(x.off_utc)>now);
- const selected=rs.filter(r=>r.each_way_status==='CONDITIONAL_EACH_WAY_RESEARCH'&&r.each_way_pick).length;
- get('summary').textContent=rs.length+' races · '+selected+' conditional each-way research picks · '+
-   (rs.length-selected)+' no bet'+(matches.length!==rs.length?' · races already off hidden':'');
+ const calibrated=rs.filter(r=>r.each_way_status==='CONDITIONAL_EACH_WAY_RESEARCH'&&r.each_way_pick).length;
+ const provisional=rs.filter(r=>r.each_way_status==='UNVALIDATED_EACH_WAY_ANGLE'&&r.each_way_pick).length;
+ get('summary').textContent=rs.length+' races · '+provisional+' unvalidated each-way angles · '+
+   calibrated+' calibrated paper candidates · '+(rs.length-calibrated-provisional)+' no bet'+
+   (matches.length!==rs.length?' · races already off hidden':'');
  get('value-trial-list').innerHTML='';
  get('races').innerHTML=rs.map(r=>eachWayCard(r,now)).join('')||
    '<div class="card"><strong>No races in this filter.</strong><p>Choose another date, course or race type.</p></div>';
