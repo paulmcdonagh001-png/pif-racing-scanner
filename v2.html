@@ -341,7 +341,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 </header>
 <h1>PIF Racing · Each-Way Picks</h1>
 <p class="ew-guide">One each-way candidate per race when form, suitability and the indicative market support a realistic place prospect. Otherwise, <strong>No bet</strong>.</p>
-<div class="notice"><strong>New place-focused model.</strong> Uses recent placings, course/distance form and the market as a starting point. Model estimates and each-way terms are unvalidated; verify the bookmaker's actual places and price.</div>
+<div class="notice"><strong>Runner verification:</strong> A prospect appears only after PIF checks the latest declared field and confirms that the horse is active and backable in the live Betfair WIN market. If Betfair access fails, the pick is withheld rather than guessed. Each-way place terms still require checking with your bookmaker.</div>
 <section id="signin" class="card" hidden>
 <h2>Private access</h2>
 <p>Use your existing PIF Racing scanner access code.</p>
@@ -1628,8 +1628,11 @@ function eachWayCard(r,now){
  const pick=r.each_way_pick;
  const frozen=r.each_way_status==='EACH_WAY_FROZEN_PICK';
  if(!['EACH_WAY_FORM_CANDIDATE','EACH_WAY_FROZEN_PICK'].includes(r.each_way_status)||!pick){
+   const marketBlocked=r.each_way_status==='UNVERIFIED_RUNNER';
    return '<section class="ew-race">'+top+
-     '<div class="ew-choice ew-inline-no"><strong>NO EACH-WAY PICK</strong> · '+
+     '<div class="ew-choice ew-inline-no"><strong>'+
+     (marketBlocked?'NOT VERIFIED ON BETFAIR':'NO EACH-WAY PICK')+
+     '</strong> · '+
      escapeHtml(r.each_way_reason||'No suitable form and market evidence.')+
      '</div><details class="ew-more"><summary>Race details</summary><div class="ew-source">'+raceInfo+
      '</div></details></section>';
@@ -1698,8 +1701,10 @@ function render(){
  const rs=matches.filter(x=>showStarted||day!=='today'||Date.parse(x.off_utc)>now);
  const picks=rs.filter(r=>r.each_way_status==='EACH_WAY_FORM_CANDIDATE'&&r.each_way_pick).length;
  const frozen=rs.filter(r=>r.each_way_status==='EACH_WAY_FROZEN_PICK'&&r.each_way_pick).length;
- get('summary').textContent=rs.length+' races · '+picks+' each-way prospects · '+
-   frozen+' recorded earlier picks · '+(rs.length-picks-frozen)+' no pick'+
+ const unverified=rs.filter(r=>r.each_way_status==='UNVERIFIED_RUNNER').length;
+ get('summary').textContent=rs.length+' races · '+picks+' verified Betfair prospects · '+
+   unverified+' unverified · '+frozen+' recorded earlier picks · '+
+   (rs.length-picks-unverified-frozen)+' no pick'+
    (matches.length!==rs.length?' · races already off hidden':'');
  get('value-trial-list').innerHTML='';
  get('races').innerHTML=rs.map(r=>eachWayCard(r,now)).join('')||
