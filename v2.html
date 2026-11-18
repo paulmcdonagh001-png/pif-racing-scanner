@@ -330,6 +330,20 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .ew-adjust select{width:100%;font-size:12px;min-height:32px}
 .ew-inline-no{margin:5px 0 1px;font-size:12px}
 @media(max-width:480px){.ew-race{padding:8px 10px}.ew-horse{font-size:17px}.ew-odds{font-size:17px}}
+
+/* Independent Betfair delayed lay research - no paid Racing API required */
+.lay-board{border:1px solid #3d7186;background:#102b3e;margin:12px 0}
+.lay-header{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.lay-header h2{margin:0;font-size:17px}
+.lay-header button{min-height:34px;padding:6px 10px;font-size:12px}
+.lay-message{font-size:12px;color:#bad0dd;margin:8px 0 3px}
+.lay-items{display:grid;gap:8px;margin-top:9px}
+.lay-item{border:1px solid #396176;background:#142f42;border-radius:9px;padding:10px}
+.lay-item-top{display:flex;justify-content:space-between;align-items:center;gap:8px;color:#b3cfdf;font-size:12px}
+.lay-horse{font-weight:800;font-size:17px;margin:4px 0}
+.lay-odds{color:#e7d89d;font-size:14px;font-weight:750}
+.lay-signals{font-size:12px;color:#c5d9e4;margin-top:6px}
+.lay-risk{margin-top:7px;color:#a9bfcd;font-size:11px}
 </style>
 </head>
 <body>
@@ -365,6 +379,13 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <div><label for="code">Race type</label><select id="code"><option value="all">All types</option></select></div>
 </div>
 <label class="row" style="display:flex;align-items:center;gap:8px;font-size:12px;margin:11px 0"><input id="show-started" type="checkbox" style="width:auto;min-width:16px" /> Show races already off (for review)</label>
+
+<section class="card lay-board" id="lay-board" aria-label="Daily lay research">
+ <div class="lay-header"><h2>Lay Opportunities · Today</h2><button type="button" class="secondary" id="lay-refresh">Refresh lays</button></div>
+ <p class="lay-message">Separate Betfair-only research. No Racing API subscription. Prices are delayed and not executable lay offers.</p>
+ <div id="lay-status" class="meta" role="status" aria-live="polite">Checking today's market...</div>
+ <div class="lay-items" id="lay-items"></div>
+</section>
 <div id="forward-record" class="card"><details><summary>Research results &amp; testing (optional)</summary><p>Checking results tracking status…</p></details></div>
 <div id="summary">Loading each-way selections…</div>
 <div id="value-trial-list"></div>
@@ -440,7 +461,7 @@ get('login-form').addEventListener('submit',async event=>{
   token=data.session_token;
   localStorage.setItem(KEY,JSON.stringify({session_token:token,expires_at:data.expires_at}));
   get('pin').value='';get('signin-message').hidden=true;
-  get('fresh-scan-feedback').hidden=true;authUi();await reload();resumeFreshScanStatus();
+  get('fresh-scan-feedback').hidden=true;authUi();loadLayOpportunities();await reload();resumeFreshScanStatus();
  }catch(error){status('Sign-in failed: '+error.message,true)}
 });
 document.querySelectorAll('[data-day]').forEach(b=>b.addEventListener('click',()=>{
@@ -1821,8 +1842,64 @@ get('races').addEventListener('change',ev=>{
  card.querySelector('.ew-est').textContent=
    est==null?'not available':Number(est).toFixed(0)+'% (unvalidated)';
 });
-authUi();if(token)reload().then(resumeFreshScanStatus);
+
+let layBusy=false;
+async function loadLayOpportunities(){
+ if(!token||layBusy)return;
+ layBusy=true;
+ const btn=get('lay-refresh');
+ btn.disabled=true;btn.textContent='Checking…';
+ try{
+  const data=await request('/lay-opportunities',{session_token:token});
+  const statusBox=get('lay-status'),list=get('lay-items');
+  if(data.status==='SOURCE_UNAVAILABLE'){
+   statusBox.textContent=data.message||'Betfair delayed feed unavailable; no verified lays.';
+   list.innerHTML='<p class="lay-risk">No horse is shown when the exchange feed cannot be checked. The free delayed Betfair session may need renewal in Render.</p>';
+  }else if(data.status==='SCANNING'){
+   statusBox.textContent='Collecting delayed prices. No selections until checked.';
+   list.innerHTML='';
+  }else if(data.status==='RESEARCH_ONLY'){
+   const picks=Array.isArray(data.opportunities)?data.opportunities:[];
+   const observed=Date.parse(data.fetched_utc||'');
+   const time=Number.isFinite(observed)?new Date(observed).toLocaleTimeString('en-GB',
+    {timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'}):'unknown';
+   statusBox.textContent=picks.length+' lay-watch candidate'+(picks.length===1?'':'s')+
+    ' · '+Number(data.markets_seen||0)+' Flat handicap markets checked · '+time+' UK';
+   if(!picks.length){
+    list.innerHTML='<p class="lay-risk">No qualifying lay watch yet. This system needs two observations of the same active field, about 20–40 minutes apart. No shortlist is inferred from missing prices.</p>';
+   }else{
+    list.innerHTML=picks.map(p=>{
+     const off=Date.parse(p.off_utc||'');
+     const localTime=Number.isFinite(off)?new Date(off).toLocaleTimeString('en-GB',
+      {timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'}):'—';
+     return '<article class="lay-item"><div class="lay-item-top"><strong>'+
+      escapeHtml(localTime+' · '+(p.course||'Racecourse'))+'</strong>'+
+      '<span>Research watch</span></div><div class="lay-horse">'+
+      escapeHtml(p.horse||'Unnamed horse')+'</div><div class="lay-odds">Delayed lay quote '+
+      escapeHtml(Number(p.delayed_lay_odds).toFixed(2))+'</div>'+
+      '<div class="lay-signals">Favourite drift +'+escapeHtml(p.drift_pct)+
+      '% · '+escapeHtml(p.other_horse)+' shortened '+escapeHtml(p.opposition_shorten_pct)+
+      '% · '+escapeHtml(p.active_runners)+' confirmed active runners</div>'+
+      '<div class="lay-risk">'+escapeHtml(p.warning||'Not a validated betting recommendation.')+
+      ' Check live Betfair prices, non-runners and liability.</div></article>';
+    }).join('');
+   }
+  }else{
+   statusBox.textContent='Lay research status unavailable.';
+   list.innerHTML='';
+  }
+ }catch(error){
+  get('lay-status').textContent='Unable to check Betfair lay opportunities: '+error.message;
+  get('lay-items').innerHTML='';
+ }finally{
+  layBusy=false;btn.disabled=false;btn.textContent='Refresh lays';
+ }
+}
+get('lay-refresh').addEventListener('click',loadLayOpportunities);
+
+authUi();if(token){loadLayOpportunities();reload().then(resumeFreshScanStatus);}
 setInterval(()=>{if(token&&!loading&&day==='today')render()},60000);
+setInterval(()=>{if(token)loadLayOpportunities()},180000);
 </script>
 </body>
 </html>
