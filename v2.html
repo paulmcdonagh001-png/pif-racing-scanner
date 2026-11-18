@@ -353,12 +353,12 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <main>
 <header>
 <div class="logo">PIF</div>
-<div><strong>Racing V2</strong><small>Each-way selections · Research beta</small></div>
+<div><strong>Racing V2</strong><small>Lay against · Back each-way</small></div>
 <a href="./database.html">Racing database</a>
 </header>
-<h1>PIF Racing · Each-Way Picks</h1>
-<p class="ew-guide">One each-way candidate per race when form, suitability and the indicative market support a realistic place prospect. Otherwise, <strong>No bet</strong>.</p>
-<div class="notice"><strong>Free form prospects:</strong> PIF matches current Free API runners to its own historical records. These are research suggestions, not verified bookmaker-priced each-way value selections. Betfair market verification remains unavailable.</div>
+<h1>PIF Racing · Lay &amp; Each-Way</h1>
+<p class="ew-guide">Two separate targets: <strong>Lay</strong> a vulnerable market favourite, or <strong>back each-way</strong> a horse whose price makes the place potential worthwhile. Form alone is not either bet.</p>
+<div class="notice"><strong>Current limitation:</strong> Betfair market access is denied (HTTP 403). Free Racing API supplies current cards and PIF has historical form, but neither a lay price nor an each-way bookmaker offer is verified. The form watchlist below is <strong>not</strong> a list of bets.</div>
 <section id="signin" class="card" hidden>
 <h2>Private access</h2>
 <p>Use your existing PIF Racing scanner access code.</p>
@@ -390,7 +390,9 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
  <div class="lay-items" id="lay-items"></div>
 </section>
 <div id="forward-record" class="card"><details><summary>Research results &amp; testing (optional)</summary><p>Checking results tracking status…</p></details></div>
-<div id="summary">Loading each-way selections…</div>
+<h2 style="margin:18px 0 8px">Each-Way Back Opportunities</h2>
+<p class="ew-guide" id="back-price-warning">A valid each-way pick needs current odds and actual paid-place terms. Historical form names below are watchlist candidates only until that comparison is possible.</p>
+<div id="summary">Checking backed each-way value and form watchlist…</div>
 <div id="value-trial-list"></div>
 <div id="races"></div>
 </section>
@@ -1764,9 +1766,9 @@ function renderFreeRacecards(data){
    (type==='all'||r.type===type));
  const prospects=races.filter(r=>r.form_prospect&&
    r.form_prospect.status==='FREE_FORM_PROSPECT_UNPRICED').length;
- get('summary').textContent=races.length+' races · '+prospects+
-    ' form prospects · '+(races.length-prospects)+
-    ' no form pick · bookmaker prices unavailable';
+ get('summary').textContent='0 price-verified each-way backs · '+
+    prospects+' horses on the form watchlist · '+races.length+
+    ' current races · no bookmaker prices';
  get('races').innerHTML=races.length?races.map(r=>{
     const p=r.form_prospect;
     const isPick=!!p&&p.status==='FREE_FORM_PROSPECT_UNPRICED';
@@ -1774,14 +1776,14 @@ function renderFreeRacecards(data){
        escapeHtml(britishTime(r.off_utc))+' · '+escapeHtml(r.course||'Course')+
        '</span><span class="meta">'+escapeHtml(r.type||'Race')+'</span></div>';
     const summary=isPick?
-      '<div class="ew-choice"><div class="ew-flag">PIF FORM PROSPECT · ODDS NOT VERIFIED</div>'+
+      '<div class="ew-choice"><div class="ew-flag">FORM WATCHLIST · NOT AN EACH-WAY BET</div>'+
       '<div class="ew-choice-head"><div class="ew-horse">'+
       '<span class="ew-cloth">'+Number(p.card_number)+'</span>'+
       '<span>'+escapeHtml(p.horse)+'</span></div>'+
-      '<div class="ew-source">Check price</div></div>'+
+      '<div class="ew-source">No verified price</div></div>'+
       '<p class="ew-reason">'+escapeHtml((p.evidence||[]).join(' · '))+'</p>'+
-      '<div class="ew-terms">Research selection only, not a confirmed each-way value bet. Check the horse is available and that the bookmaker odds and place terms suit you.</div></div>':
-      '<div class="ew-choice ew-inline-no"><strong>NO FORM PICK</strong> · Insufficient reliable placing evidence</div>';
+      '<div class="ew-terms">Past form only. No recommended bet or proven value without a live bookmaker price and paid-place terms.</div></div>':
+      '<div class="ew-choice ew-inline-no"><strong>NO BACK SELECTION</strong> · Insufficient reliable form and no verified bookmaker price</div>';
     return '<section class="ew-race">'+label+summary+
       '<details class="ew-more"><summary>Race details</summary>'+
       '<div class="ew-source">'+escapeHtml(r.race_name||'Race details not supplied')+
