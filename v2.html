@@ -358,7 +358,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 </header>
 <h1>PIF Racing · Each-Way Picks</h1>
 <p class="ew-guide">One each-way candidate per race when form, suitability and the indicative market support a realistic place prospect. Otherwise, <strong>No bet</strong>.</p>
-<div class="notice"><strong>Runner verification:</strong> A prospect appears only after PIF checks the latest declared field and confirms that the horse is active and backable in the live Betfair WIN market. If Betfair access fails, the pick is withheld rather than guessed. Each-way place terms still require checking with your bookmaker.</div>
+<div class="notice"><strong>Free form prospects:</strong> PIF matches current Free API runners to its own historical records. These are research suggestions, not verified bookmaker-priced each-way value selections. Betfair market verification remains unavailable.</div>
 <section id="signin" class="card" hidden>
 <h2>Private access</h2>
 <p>Use your existing PIF Racing scanner access code.</p>
@@ -376,7 +376,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 </div>
 <div class="row"><button id="reload" class="secondary" type="button">Reload saved rankings</button><button id="fresh-scan" type="button">Fresh scan today</button><button id="toggle-races" class="secondary" type="button" hidden>Collapse all races</button><span id="loaded-time" class="meta"></span></div>
 <div id="fresh-scan-feedback" role="status" aria-live="polite" hidden></div>
-<p class="meta" id="fresh-scan-note">Fresh scans need Racing API access. Free racecards may show current meetings, but cannot produce each-way picks. Lay research uses a separate Betfair connection.</p>
+<p class="meta" id="fresh-scan-note">Free racecards plus PIF's stored form can identify a research prospect in each suitable race. Prices and bookmaker place terms are not currently verified. Full scans require paid Racing API access.</p>
 <div class="filters">
 <div><label for="course">Racecourse</label><select id="course"><option value="all">All courses</option></select></div>
 <div><label for="code">Race type</label><select id="code"><option value="all">All types</option></select></div>
@@ -1746,8 +1746,8 @@ function render(){
 }
 
 function renderFreeRacecards(data){
- // LIVE Free-tier cards remain on screen during the clock timer: never call
- // the full-model renderer when its entries list is deliberately empty.
+ // FREE current racecards + owned pre-off racing history: one form prospect
+ // where supported. NOT bookmaker-priced each-way value or market availability.
  const listed=Array.isArray(data.races)?data.races:[];
  const upcoming=listed.filter(r=>Date.parse(r.off_utc||'')>Date.now());
  const selectedCourse=get('course').value,selectedType=get('code').value;
@@ -1762,27 +1762,46 @@ function renderFreeRacecards(data){
  const course=get('course').value,type=get('code').value;
  const races=upcoming.filter(r=>(course==='all'||r.course===course)&&
    (type==='all'||r.type===type));
- get('summary').textContent=upcoming.length+' verified upcoming Free racecards · '+
-   races.length+' shown · no modelled each-way picks';
- get('races').innerHTML=races.length?races.map(r=>
-    '<section class="ew-race"><div class="ew-race-top"><span>'+
-    escapeHtml(britishTime(r.off_utc))+' · '+escapeHtml(r.course||'Course')+
-    '</span><span class="meta">'+escapeHtml(r.type||'Race')+'</span></div>'+
-    '<details class="ew-more"><summary>Race details</summary><div class="ew-source">'+
-    escapeHtml(r.race_name||'Race details not supplied')+
-    (Number.isInteger(r.declared_runners)?
-     ' · '+r.declared_runners+' active declarations in Free feed':'')+
-    '</div></details></section>'
- ).join(''):'<div class="card"><strong>'+
-   (upcoming.length?'No races match these filters.':'No upcoming Free racecards verified.')+
-   '</strong><p>Only current source-confirmed races are shown. No previous-day horse list has been substituted.</p></div>';
+ const prospects=races.filter(r=>r.form_prospect&&
+   r.form_prospect.status==='FREE_FORM_PROSPECT_UNPRICED').length;
+ get('summary').textContent=races.length+' races · '+prospects+
+    ' form prospects · '+(races.length-prospects)+
+    ' no form pick · bookmaker prices unavailable';
+ get('races').innerHTML=races.length?races.map(r=>{
+    const p=r.form_prospect;
+    const isPick=!!p&&p.status==='FREE_FORM_PROSPECT_UNPRICED';
+    const label='<div class="ew-race-top"><span>'+
+       escapeHtml(britishTime(r.off_utc))+' · '+escapeHtml(r.course||'Course')+
+       '</span><span class="meta">'+escapeHtml(r.type||'Race')+'</span></div>';
+    const summary=isPick?
+      '<div class="ew-choice"><div class="ew-flag">PIF FORM PROSPECT · ODDS NOT VERIFIED</div>'+
+      '<div class="ew-choice-head"><div class="ew-horse">'+
+      '<span class="ew-cloth">'+Number(p.card_number)+'</span>'+
+      '<span>'+escapeHtml(p.horse)+'</span></div>'+
+      '<div class="ew-source">Check price</div></div>'+
+      '<p class="ew-reason">'+escapeHtml((p.evidence||[]).join(' · '))+'</p>'+
+      '<div class="ew-terms">Research selection only, not a confirmed each-way value bet. Check the horse is available and that the bookmaker odds and place terms suit you.</div></div>':
+      '<div class="ew-choice ew-inline-no"><strong>NO FORM PICK</strong> · Insufficient reliable placing evidence</div>';
+    return '<section class="ew-race">'+label+summary+
+      '<details class="ew-more"><summary>Race details</summary>'+
+      '<div class="ew-source">'+escapeHtml(r.race_name||'Race details not supplied')+
+      (Number.isInteger(r.declared_runners)?
+       ' · '+r.declared_runners+' active declarations from Free API':'')+
+      '</div></details></section>';
+ }).join(''):'<div class="card"><strong>'+
+    (upcoming.length?'No races match these filters.':'No upcoming Free racecards verified.')+
+    '</strong><p>Only current source-confirmed races shown; no stale odds or previous-day entries.</p></div>';
  const stamp=Date.parse(data.observed_utc||'');
- get('loaded-time').textContent='Free racecards verified '+
-    (Number.isFinite(stamp)?new Date(stamp).toLocaleTimeString('en-GB',{
-      timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'}):'unknown')+' UK';
+ get('loaded-time').textContent='Free racecards checked '+
+   (Number.isFinite(stamp)?new Date(stamp).toLocaleTimeString('en-GB',{
+    timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'}):'unknown')+' UK';
  get('value-trial-list').innerHTML='';
  get('forward-record').hidden=true;
- status('Free racecards only. Standard Racing API and model betting selections remain unavailable.',true);
+ const message=data.free_form_status==='FORM_RESEARCH_AVAILABLE'?
+   'PIF historical form prospects restored. Current bookmaker odds and available places remain unverified.':
+   'Free current racecards loaded, but form analysis is still unavailable ('+
+   (data.free_form_status||'NO_HISTORY')+'). No horses have been invented.';
+ status(message,data.free_form_status!=='FORM_RESEARCH_AVAILABLE');
 }
 async function reload(){
  if(!token)return;
