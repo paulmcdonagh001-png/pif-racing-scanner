@@ -384,12 +384,12 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <label class="row" style="display:flex;align-items:center;gap:8px;font-size:12px;margin:11px 0"><input id="show-started" type="checkbox" style="width:auto;min-width:16px" /> Show races already off (for review)</label>
 
 <section class="card lay-board" id="lay-board" aria-label="Daily lay research">
- <div class="lay-header"><h2>Lay Opportunities · Today</h2><button type="button" class="secondary" id="lay-refresh">Refresh lays</button></div>
- <p class="lay-message">Separate Betfair-only research. No Racing API subscription. Prices are delayed and not executable lay offers.</p>
- <div id="lay-status" class="meta" role="status" aria-live="polite">Checking today's market...</div>
+ <div class="lay-header"><h2>Lay Candidates · Today</h2><button type="button" class="secondary" id="lay-refresh">Check Betfair</button></div>
+ <p class="lay-message">The horses below are potential lays to research, not verified trades. Quoted odds are bookmaker win prices, not Betfair lay offers.</p>
+ <div id="lay-bookmaker-watch"></div>
+ <div id="lay-status" class="meta" role="status" aria-live="polite">Checking Betfair...</div>
  <div class="lay-items" id="lay-items"></div>
 </section>
-<div id="lay-bookmaker-watch"></div>
 <div id="forward-record" class="card"><details><summary>Research results &amp; testing (optional)</summary><p>Checking results tracking status…</p></details></div>
 <h2 style="margin:18px 0 8px">Each-Way Back Opportunities</h2>
 <p class="ew-guide" id="back-price-warning">Each-way research angles need a quoted bookmaker win price, its paid places and your horse's form. Prices do not prove betting value.</p>
@@ -2045,8 +2045,8 @@ async function loadLayOpportunities(){
    statusBox.textContent=denied?'Betfair access denied (HTTP 403). No verified lays.':
       (data.message||'Betfair delayed feed unavailable; no verified lays.');
    list.innerHTML='<p class="lay-risk">'+
-      (denied?'Betfair needs a valid session token and authorised app key in Render. Refreshing this scanner cannot renew an expired session.':
-      'The Exchange feed cannot currently verify runners or prices.')+'</p>';
+      (denied?'Exchange confirmation unavailable. Betfair session/app key needs renewal in Render.':
+      'Live Exchange availability and lay liability cannot be verified.')+'</p>';
   }else if(data.status==='SCANNING'){
    statusBox.textContent='Collecting delayed prices. No selections until checked.';
    list.innerHTML='';
