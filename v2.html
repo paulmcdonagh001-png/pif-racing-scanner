@@ -373,7 +373,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 </div>
 <div class="row"><button id="reload" class="secondary" type="button">Reload saved rankings</button><button id="fresh-scan" type="button">Fresh scan today</button><button id="toggle-races" class="secondary" type="button" hidden>Collapse all races</button><span id="loaded-time" class="meta"></span></div>
 <div id="fresh-scan-feedback" role="status" aria-live="polite" hidden></div>
-<p class="meta" id="fresh-scan-note">Fresh scan: fetches up-to-date Racing API information and recalculates races still to run. Earlier predictions are preserved for results testing. Reload uses saved rankings without new API calls.</p>
+<p class="meta" id="fresh-scan-note">Fresh scans need Racing API access. Free racecards may show current meetings, but cannot produce each-way picks. Lay research uses a separate Betfair connection.</p>
 <div class="filters">
 <div><label for="course">Racecourse</label><select id="course"><option value="all">All courses</option></select></div>
 <div><label for="code">Race type</label><select id="code"><option value="all">All types</option></select></div>
@@ -484,9 +484,14 @@ document.querySelectorAll('[data-day]').forEach(b=>b.addEventListener('click',()
 }));
 get('reload').addEventListener('click',reload);
 get('fresh-scan').addEventListener('click',freshScanToday);
+let racingSourceBlocked=false;
 function refreshControls(){
- get('fresh-scan').disabled=refreshBusy;
- get('fresh-scan').textContent=refreshBusy?'Scanning Racing API…':'Fresh scan today';
+ const button=get('fresh-scan');
+ button.disabled=refreshBusy||racingSourceBlocked;
+ button.textContent=refreshBusy?'Scanning Racing API…':
+    racingSourceBlocked?'Full scan unavailable':'Fresh scan today';
+ button.title=racingSourceBlocked?
+    'Racing API access denied. Check subscription and credentials.':'';
 }
 async function resumeFreshScanStatus(){
  // Reattach to an existing server scan after a browser refresh or new login.
@@ -1732,6 +1737,30 @@ function render(){
    '<div class="card"><strong>No races in this filter.</strong><p>Choose another date, course or race type.</p></div>';
 }
 
+function renderFreeRacecards(data){
+ entries=[];
+ updateFilters();
+ const races=Array.isArray(data.races)?data.races:[];
+ get('summary').textContent=races.length+' current free racecards · no modelled each-way picks';
+ get('races').innerHTML=races.length?races.map(r=>
+    '<section class="ew-race"><div class="ew-race-top"><span>'+
+    escapeHtml(britishTime(r.off_utc))+' · '+escapeHtml(r.course||'Course')+
+    '</span><span class="meta">'+escapeHtml(r.type||'Race')+'</span></div>'+
+    '<div class="ew-choice ew-inline-no"><strong>No analysed pick</strong> · Full racing model unavailable</div>'+
+    '<details class="ew-more"><summary>Race details</summary><div class="ew-source">'+
+    escapeHtml(r.race_name||'Race details not supplied')+
+    (Number.isInteger(r.declared_runners)?
+     ' · '+r.declared_runners+' active declarations in Free feed':'')+
+    '</div></details></section>'
+ ).join(''):'<div class="card"><strong>No upcoming Free-plan races verified.</strong>'+
+    '<p>Old or other-day runners have not been substituted.</p></div>';
+ const checked=Date.parse(data.observed_utc||'');
+ const stamp=Number.isFinite(checked)?
+    new Date(checked).toLocaleTimeString('en-GB',{
+     timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'}):'unknown';
+ get('loaded-time').textContent='Free racecards '+stamp+' UK';
+ status('Free racecards only: no Standard history, bookmaker odds or validated each-way selections.',true);
+}
 async function reload(){
  if(!token)return;
  const requestDay=day,seq=++reloadSeq;
@@ -1751,8 +1780,31 @@ async function reload(){
      setTimeout(()=>{if(token&&seq===reloadSeq&&day===requestDay)reload()},7000);
      return;
    }
-   if(data.status==='SOURCE_UNAVAILABLE')
-     throw Error('Racing API history could not be verified ('+String(data.error_type||'source error')+'). No substitute predictions have been shown. Retry after two minutes.');
+   if(data.status==='FREE_RACECARDS_ONLY'){
+     racingSourceBlocked=true;
+     refreshControls();
+     networkFailures=0;
+     renderFreeRacecards(data);
+     return;
+   }
+   if(data.status==='SOURCE_UNAVAILABLE'){
+     racingSourceBlocked=data.error_code===401||
+        data.connection_problem==='RACING_API_ACCESS_DENIED';
+     refreshControls();
+     networkFailures=0;
+     entries=[];updateFilters();
+     const explain=racingSourceBlocked?
+       'Racing API access denied (HTTP 401). Account, plan or credentials require attention. Free racecards were also unavailable. Repeated scans cannot restore access.':
+       (data.message||'Current racing data could not be verified.');
+     get('summary').textContent='No verified '+requestDay+' racing data';
+     get('races').innerHTML='<div class="card"><strong>Source access unavailable</strong><p>'+
+       escapeHtml(explain)+'</p></div>';
+     get('loaded-time').textContent='No verified '+requestDay+' rankings';
+     status(explain,true);
+     return;
+   }
+   racingSourceBlocked=false;
+   refreshControls();
    if(data.status!=='RESEARCH_ONLY'||!String(data.version||'').startsWith('pif-v2-independent-'))
      throw Error('V2 backend version not available. No replacement rankings were shown.');
    if(!['FIVE_CODE_SPECIFIC_EXPERIMENTAL','FIVE_CODE_RACE_CONDITIONS_V1','FIVE_CODE_RACE_CONDITIONS_V2','FIVE_CODE_RACE_CONDITIONS_V3','FIVE_CODE_RACE_CONDITIONS_V4'].includes(data.display_ranking_system))
