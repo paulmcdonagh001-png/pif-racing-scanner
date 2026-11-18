@@ -376,7 +376,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 </div>
 <div class="row"><button id="reload" class="secondary" type="button">Reload saved rankings</button><button id="fresh-scan" type="button">Fresh scan today</button><button id="toggle-races" class="secondary" type="button" hidden>Collapse all races</button><span id="loaded-time" class="meta"></span></div>
 <div id="fresh-scan-feedback" role="status" aria-live="polite" hidden></div>
-<p class="meta" id="fresh-scan-note">Free racecards plus PIF's stored form can identify a research prospect in each suitable race. Prices and bookmaker place terms are not currently verified. Full scans require paid Racing API access.</p>
+<p class="meta" id="fresh-scan-note">Free racecards and PIF's stored form power today's analysis. An optional free personal-use odds key adds bookmaker prices and paid-place terms. Betfair Exchange lays still require separate access.</p>
 <div class="filters">
 <div><label for="course">Racecourse</label><select id="course"><option value="all">All courses</option></select></div>
 <div><label for="code">Race type</label><select id="code"><option value="all">All types</option></select></div>
@@ -389,19 +389,19 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
  <div id="lay-status" class="meta" role="status" aria-live="polite">Checking today's market...</div>
  <div class="lay-items" id="lay-items"></div>
 </section>
+<div id="lay-bookmaker-watch"></div>
 <div id="forward-record" class="card"><details><summary>Research results &amp; testing (optional)</summary><p>Checking results tracking status…</p></details></div>
 <h2 style="margin:18px 0 8px">Each-Way Back Opportunities</h2>
 <p class="ew-guide" id="back-price-warning">Each-way research angles need a quoted bookmaker win price, its paid places and your horse's form. Prices do not prove betting value.</p>
 <div id="odds-price-source" class="ew-guide"></div>
 <div id="priced-ew-cards"></div>
-<div id="lay-bookmaker-watch"></div>
 <div id="summary">Checking backed each-way value and form watchlist…</div>
 <div id="value-trial-list"></div>
 <div id="races"></div>
 </section>
 <div id="status" role="status" aria-live="polite"></div>
 <footer>
-PIF Racing is a research-only racing service. When Standard Racing API access is unavailable, Free racecards are informational only; they do not supply verified each-way picks or odds. Bookmaker place terms and prices must always be checked.
+PIF Racing is a private research scanner: Free racecards and stored form are separate from optional bookmaker odds. Bookmaker quotes may move, placing edges are experimental and Exchange lay offers are not independently verified.
 </footer>
 </main>
 <script>
