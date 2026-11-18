@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta name="pif-build" content="2026-11-18-free-racecards-stable">
 <meta name="theme-color" content="#081725">
 <title>PIF Racing V2 | Each-way selections</title>
 <meta name="description" content="PIF Racing V2: one conditional each-way research selection per race, or no bet.">
@@ -393,7 +396,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 </section>
 <div id="status" role="status" aria-live="polite"></div>
 <footer>
-PIF Racing V2 is a research-only each-way screen. No bet placement is provided. Any candidate uses provisional historical calibration and assumed three-place, one-fifth terms; actual bookmaker prices and paid places must be checked. No positive return is guaranteed.
+PIF Racing is a research-only racing service. When Standard Racing API access is unavailable, Free racecards are informational only; they do not supply verified each-way picks or odds. Bookmaker place terms and prices must always be checked.
 </footer>
 </main>
 <script>
@@ -403,6 +406,7 @@ const KEY='pif-racing-remembered-v1';
 const get=id=>document.getElementById(id);
 const escapeHtml=value=>String(value==null?'':value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 let token='',day='today',entries=[],loading=false;
+let freeRacecards=null;
 let reloadSeq=0,networkFailures=0;
 let refreshBusy=false,refreshTimer=null;
 function showScanProgress(done,total){
@@ -468,6 +472,7 @@ document.querySelectorAll('[data-day]').forEach(b=>b.addEventListener('click',()
  const newDay=b.dataset.day;
  if(newDay!==day){
    day=newDay;
+   freeRacecards=null;
    reloadSeq++; // Discard any in-flight response from the previous day.
    networkFailures=0;
    loading=false;
@@ -571,9 +576,12 @@ async function pollFreshScan(){
   if(!refreshTimer){refreshBusy=false;refreshControls();}
  }
 }
-get('course').addEventListener('change',render);
-get('code').addEventListener('change',render);
-get('show-started').addEventListener('change',render);
+get('course').addEventListener('change',()=>freeRacecards?
+  renderFreeRacecards(freeRacecards):render());
+get('code').addEventListener('change',()=>freeRacecards?
+  renderFreeRacecards(freeRacecards):render());
+get('show-started').addEventListener('change',()=>freeRacecards?
+  renderFreeRacecards(freeRacecards):render());
 get('toggle-races').addEventListener('click',()=>{
  const items=[...get('races').querySelectorAll('details.meeting')];
  const expand=items.length>0&&items.every(el=>!el.open);
@@ -1738,11 +1746,24 @@ function render(){
 }
 
 function renderFreeRacecards(data){
- entries=[];
- updateFilters();
- const races=Array.isArray(data.races)?data.races:[];
- get('summary').textContent=races.length+
-    ' verified upcoming races · Free cards only · no betting selections';
+ // LIVE Free-tier cards remain on screen during the clock timer: never call
+ // the full-model renderer when its entries list is deliberately empty.
+ const listed=Array.isArray(data.races)?data.races:[];
+ const upcoming=listed.filter(r=>Date.parse(r.off_utc||'')>Date.now());
+ const selectedCourse=get('course').value,selectedType=get('code').value;
+ const courses=[...new Set(upcoming.map(r=>r.course).filter(Boolean))].sort();
+ const types=[...new Set(upcoming.map(r=>r.type).filter(Boolean))].sort();
+ get('course').innerHTML='<option value="all">All courses</option>'+
+   courses.map(c=>'<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+'</option>').join('');
+ get('code').innerHTML='<option value="all">All types</option>'+
+   types.map(t=>'<option value="'+escapeHtml(t)+'">'+escapeHtml(t)+'</option>').join('');
+ if(courses.includes(selectedCourse))get('course').value=selectedCourse;
+ if(types.includes(selectedType))get('code').value=selectedType;
+ const course=get('course').value,type=get('code').value;
+ const races=upcoming.filter(r=>(course==='all'||r.course===course)&&
+   (type==='all'||r.type===type));
+ get('summary').textContent=upcoming.length+' verified upcoming Free racecards · '+
+   races.length+' shown · no modelled each-way picks';
  get('races').innerHTML=races.length?races.map(r=>
     '<section class="ew-race"><div class="ew-race-top"><span>'+
     escapeHtml(britishTime(r.off_utc))+' · '+escapeHtml(r.course||'Course')+
@@ -1752,14 +1773,16 @@ function renderFreeRacecards(data){
     (Number.isInteger(r.declared_runners)?
      ' · '+r.declared_runners+' active declarations in Free feed':'')+
     '</div></details></section>'
- ).join(''):'<div class="card"><strong>No upcoming Free-plan races verified.</strong>'+
-    '<p>Old or other-day runners have not been substituted.</p></div>';
- const checked=Date.parse(data.observed_utc||'');
- const stamp=Number.isFinite(checked)?
-    new Date(checked).toLocaleTimeString('en-GB',{
-     timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'}):'unknown';
- get('loaded-time').textContent='Free racecards '+stamp+' UK';
- status('Free racecards only: no Standard history, bookmaker odds or validated each-way selections.',true);
+ ).join(''):'<div class="card"><strong>'+
+   (upcoming.length?'No races match these filters.':'No upcoming Free racecards verified.')+
+   '</strong><p>Only current source-confirmed races are shown. No previous-day horse list has been substituted.</p></div>';
+ const stamp=Date.parse(data.observed_utc||'');
+ get('loaded-time').textContent='Free racecards verified '+
+    (Number.isFinite(stamp)?new Date(stamp).toLocaleTimeString('en-GB',{
+      timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'}):'unknown')+' UK';
+ get('value-trial-list').innerHTML='';
+ get('forward-record').hidden=true;
+ status('Free racecards only. Standard Racing API and model betting selections remain unavailable.',true);
 }
 async function reload(){
  if(!token)return;
@@ -1781,6 +1804,7 @@ async function reload(){
      return;
    }
    if(data.status==='FREE_RACECARDS_ONLY'){
+     freeRacecards=data;
      racingSourceBlocked=true;
      refreshControls();
      networkFailures=0;
@@ -1788,6 +1812,7 @@ async function reload(){
      return;
    }
    if(data.status==='SOURCE_UNAVAILABLE'){
+     freeRacecards=null;
      racingSourceBlocked=data.error_code===401||
         data.connection_problem==='RACING_API_ACCESS_DENIED';
      refreshControls();
@@ -1804,6 +1829,8 @@ async function reload(){
      return;
    }
    racingSourceBlocked=false;
+   freeRacecards=null;
+   get('forward-record').hidden=false;
    refreshControls();
    if(data.status!=='RESEARCH_ONLY'||!String(data.version||'').startsWith('pif-v2-independent-'))
      throw Error('V2 backend version not available. No replacement rankings were shown.');
@@ -1954,7 +1981,14 @@ async function loadLayOpportunities(){
 get('lay-refresh').addEventListener('click',loadLayOpportunities);
 
 authUi();if(token){loadLayOpportunities();reload().then(resumeFreshScanStatus);}
-setInterval(()=>{if(token&&!loading&&day==='today')render()},60000);
+setInterval(()=>{
+ if(!token||loading||day!=='today')return;
+ if(freeRacecards){
+   const last=Date.parse(freeRacecards.observed_utc||'');
+   if(Number.isFinite(last)&&Date.now()-last>16*60000)reload();
+   else renderFreeRacecards(freeRacecards);
+ }else if(entries.length)render();
+},60000);
 setInterval(()=>{if(token)loadLayOpportunities()},180000);
 </script>
 </body>
