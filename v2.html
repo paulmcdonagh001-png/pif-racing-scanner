@@ -1841,7 +1841,7 @@ async function reload(){
    if(!entries.length){
      get('summary').textContent='No verified '+requestDay+' races loaded';
      get('races').innerHTML='<div class="card"><strong>'+escapeHtml(requestDay)+
-       ' data temporarily unavailable.</strong><p>No old-model or other-day rankings have been substituted. Use Reload saved rankings to retry.</p></div>';
+       ' source unavailable.</strong><p>Current runners and odds cannot be verified. No previous-day or retired-model data has been substituted.</p></div>';
    }
    if(transient&&networkFailures<3){
      networkFailures++;
@@ -1905,8 +1905,12 @@ async function loadLayOpportunities(){
   const data=await request('/lay-opportunities',{session_token:token});
   const statusBox=get('lay-status'),list=get('lay-items');
   if(data.status==='SOURCE_UNAVAILABLE'){
-   statusBox.textContent=data.message||'Betfair delayed feed unavailable; no verified lays.';
-   list.innerHTML='<p class="lay-risk">No horse is shown when the exchange feed cannot be checked. The free delayed Betfair session may need renewal in Render.</p>';
+   const denied=/HTTP\s*403/.test(data.message||'');
+   statusBox.textContent=denied?'Betfair access denied (HTTP 403). No verified lays.':
+      (data.message||'Betfair delayed feed unavailable; no verified lays.');
+   list.innerHTML='<p class="lay-risk">'+
+      (denied?'Betfair needs a valid session token and authorised app key in Render. Refreshing this scanner cannot renew an expired session.':
+      'The Exchange feed cannot currently verify runners or prices.')+'</p>';
   }else if(data.status==='SCANNING'){
    statusBox.textContent='Collecting delayed prices. No selections until checked.';
    list.innerHTML='';
