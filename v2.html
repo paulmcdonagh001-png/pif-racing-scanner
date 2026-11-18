@@ -1741,12 +1741,12 @@ function renderFreeRacecards(data){
  entries=[];
  updateFilters();
  const races=Array.isArray(data.races)?data.races:[];
- get('summary').textContent=races.length+' current free racecards · no modelled each-way picks';
+ get('summary').textContent=races.length+
+    ' verified upcoming races · Free cards only · no betting selections';
  get('races').innerHTML=races.length?races.map(r=>
     '<section class="ew-race"><div class="ew-race-top"><span>'+
     escapeHtml(britishTime(r.off_utc))+' · '+escapeHtml(r.course||'Course')+
     '</span><span class="meta">'+escapeHtml(r.type||'Race')+'</span></div>'+
-    '<div class="ew-choice ew-inline-no"><strong>No analysed pick</strong> · Full racing model unavailable</div>'+
     '<details class="ew-more"><summary>Race details</summary><div class="ew-source">'+
     escapeHtml(r.race_name||'Race details not supplied')+
     (Number.isInteger(r.declared_runners)?
