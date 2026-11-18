@@ -1826,20 +1826,42 @@ function renderFreeRacecards(data){
    '<div class="ew-guide">No priced each-way research angle qualifies at present.</div>';
  const layCards=layWatch.map(r=>{
    const p=r.bookmaker_lay_watch;
+   const bookPrice=Number(p.bookmaker_win_decimal);
+   const qTime=Date.parse(p.bookmaker_quote_utc||'');
+   const minutesAgo=Number.isFinite(qTime)?
+     Math.max(0,Math.round((Date.now()-qTime)/60000)):null;
+   const hasHistory=Number.isFinite(Number(p.recent_starts))&&
+     p.recent_starts!==null&&Number(p.recent_starts)>0;
+   const formSummary=hasHistory?
+     Number(p.recent_top_three||0)+' top-three finishes in '+
+     Number(p.recent_starts)+' recent recorded starts'+
+     (p.pif_rank?' · PIF rank #'+Number(p.pif_rank):''):
+     'Limited verifiable recent form';
    return '<section class="ew-race"><div class="ew-race-top"><span>'+
      escapeHtml(britishTime(r.off_utc))+' · '+escapeHtml(r.course)+
      '</span><span class="meta">'+escapeHtml(r.type||'Race')+'</span></div>'+
+     '<div class="ew-flag">LAY CANDIDATE · RESEARCH ONLY</div>'+
      '<div class="ew-choice-head"><div class="ew-horse"><span class="ew-cloth">'+
      Number(p.card_number)+'</span><span>'+escapeHtml(p.horse)+'</span></div>'+
-     '<div class="ew-odds">'+escapeHtml(ewOddsLabel(Number(p.bookmaker_win_decimal)))+'</div></div>'+
-     '<div class="ew-source">Bookmaker favourite: '+escapeHtml(p.bookmaker)+
-     ' · No Exchange lay price or confirmed trading edge</div></section>';
+     '<div class="ew-odds">'+escapeHtml(ewOddsLabel(bookPrice))+'</div></div>'+
+     '<div class="ew-source">Bookmaker win odds: '+
+     escapeHtml(p.bookmaker)+
+     ' · Not a Betfair lay price'+
+     (minutesAgo!==null?' · Quote '+minutesAgo+' min ago':'')+'</div>'+
+     '<p class="ew-reason">'+escapeHtml(formSummary)+
+     ' · '+escapeHtml(p.race_code||'Maiden / novice')+'</p>'+
+     '<details class="ew-more"><summary>Why investigate this lay?</summary>'+
+     '<p class="ew-reason">'+escapeHtml(p.reason||
+        'Short-priced favourite with limited historical evidence.')+'</p>'+
+     '<p class="ew-terms">A bookmaker price is not an available Exchange lay offer. Check that the horse is active and compare the actual Betfair lay odds with a defensible win-probability estimate before deciding. No edge has been verified.</p>'+
+     '</details></section>';
  }).join('');
- get('lay-bookmaker-watch').innerHTML=layWatch.length?
-   '<details class="free-watchlist"><summary style="padding:11px 0;font-weight:700;cursor:pointer">'+
-   'Bookmaker favourites to investigate ('+layWatch.length+') · Not confirmed lays</summary>'+
-   '<p class="ew-guide">Short-priced novice/maiden favourites with limited historical evidence. Their actual Betfair lay prices are unavailable, so these are NOT executable lay recommendations.</p>'+
-   layCards+'</details>':'';
+ get('lay-bookmaker-watch').innerHTML=
+   '<div style="margin:12px 0 8px"><h3 style="font-size:19px;margin:0 0 6px">Lay Candidates · '+layWatch.length+'</h3>'+
+   '<p class="ew-guide" style="margin:0 0 10px">'+
+   'PIF has screened short-priced maiden and novice favourites using bookmaker win odds and stored form. These are visible research candidates, NOT confirmed Exchange lays. Betfair market access remains blocked (HTTP 403).'+
+   '</p></div>'+
+   (layCards||'<div class="ew-guide">No runner qualifies for the current bookmaker-based lay research screen.</div>');
  const pastOpen=!!get('races').querySelector('details.free-watchlist[open]');
  const unpricedCards=watchlist.map(r=>{
    const p=r.form_prospect;
