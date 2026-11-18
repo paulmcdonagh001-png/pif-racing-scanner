@@ -391,7 +391,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 </section>
 <div id="forward-record" class="card"><details><summary>Research results &amp; testing (optional)</summary><p>Checking results tracking status…</p></details></div>
 <h2 style="margin:18px 0 8px">Each-Way Back Opportunities</h2>
-<p class="ew-guide" id="back-price-warning">A valid each-way pick needs current odds and actual paid-place terms. Historical form names below are watchlist candidates only until that comparison is possible.</p>
+<p class="ew-guide" id="back-price-warning">No price-verified each-way bets while market odds and bookmaker place terms are unavailable. You can expand the form watchlist below, but it is not a selection list.</p>
 <div id="summary">Checking backed each-way value and form watchlist…</div>
 <div id="value-trial-list"></div>
 <div id="races"></div>
@@ -1748,62 +1748,64 @@ function render(){
 }
 
 function renderFreeRacecards(data){
- // FREE current racecards + owned pre-off racing history: one form prospect
- // where supported. NOT bookmaker-priced each-way value or market availability.
+ // Current Free racecards + owned history may produce form WATCHLIST only.
+ // Neither betting strategy can give a verified bet without market prices.
  const listed=Array.isArray(data.races)?data.races:[];
  const upcoming=listed.filter(r=>Date.parse(r.off_utc||'')>Date.now());
  const selectedCourse=get('course').value,selectedType=get('code').value;
  const courses=[...new Set(upcoming.map(r=>r.course).filter(Boolean))].sort();
  const types=[...new Set(upcoming.map(r=>r.type).filter(Boolean))].sort();
  get('course').innerHTML='<option value="all">All courses</option>'+
-   courses.map(c=>'<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+'</option>').join('');
+    courses.map(c=>'<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+'</option>').join('');
  get('code').innerHTML='<option value="all">All types</option>'+
-   types.map(t=>'<option value="'+escapeHtml(t)+'">'+escapeHtml(t)+'</option>').join('');
+    types.map(t=>'<option value="'+escapeHtml(t)+'">'+escapeHtml(t)+'</option>').join('');
  if(courses.includes(selectedCourse))get('course').value=selectedCourse;
  if(types.includes(selectedType))get('code').value=selectedType;
  const course=get('course').value,type=get('code').value;
  const races=upcoming.filter(r=>(course==='all'||r.course===course)&&
-   (type==='all'||r.type===type));
- const prospects=races.filter(r=>r.form_prospect&&
-   r.form_prospect.status==='FREE_FORM_PROSPECT_UNPRICED').length;
- get('summary').textContent='0 price-verified each-way backs · '+
-    prospects+' horses on the form watchlist · '+races.length+
-    ' current races · no bookmaker prices';
- get('races').innerHTML=races.length?races.map(r=>{
+    (type==='all'||r.type===type));
+ const watchlist=races.filter(r=>r.form_prospect&&
+    r.form_prospect.status==='FREE_FORM_PROSPECT_UNPRICED');
+ const prospectCount=watchlist.length;
+ const pastOpen=!!get('races').querySelector('details.free-watchlist[open]');
+ get('summary').textContent='0 priced each-way backs · '+
+    prospectCount+' unpriced form candidates · '+races.length+' current races';
+ const cards=watchlist.map(r=>{
     const p=r.form_prospect;
-    const isPick=!!p&&p.status==='FREE_FORM_PROSPECT_UNPRICED';
-    const label='<div class="ew-race-top"><span>'+
-       escapeHtml(britishTime(r.off_utc))+' · '+escapeHtml(r.course||'Course')+
-       '</span><span class="meta">'+escapeHtml(r.type||'Race')+'</span></div>';
-    const summary=isPick?
-      '<div class="ew-choice"><div class="ew-flag">FORM WATCHLIST · NOT AN EACH-WAY BET</div>'+
+    return '<section class="ew-race">'+
+      '<div class="ew-race-top"><span>'+
+      escapeHtml(britishTime(r.off_utc))+' · '+escapeHtml(r.course||'Course')+
+      '</span><span class="meta">'+escapeHtml(r.type||'Race')+'</span></div>'+
+      '<div class="ew-choice">'+
       '<div class="ew-choice-head"><div class="ew-horse">'+
       '<span class="ew-cloth">'+Number(p.card_number)+'</span>'+
       '<span>'+escapeHtml(p.horse)+'</span></div>'+
-      '<div class="ew-source">No verified price</div></div>'+
+      '<div class="ew-source">Odds unavailable</div></div>'+
       '<p class="ew-reason">'+escapeHtml((p.evidence||[]).join(' · '))+'</p>'+
-      '<div class="ew-terms">Past form only. No recommended bet or proven value without a live bookmaker price and paid-place terms.</div></div>':
-      '<div class="ew-choice ew-inline-no"><strong>NO BACK SELECTION</strong> · Insufficient reliable form and no verified bookmaker price</div>';
-    return '<section class="ew-race">'+label+summary+
       '<details class="ew-more"><summary>Race details</summary>'+
       '<div class="ew-source">'+escapeHtml(r.race_name||'Race details not supplied')+
       (Number.isInteger(r.declared_runners)?
-       ' · '+r.declared_runners+' active declarations from Free API':'')+
-      '</div></details></section>';
- }).join(''):'<div class="card"><strong>'+
-    (upcoming.length?'No races match these filters.':'No upcoming Free racecards verified.')+
-    '</strong><p>Only current source-confirmed races shown; no stale odds or previous-day entries.</p></div>';
+       ' · '+r.declared_runners+' declared runners':'')+
+      '</div></details></div></section>';
+ }).join('');
+ get('races').innerHTML=
+   '<details class="free-watchlist"'+(pastOpen?' open':'')+'>'+
+   '<summary style="padding:12px 5px;font-weight:700;font-size:14px;cursor:pointer">'+
+   'Form watchlist ('+prospectCount+') · Not betting selections</summary>'+
+   '<p class="ew-guide">These horses have supporting recorded form, but no confirmed odds or bookmaker place terms. They are NOT yet lay or each-way value recommendations.</p>'+
+   (cards||'<div class="card"><strong>No sufficiently supported form candidates for upcoming races.</strong></div>')+
+   '</details>';
  const stamp=Date.parse(data.observed_utc||'');
  get('loaded-time').textContent='Free racecards checked '+
    (Number.isFinite(stamp)?new Date(stamp).toLocaleTimeString('en-GB',{
-    timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'}):'unknown')+' UK';
+      timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'}):'unknown')+' UK';
  get('value-trial-list').innerHTML='';
  get('forward-record').hidden=true;
- const message=data.free_form_status==='FORM_RESEARCH_AVAILABLE'?
-   'PIF historical form prospects restored. Current bookmaker odds and available places remain unverified.':
-   'Free current racecards loaded, but form analysis is still unavailable ('+
-   (data.free_form_status||'NO_HISTORY')+'). No horses have been invented.';
- status(message,data.free_form_status!=='FORM_RESEARCH_AVAILABLE');
+ const validForm=data.free_form_status==='FORM_RESEARCH_AVAILABLE';
+ status(validForm?
+   'Free racecard and historical form watchlist ready. No bookmaker-priced each-way bets or verified lays yet.':
+   'Free current racecards loaded, but historical form model is unavailable ('+
+   (data.free_form_status||'NO_HISTORY')+').',!validForm);
 }
 async function reload(){
  if(!token)return;
