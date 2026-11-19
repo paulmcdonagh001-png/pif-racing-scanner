@@ -756,7 +756,12 @@ function row(h,raceType,race){
  const price=numeric(h.quote?.decimal);
  const hasPrice=price!==null&&price>1;
  const source=hasPrice?String(h.quote?.source||'Quoted'):'No quote';
- const priceSource=source==='Betfair Exchange'?'Betfair · decimal':source==='Bet365'?'Bet365 · decimal':source+' · decimal';
+ const marketNames={ladbrokes_uk:'Ladbrokes',williamhill:'William Hill',
+   betway_uk:'Betway',paddypower:'Paddy Power',skybet:'Sky Bet'};
+ const priceSource=marketNames[source]?
+   marketNames[source]+' · decimal (reference only)':
+   source==='Betfair Exchange'?'Betfair · decimal':
+   source==='Bet365'?'Bet365 · decimal':source+' · decimal';
  const age=String(h.runner_age||'').trim(), stall=numeric(h.draw);
  const rating=numeric(facts.official_rating), days=numeric(facts.days_since_last);
  const apiPR=numeric(h.provider_performance_rating), apiSR=numeric(h.provider_speed_rating);
@@ -2042,7 +2047,12 @@ async function reload(){
          display_warning:'Cannot safely match current runners and full original model evidence.',
          display_selection_strategy:'RANKINGS_ONLY_NO_BET'
        });
-       get('odds-price-source').textContent='Prices are not currently verified. No staking selections or place terms.';
+       const quotes=Number(data.original_runners_priced||0);
+       const matchedRaces=Number(data.odds_matched_races||0);
+       get('odds-price-source').textContent=quotes?
+         quotes+' runner win-price references from '+matchedRaces+
+         ' exactly matched bookmaker markets (PuntersEdge). Quote source shown on each runner; not Betfair Exchange, not executable, and not proven value.':
+         'No current bookmaker quotes matched these original-ranked runners. Odds and place terms cannot be assumed.';
        get('priced-ew-cards').innerHTML='';
        get('forward-record').hidden=true;
        updateFilters();render();
