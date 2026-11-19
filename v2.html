@@ -358,7 +358,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 </header>
 <h1>PIF Racing · Lay &amp; Each-Way</h1>
 <p class="ew-guide">Two separate targets: <strong>Lay</strong> a vulnerable market favourite, or <strong>back each-way</strong> a horse whose price makes the place potential worthwhile. Form alone is not either bet.</p>
-<div class="notice"><strong>Current limitation:</strong> Betfair market access is denied (HTTP 403). Free Racing API supplies current cards and PIF has historical form, but neither a lay price nor an each-way bookmaker offer is verified. The form watchlist below is <strong>not</strong> a list of bets.</div>
+<div class="notice"><strong>Current limitation:</strong> Betfair Exchange access is blocked by Cloudflare for the Frankfurt-hosted connection. Renewing your Betfair session alone will not fix that block. Free Racing API supplies current cards and PIF has historical form, but neither a lay price nor an each-way bookmaker offer is verified. The form watchlist below is <strong>not</strong> a list of bets.</div>
 <section id="signin" class="card" hidden>
 <h2>Private access</h2>
 <p>Use your existing PIF Racing scanner access code.</p>
@@ -521,7 +521,9 @@ async function request(path,payload){
     '<p class="meta">Betfair per-bet profit may not reconcile exactly with account cash transactions or market-level commission. Lay matched stakes are not liabilities. This does not establish which bets were PIF selections.</p>';
   }catch(err){
    const code=String(err.message||'');
-   message.textContent=code==='betfair_session_or_api_access_denied'?
+   message.textContent=code==='betfair_gateway_blocked'?
+     'Betfair blocked the server through Cloudflare. Your session token is not the confirmed cause; no history was retrieved.':
+     code==='betfair_session_or_api_access_denied'?
      'Betfair rejected the existing session or app key. Renew the Betfair session in Render; no history was retrieved.':
      code==='betfair_credentials_not_configured'?
      'Betfair credentials are not configured in Render.':
@@ -2111,10 +2113,13 @@ async function loadLayOpportunities(){
   const statusBox=get('lay-status'),list=get('lay-items');
   if(data.status==='SOURCE_UNAVAILABLE'){
    const denied=/HTTP\s*403/.test(data.message||'');
-   statusBox.textContent=denied?'Betfair access denied (HTTP 403). No verified lays.':
-      (data.message||'Betfair delayed feed unavailable; no verified lays.');
+   const gatewayBlocked=/Cloudflare/i.test(data.message||'');
+   statusBox.textContent=gatewayBlocked?data.message:
+     (denied?'Betfair access denied (HTTP 403). No verified lays.':
+      (data.message||'Betfair delayed feed unavailable; no verified lays.'));
    list.innerHTML='<p class="lay-risk">'+
-      (denied?'Exchange confirmation unavailable. Betfair session/app key needs renewal in Render.':
+     (gatewayBlocked?'Hosting-region access restriction. Do not renew the token to fix this.':
+      denied?'Exchange permissions or session require checking.':
       'Live Exchange availability and lay liability cannot be verified.')+'</p>';
   }else if(data.status==='SCANNING'){
    statusBox.textContent='Collecting delayed prices. No selections until checked.';
