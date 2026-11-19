@@ -441,6 +441,23 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
  .horse.horse-compact-original .horse-name {font-size:14px}
  .horse.horse-compact-original .horse-context {font-size:11px}
 }
+
+/* Neutral missing price, not an alarming red bookmaker odds tile. */
+.horse.horse-compact-original .horse-price.horse-price-empty strong{
+  background:#e5ecec;
+  color:#4b6670;
+  border:1px solid #bdcdd0;
+  box-shadow:none;
+}
+.horse.horse-compact-original .horse-price.horse-price-empty small{
+  color:#4b6670;
+  font-size:9px;
+}
+.no-quote-race-note{
+  color:#bed1dc;
+  font-size:11px;
+  padding:7px 10px 4px;
+}
 </style>
 </head>
 <body>
@@ -1269,7 +1286,9 @@ function row(h,raceType,race){
      '<div class="horse-context">T: '+escapeHtml(h.trainer_name||'Unknown')+meetingCountHtml+'</div>')+
     miniForm+travelHtml+
     (claimSummary?'<div class="horse-context claim-context">'+escapeHtml(claimSummary)+'</div>':'')+'</div>'+
-   '<div class="horse-price"><strong>'+(hasPrice?price.toFixed(2):'—')+'</strong><small>'+escapeHtml(hasPrice?priceSource:'No price')+'</small></div>'+
+   '<div class="horse-price'+(hasPrice?'':' horse-price-empty')+'"><strong>'+
+    (hasPrice?price.toFixed(2):'—')+'</strong><small>'+
+    escapeHtml(hasPrice?priceSource:'No verified quote')+'</small></div>'+
   '</div>'+
   (compactOriginal?'<details class="horse-analysis"><summary>Form & ratings</summary>':'')+
   '<div class="horse-body">'+
@@ -1981,6 +2000,8 @@ function render(){
   const key=String(r.date||day)+'|'+String(r.course||'');
   const meetingHeader=displayedSummaries.has(key)?'':travelMeetingSummary(meetingGroups.get(key)||[]);
   displayedSummaries.add(key);
+  const hasQuotedRunner=(r.all_runners||r.top_three||[]).some(
+    h=>h.quote&&Number.isFinite(Number(h.quote.decimal))&&Number(h.quote.decimal)>1);
   return meetingHeader+'<details class="meeting" data-race-key="'+escapeHtml(raceKey(r))+'"'+(collapsedRaces.has(raceKey(r))?'':' open')+'>'+
  '<summary class="meeting-heading"><div><div class="meeting-title">'+escapeHtml(britishTime(r.off_utc))+' '+escapeHtml(r.course)+'</div>'+
  (r.race_name?'<div class="details">'+escapeHtml(r.race_name)+'</div>':'')+
@@ -1996,6 +2017,7 @@ function render(){
  '</div>'+
  '<div class="meeting-actions"><small class="meta">'+(Date.parse(r.off_utc)<=now?'Off · result pending':'Research only')+'</small>'+
  '<span class="meeting-control"><span class="meeting-open">Hide race</span><span class="meeting-closed">Show race</span><span class="meeting-arrow" aria-hidden="true">⌄</span></span></div></summary>'+
+ (!hasQuotedRunner?'<div class="no-quote-race-note">No verified bookmaker quotes for this race; original rankings use form only.</div>':'')+
  (r.all_runners||r.top_three||[]).map(h=>row(h,r.type,r)).join('')+
  raceNotes(r)+
  (r.display_selection_strategy==='RANKINGS_ONLY_NO_BET'?'':marketDisagreement(r)+marketPanel(r))+
