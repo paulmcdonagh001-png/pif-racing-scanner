@@ -2112,7 +2112,7 @@ async function loadLayOpportunities(){
   const data=await request('/lay-opportunities',{session_token:token});
   const statusBox=get('lay-status'),list=get('lay-items');
   if(data.status==='SOURCE_UNAVAILABLE'){
-   const denied=/HTTP\\s*403/.test(data.message||'');
+   const denied=/HTTP\s*403/.test(data.message||'');
    const gatewayBlocked=/Cloudflare/i.test(data.message||'');
    statusBox.textContent=gatewayBlocked?data.message:
      (denied?'Betfair access denied (HTTP 403). No verified lays.':
