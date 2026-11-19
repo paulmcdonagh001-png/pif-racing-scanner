@@ -790,9 +790,8 @@ async function pollFreshScan(){
 // fully ranked original V2 cards. Only fall back to basic cards if the latter
 // were never successfully available. Every filter/timer must use this router.
 function renderCurrentRaceView(){
- const ranked=freeRacecards&&Array.isArray(freeRacecards.original_model_races)&&
-   freeRacecards.original_model_races.length>0&&entries.some(r=>
-     (r.all_runners||[]).some(h=>Number.isInteger(h.display_rank)));
+ const ranked=entries.some(r=>
+   (r.all_runners||[]).some(h=>Number.isInteger(h.display_rank)));
  if(ranked||!freeRacecards)render();
  else renderFreeRacecards(freeRacecards);
 }
