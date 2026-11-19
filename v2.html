@@ -1108,22 +1108,30 @@ function row(h,raceType,race){
  if(comparison)detailParts.push(comparison);
  if(factors.length)detailParts.push('<p><b>Why the model ranked this horse here:</b> '+
     factors.map(escapeHtml).join(' · ')+'. These are model contributions, not proof of winning chance.</p>');
+ const compactOriginal=race?.display_selection_strategy==='RANKINGS_ONLY_NO_BET';
+ const miniForm=compactOriginal?'<div class="horse-mini-form"><span>Form</span>'+formChips+
+   (rating!==null&&rating>0?'<span class="horse-mini-or">OR '+rating+'</span>':'')+
+   '</div>':'';
  const more='<details class="horse-extended"><summary>Details</summary>'+
     '<div class="horse-extended-content">'+
       '<div class="metric-grid">'+metrics+'</div>'+
       notSelected+limited+why+cautions+
       '<div class="horse-extra-body">'+detailParts.join('')+'</div>'+
     '</div></details>';
- return '<div class="horse'+(rank!==null&&rank<=3&&h.conditions_supported!==false?' horse-featured':'')+'">'+
+ return '<div class="horse'+(compactOriginal?' horse-compact-original':'')+
+   (rank!==null&&rank<=3&&h.conditions_supported!==false?' horse-featured':'')+'">'+
   '<div class="horse-main">'+
    '<div class="position" aria-label="'+escapeHtml(cardMeaning)+'">'+escapeHtml(cardLabel)+'</div>'+
    '<div class="horse-intro"><div class="horse-name">'+escapeHtml(h.horse)+badgesHtml+'<span class="horse-rank'+(isSupportedPick?'':' is-research')+'">'+escapeHtml(rankText)+'</span></div>'+
-    '<div class="horse-context">J: '+escapeHtml(h.jockey_name||'Unknown')+'</div>'+
-    '<div class="horse-context">T: '+escapeHtml(h.trainer_name||'Unknown')+meetingCountHtml+'</div>'+
-    travelHtml+
+    (compactOriginal?'<div class="horse-context">J: '+escapeHtml(h.jockey_name||'Unknown')+
+      ' · T: '+escapeHtml(h.trainer_name||'Unknown')+meetingCountHtml+'</div>':
+     '<div class="horse-context">J: '+escapeHtml(h.jockey_name||'Unknown')+'</div>'+
+     '<div class="horse-context">T: '+escapeHtml(h.trainer_name||'Unknown')+meetingCountHtml+'</div>')+
+    miniForm+travelHtml+
     (claimSummary?'<div class="horse-context claim-context">'+escapeHtml(claimSummary)+'</div>':'')+'</div>'+
    '<div class="horse-price"><strong>'+(hasPrice?price.toFixed(2):'—')+'</strong><small>'+escapeHtml(hasPrice?priceSource:'No price')+'</small></div>'+
   '</div>'+
+  (compactOriginal?'<details class="horse-analysis"><summary>Form & ratings</summary>':'')+
   '<div class="horse-body">'+
    '<div class="evidence-grid">'+bars+'</div>'+
    '<div class="compact-bottom">'+
@@ -1138,7 +1146,7 @@ function row(h,raceType,race){
      '<div class="compact-flag">'+(h.conditions_supported===false?'Not shortlisted':'')+
      ((h.conditions_supported===false&&prior!==null&&prior<3)?' · ':'')+
      (prior!==null&&prior<3?'Limited form':'')+'</div>':'')+
-  '</div></div>';
+  '</div>'+(compactOriginal?'</details>':'')+'</div>';
 }
 async function updateForwardRecord(){
  if(!token)return;
