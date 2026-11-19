@@ -521,6 +521,7 @@ const get=id=>document.getElementById(id);
 const escapeHtml=value=>String(value==null?'':value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 let token='',day='today',entries=[],loading=false;
 let freeRacecards=null;
+let lastRankedViewDay=null,lastRankedUKDate=null;
 let reloadSeq=0,networkFailures=0;
 let refreshBusy=false,refreshTimer=null;
 function showScanProgress(done,total){
@@ -680,6 +681,8 @@ document.querySelectorAll('[data-day]').forEach(b=>b.addEventListener('click',()
  if(newDay!==day){
    day=newDay;
    freeRacecards=null;
+   lastRankedViewDay=null;
+   lastRankedUKDate=null;
    reloadSeq++; // Discard any in-flight response from the previous day.
    networkFailures=0;
    loading=false;
@@ -783,12 +786,18 @@ async function pollFreshScan(){
   if(!refreshTimer){refreshBusy=false;refreshControls();}
  }
 }
-get('course').addEventListener('change',()=>freeRacecards?
-  renderFreeRacecards(freeRacecards):render());
-get('code').addEventListener('change',()=>freeRacecards?
-  renderFreeRacecards(freeRacecards):render());
-get('show-started').addEventListener('change',()=>freeRacecards?
-  renderFreeRacecards(freeRacecards):render());
+// The Free API response contains TWO presentations: current basic cards and
+// fully ranked original V2 cards. Only fall back to basic cards if the latter
+// were never successfully available. Every filter/timer must use this router.
+function renderCurrentRaceView(){
+ const ranked=entries.some(r=>
+   (r.all_runners||[]).some(h=>Number.isInteger(h.display_rank)));
+ if(ranked||!freeRacecards)render();
+ else renderFreeRacecards(freeRacecards);
+}
+get('course').addEventListener('change',renderCurrentRaceView);
+get('code').addEventListener('change',renderCurrentRaceView);
+get('show-started').addEventListener('change',renderCurrentRaceView);
 get('toggle-races').addEventListener('click',()=>{
  const items=[...get('races').querySelectorAll('details.meeting')];
  const expand=items.length>0&&items.every(el=>!el.open);
@@ -2195,6 +2204,10 @@ async function reload(){
          'No current bookmaker quotes matched these original-ranked runners. Odds and place terms cannot be assumed.';
        get('priced-ew-cards').innerHTML='';
        get('forward-record').hidden=true;
+       lastRankedViewDay=requestDay;
+       lastRankedUKDate=new Intl.DateTimeFormat('en-CA',{
+         timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'
+       }).format(new Date());
        updateFilters();render();
        const rated=originals.reduce((n,r)=>n+Number(r.original_input_coverage?.official_ratings_available||0),0);
        const runners=originals.reduce((n,r)=>n+Number(r.original_input_coverage?.active_runners||0),0);
@@ -2208,8 +2221,25 @@ async function reload(){
          rated+'/'+runners+' · runners missing staff IDs '+missingStaff+
          ' · no validated bet');
      }else{
-       entries=[];
-       renderFreeRacecards(data);
+       // A temporary original-ranking source miss must not erase the good
+       // research already displayed for this same day. Keep it explicitly
+       // labelled as an earlier snapshot, not current declarations or odds.
+       const prior=entries.some(r=>(r.all_runners||[]).some(
+         h=>Number.isInteger(h.display_rank)));
+       const previousDay=lastRankedViewDay===requestDay;
+       const previousUKDate=lastRankedUKDate===new Intl.DateTimeFormat('en-CA',{
+         timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'
+       }).format(new Date());
+       if(prior&&previousDay&&previousUKDate){
+         get('odds-price-source').textContent=
+           'Previously recorded bookmaker references may be stale. No current betting price verified.';
+         render();
+         status('Temporary data gap: showing earlier verified '+requestDay+
+           ' research rankings. Check current declarations before using them.',true);
+       }else{
+         entries=[];
+         renderFreeRacecards(data);
+       }
      }
      return;
    }
@@ -2391,8 +2421,8 @@ setInterval(()=>{
  if(freeRacecards){
    const last=Date.parse(freeRacecards.observed_utc||'');
    if(Number.isFinite(last)&&Date.now()-last>16*60000)reload();
-   else renderFreeRacecards(freeRacecards);
- }else if(entries.length)render();
+   else renderCurrentRaceView();
+ }else if(entries.length)renderCurrentRaceView();
 },60000);
 setInterval(()=>{if(token)loadLayOpportunities()},180000);
 </script>
