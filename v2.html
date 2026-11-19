@@ -347,6 +347,40 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 .lay-odds{color:#e7d89d;font-size:14px;font-weight:750}
 .lay-signals{font-size:12px;color:#c5d9e4;margin-top:6px}
 .lay-risk{margin-top:7px;color:#a9bfcd;font-size:11px}
+
+/* Free V2 research: compact Racing Post-style scan. Deep evidence on tap. */
+.horse.horse-compact-original{padding:7px 9px 6px;background:var(--card)}
+.horse-compact-original .horse-main{grid-template-columns:24px minmax(0,1fr) minmax(54px,66px);gap:6px;align-items:start}
+.horse-compact-original .position{width:23px;height:23px;font-size:11px}
+.horse-compact-original .horse-name{font-size:14px;line-height:1.22;letter-spacing:-.012em}
+.horse-compact-original .horse-rank{font-size:10px;white-space:nowrap}
+.horse-compact-original .horse-intro{min-width:0}
+.horse-compact-original .horse-context{font-size:10px;line-height:1.28;margin:2px 0}
+.horse-compact-original .horse-price strong{font-size:17px;line-height:1.1}
+.horse-compact-original .horse-price small{font-size:9px;line-height:1.1;color:#9eb6c7}
+.horse-compact-original .horse-travel-flag{font-size:10px;margin:3px 0;padding:2px 4px}
+.horse-mini-form{display:flex;flex-wrap:wrap;align-items:center;gap:3px;margin:4px 0 1px}
+.horse-mini-form>span:first-child{color:#abc5d2;font-size:9px;font-weight:800;margin-right:3px}
+.horse-mini-form .form-chip{min-width:17px;border-radius:3px;padding:0 3px;font-size:9px;line-height:1.5}
+.horse-mini-form .horse-mini-or{font-size:9px;font-weight:700;margin-left:4px;color:#cbe1e8}
+.horse-compact-original .horse-analysis{margin-top:4px;margin-left:30px;border-top:1px solid #365064}
+.horse-compact-original .horse-analysis>summary{padding:4px 1px;font-size:10px;color:var(--mint)}
+.horse-compact-original .horse-analysis[open]>summary{padding-bottom:7px}
+.horse-compact-original .horse-analysis .horse-body{margin:5px 0 5px 0}
+.horse-compact-original .evidence-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.horse-compact-original .evidence-factor{min-width:0}
+.traveller-min{margin:5px 0 7px;border:1px solid #35546b;border-radius:7px;background:#112739}
+.traveller-min>summary{font-size:11px;font-weight:700;padding:7px 9px;color:#bfdae5}
+.traveller-min .traveller-expanded{padding:0 8px 8px}
+#original-results{margin-top:14px}
+#original-results summary{font-size:12px;font-weight:750;color:#c5dfe4}
+.original-track-row{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #355064;font-size:12px}
+@media(max-width:370px){
+ .horse-compact-original .horse-main{grid-template-columns:23px minmax(0,1fr) 55px;gap:5px}
+ .horse-compact-original .horse-name{font-size:13px}
+ .horse-compact-original .horse-price strong{font-size:16px}
+}
+
 </style>
 </head>
 <body>
@@ -409,6 +443,10 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <div id="summary">Loading racecards…</div>
 <div id="value-trial-list"></div>
 <div id="races"></div>
+<details class="card" id="original-results">
+  <summary>Original V2 · Tracked rank-one results</summary>
+  <div id="original-results-body" class="meta">Open to review recorded selections and official results.</div>
+</details>
 </section>
 <div id="status" role="status" aria-live="polite"></div>
 <footer>
@@ -474,6 +512,39 @@ async function request(path,payload){
   return data;
  }finally{clearTimeout(limit)}
 }
+// Only first-frozen historical records, not historical hindsight or bets.
+async function loadOriginalRankOne(){
+ const body=get('original-results-body');
+ if(!token){body.textContent='Sign in to view your stored racing model results.';return;}
+ body.textContent='Checking official results…';
+ try{
+  const data=await request('/v2-original-results',{session_token:token});
+  if(data.status==='NO_RACING_DATABASE'){
+    body.textContent='Racing history database unavailable.';return;
+  }
+  const n=Number(data.total_frozen||0),settled=Number(data.total_settled||0);
+  const wins=Number(data.total_wins||0),nr=Number(data.total_non_runners||0);
+  const decided=settled-nr;
+  const header='<p><strong>'+n+' first-frozen rank-one selections</strong> · '+
+   decided+' completed · '+wins+' winners'+
+   (decided?' ('+(100*wins/decided).toFixed(1)+'%)':'')+
+   (nr?' · '+nr+' non-runners':'')+'</p>';
+  const lines=(data.groups||[]).map(g=>{
+   const complete=Number(g.settled||0)-Number(g.non_runners||0);
+   return '<div class="original-track-row"><span>'+escapeHtml(g.code)+'</span>'+
+    '<span>'+Number(g.wins||0)+' / '+complete+' winners · '+
+      Number(g.frozen||0)+' recorded</span></div>';
+  }).join('');
+  body.innerHTML=header+(lines||'<p>Official results will appear once today\'s pre-race rankings have been saved and settled.</p>')+
+    '<p class="meta">Only races first recorded at least ten minutes before the start are included. Current prices are reference quotes, not verified betting returns. Profit/loss has not been calculated.</p>';
+ }catch(err){
+  body.textContent='Results tracking unavailable: '+String(err.message||'Service error');
+ }
+}
+get('original-results').addEventListener('toggle',()=>{
+ if(get('original-results').open)loadOriginalRankOne();
+});
+
 // Account history is intentionally on-demand: no background polling or localStorage.
 (function initBetfairAudit(){
  const isoLocal=d=>new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
@@ -1108,22 +1179,30 @@ function row(h,raceType,race){
  if(comparison)detailParts.push(comparison);
  if(factors.length)detailParts.push('<p><b>Why the model ranked this horse here:</b> '+
     factors.map(escapeHtml).join(' · ')+'. These are model contributions, not proof of winning chance.</p>');
+ const compactOriginal=race?.display_selection_strategy==='RANKINGS_ONLY_NO_BET';
+ const miniForm=compactOriginal?'<div class="horse-mini-form"><span>Form</span>'+formChips+
+   (rating!==null&&rating>0?'<span class="horse-mini-or">OR '+rating+'</span>':'')+
+   '</div>':'';
  const more='<details class="horse-extended"><summary>Details</summary>'+
     '<div class="horse-extended-content">'+
       '<div class="metric-grid">'+metrics+'</div>'+
       notSelected+limited+why+cautions+
       '<div class="horse-extra-body">'+detailParts.join('')+'</div>'+
     '</div></details>';
- return '<div class="horse'+(rank!==null&&rank<=3&&h.conditions_supported!==false?' horse-featured':'')+'">'+
+ return '<div class="horse'+(compactOriginal?' horse-compact-original':'')+
+   (rank!==null&&rank<=3&&h.conditions_supported!==false?' horse-featured':'')+'">'+
   '<div class="horse-main">'+
    '<div class="position" aria-label="'+escapeHtml(cardMeaning)+'">'+escapeHtml(cardLabel)+'</div>'+
    '<div class="horse-intro"><div class="horse-name">'+escapeHtml(h.horse)+badgesHtml+'<span class="horse-rank'+(isSupportedPick?'':' is-research')+'">'+escapeHtml(rankText)+'</span></div>'+
-    '<div class="horse-context">J: '+escapeHtml(h.jockey_name||'Unknown')+'</div>'+
-    '<div class="horse-context">T: '+escapeHtml(h.trainer_name||'Unknown')+meetingCountHtml+'</div>'+
-    travelHtml+
+    (compactOriginal?'<div class="horse-context">J: '+escapeHtml(h.jockey_name||'Unknown')+
+      ' · T: '+escapeHtml(h.trainer_name||'Unknown')+meetingCountHtml+'</div>':
+     '<div class="horse-context">J: '+escapeHtml(h.jockey_name||'Unknown')+'</div>'+
+     '<div class="horse-context">T: '+escapeHtml(h.trainer_name||'Unknown')+meetingCountHtml+'</div>')+
+    miniForm+travelHtml+
     (claimSummary?'<div class="horse-context claim-context">'+escapeHtml(claimSummary)+'</div>':'')+'</div>'+
    '<div class="horse-price"><strong>'+(hasPrice?price.toFixed(2):'—')+'</strong><small>'+escapeHtml(hasPrice?priceSource:'No price')+'</small></div>'+
   '</div>'+
+  (compactOriginal?'<details class="horse-analysis"><summary>Form & ratings</summary>':'')+
   '<div class="horse-body">'+
    '<div class="evidence-grid">'+bars+'</div>'+
    '<div class="compact-bottom">'+
@@ -1138,7 +1217,7 @@ function row(h,raceType,race){
      '<div class="compact-flag">'+(h.conditions_supported===false?'Not shortlisted':'')+
      ((h.conditions_supported===false&&prior!==null&&prior<3)?' · ':'')+
      (prior!==null&&prior<3?'Limited form':'')+'</div>':'')+
-  '</div></div>';
+  '</div>'+(compactOriginal?'</details>':'')+'</div>';
 }
 async function updateForwardRecord(){
  if(!token)return;
@@ -1720,10 +1799,12 @@ function travelMeetingSummary(group){
      '</span>'+
      '<span class="travel-summary-miles">'+escapeHtml(distance)+'</span></div>';
  }).join('');
- return '<section class="meeting-traveller-summary" aria-label="'+escapeHtml(course+' travellers')+'">'+
-  '<div class="travel-summary-title">🚚 '+escapeHtml(course)+' · Longest travellers by race</div>'+
-  '<div class="travel-summary-leader">'+escapeHtml(top)+'</div>'+rows+
-  '<div class="travel-summary-note">Estimated straight-line miles from mapped trainer towns, not road distances. Partial coverage cannot establish the true longest traveller.</div></section>';
+ return '<details class="traveller-min" aria-label="'+escapeHtml(course+' travellers')+'">'+
+  '<summary>🚚 '+escapeHtml(course)+' · '+escapeHtml(
+    hasLeader?top:'Trainer travel miles unavailable')+'</summary>'+
+  '<div class="traveller-expanded">'+
+  (hasLeader?rows:'<p class="meta">No sufficiently verified trainer-base distances. The furthest traveller cannot be identified reliably for this meeting.</p>')+
+  '<div class="travel-summary-note">Straight-line estimates only, not actual travel or betting evidence. Partial mapping cannot establish the true longest traveller.</div></div></details>';
 }
 function ewOddsLabel(decimal){
  const profit=Number(decimal)-1;
