@@ -391,6 +391,17 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
  <div class="lay-items" id="lay-items"></div>
 </section>
 <div id="forward-record" class="card"><details><summary>Research results &amp; testing (optional)</summary><p>Checking results tracking status…</p></details></div>
+<details class="card" id="betfair-history-panel" style="margin:12px 0">
+ <summary style="cursor:pointer;font-weight:700">My Betfair results · private</summary>
+ <p class="meta">Read-only settled Exchange bets from your own account. This is your actual betting history, not PIF's paper results.</p>
+ <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin-top:10px">
+  <label for="betfair-start" style="flex:1;min-width:120px">From<input type="date" id="betfair-start" style="width:100%;margin-top:4px"></label>
+  <label for="betfair-end" style="flex:1;min-width:120px">To<input type="date" id="betfair-end" style="width:100%;margin-top:4px"></label>
+  <button type="button" class="secondary" id="betfair-audit-button">Load settled bets</button>
+ </div>
+ <div class="meta" id="betfair-audit-status" role="status" aria-live="polite" style="margin-top:10px">Choose dates and load your account results.</div>
+ <div id="betfair-audit-results"></div>
+</details>
 <h2 style="margin:18px 0 8px">Each-Way Back Opportunities</h2>
 <p class="ew-guide" id="back-price-warning">Each-way research angles need a quoted bookmaker win price, its paid places and your horse's form. Prices do not prove betting value.</p>
 <div id="odds-price-source" class="ew-guide"></div>
@@ -463,6 +474,64 @@ async function request(path,payload){
   return data;
  }finally{clearTimeout(limit)}
 }
+// Account history is intentionally on-demand: no background polling or localStorage.
+(function initBetfairAudit(){
+ const isoLocal=d=>new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+ const now=new Date(),earlier=new Date(now);
+ earlier.setDate(earlier.getDate()-6);
+ get('betfair-start').value=isoLocal(earlier);
+ get('betfair-end').value=isoLocal(now);
+ const money=value=>{
+  const n=Number(value||0);
+  return (n<0?'−':n>0?'+':'')+'£'+Math.abs(n).toFixed(2);
+ };
+ get('betfair-audit-button').addEventListener('click',async()=>{
+  if(!token)return status('Sign in to PIF Racing first.',true);
+  const from=get('betfair-start').value,to=get('betfair-end').value;
+  const button=get('betfair-audit-button'),message=get('betfair-audit-status');
+  const results=get('betfair-audit-results');
+  button.disabled=true;button.textContent='Checking…';results.innerHTML='';
+  message.textContent='Reading your settled Exchange bets…';
+  try{
+   const data=await request('/betfair-history',{session_token:token,from:from,to:to});
+   message.textContent=data.bets_loaded+' settled bet records loaded'+(data.truncated?' · PARTIAL history':'')+'.';
+   const groups=data.summary||{};
+   const summary=['Racing','Football','Other'].filter(name=>groups[name]).map(name=>{
+    const g=groups[name];
+    return '<div style="padding:8px;border:1px solid #415768;border-radius:7px;margin:6px 0">'+
+     '<strong>'+escapeHtml(name)+'</strong> · '+g.bets+' bets · '+
+     '<strong>'+money(g.reported_profit)+'</strong> reported P&L'+
+     (name==='Racing'?' · '+g.each_way_bets+' each-way market bets':'')+'</div>';
+   }).join('');
+   const rows=(data.bets||[]).slice(0,60).map(b=>{
+    const main=b.selection||b.event||'Selection not named';
+    const secondary=[b.event,b.market,b.market_kind==='Each-way'?'Each-way':'',b.side].filter(Boolean).join(' · ');
+    return '<div style="padding:9px 0;border-bottom:1px solid #42596d;font-size:13px">'+
+     '<strong>'+escapeHtml(main)+'</strong>'+
+     '<div class="meta">'+escapeHtml(secondary)+'</div>'+
+     '<div>'+escapeHtml((b.settled_utc||'').slice(0,10))+' · '+
+      escapeHtml(b.outcome)+' · '+escapeHtml(b.matched_odds==null?'No odds':String(b.matched_odds))+
+      ' · matched £'+Number(b.matched_stake||0).toFixed(2)+
+      ' · <strong>'+money(b.reported_profit)+'</strong></div></div>';
+   }).join('');
+   results.innerHTML=summary+
+    (data.truncated?'<p class="lay-risk">This report is incomplete due to the 5,000-bet limit; select a shorter date range.</p>':'')+
+    (data.bets_loaded?'<details><summary>Individual selections (first 60)</summary>'+rows+'</details>':
+     '<p class="meta">No settled Exchange bets found in this date range.</p>')+
+    '<p class="meta">Betfair per-bet profit may not reconcile exactly with account cash transactions or market-level commission. Lay matched stakes are not liabilities. This does not establish which bets were PIF selections.</p>';
+  }catch(err){
+   const code=String(err.message||'');
+   message.textContent=code==='betfair_session_or_api_access_denied'?
+     'Betfair rejected the existing session or app key. Renew the Betfair session in Render; no history was retrieved.':
+     code==='betfair_credentials_not_configured'?
+     'Betfair credentials are not configured in Render.':
+     code==='invalid_date_range_or_betfair_response'?
+     'Check the date range (maximum 31 days). Betfair data may also be unavailable.':
+     'Betfair history could not be loaded: '+code;
+  }finally{button.disabled=false;button.textContent='Load settled bets'}
+ });
+})();
+
 get('login-form').addEventListener('submit',async event=>{
  event.preventDefault();let pin=get('pin').value.trim();status('Signing in…');
  try{
