@@ -512,6 +512,39 @@ async function request(path,payload){
   return data;
  }finally{clearTimeout(limit)}
 }
+// Only first-frozen historical records, not historical hindsight or bets.
+async function loadOriginalRankOne(){
+ const body=get('original-results-body');
+ if(!token){body.textContent='Sign in to view your stored racing model results.';return;}
+ body.textContent='Checking official results…';
+ try{
+  const data=await request('/v2-original-results',{session_token:token});
+  if(data.status==='NO_RACING_DATABASE'){
+    body.textContent='Racing history database unavailable.';return;
+  }
+  const n=Number(data.total_frozen||0),settled=Number(data.total_settled||0);
+  const wins=Number(data.total_wins||0),nr=Number(data.total_non_runners||0);
+  const decided=settled-nr;
+  const header='<p><strong>'+n+' first-frozen rank-one selections</strong> · '+
+   decided+' completed · '+wins+' winners'+
+   (decided?' ('+(100*wins/decided).toFixed(1)+'%)':'')+
+   (nr?' · '+nr+' non-runners':'')+'</p>';
+  const lines=(data.groups||[]).map(g=>{
+   const complete=Number(g.settled||0)-Number(g.non_runners||0);
+   return '<div class="original-track-row"><span>'+escapeHtml(g.code)+'</span>'+
+    '<span>'+Number(g.wins||0)+' / '+complete+' winners · '+
+      Number(g.frozen||0)+' recorded</span></div>';
+  }).join('');
+  body.innerHTML=header+(lines||'<p>Official results will appear once today\'s pre-race rankings have been saved and settled.</p>')+
+    '<p class="meta">Only races first recorded at least ten minutes before the start are included. Current prices are reference quotes, not verified betting returns. Profit/loss has not been calculated.</p>';
+ }catch(err){
+  body.textContent='Results tracking unavailable: '+String(err.message||'Service error');
+ }
+}
+get('original-results').addEventListener('toggle',()=>{
+ if(get('original-results').open)loadOriginalRankOne();
+});
+
 // Account history is intentionally on-demand: no background polling or localStorage.
 (function initBetfairAudit(){
  const isoLocal=d=>new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
@@ -1766,10 +1799,12 @@ function travelMeetingSummary(group){
      '</span>'+
      '<span class="travel-summary-miles">'+escapeHtml(distance)+'</span></div>';
  }).join('');
- return '<section class="meeting-traveller-summary" aria-label="'+escapeHtml(course+' travellers')+'">'+
-  '<div class="travel-summary-title">🚚 '+escapeHtml(course)+' · Longest travellers by race</div>'+
-  '<div class="travel-summary-leader">'+escapeHtml(top)+'</div>'+rows+
-  '<div class="travel-summary-note">Estimated straight-line miles from mapped trainer towns, not road distances. Partial coverage cannot establish the true longest traveller.</div></section>';
+ return '<details class="traveller-min" aria-label="'+escapeHtml(course+' travellers')+'">'+
+  '<summary>🚚 '+escapeHtml(course)+' · '+escapeHtml(
+    hasLeader?top:'Trainer travel miles unavailable')+'</summary>'+
+  '<div class="traveller-expanded">'+
+  (hasLeader?rows:'<p class="meta">No sufficiently verified trainer-base distances. The furthest traveller cannot be identified reliably for this meeting.</p>')+
+  '<div class="travel-summary-note">Straight-line estimates only, not actual travel or betting evidence. Partial mapping cannot establish the true longest traveller.</div></div></details>';
 }
 function ewOddsLabel(decimal){
  const profit=Number(decimal)-1;
