@@ -2025,10 +2025,42 @@ async function reload(){
    }
    if(data.status==='FREE_RACECARDS_ONLY'){
      freeRacecards=data;
-     racingSourceBlocked=true;
+     racingSourceBlocked=true; // Full paid Standard refresh is not available.
      refreshControls();
      networkFailures=0;
-     renderFreeRacecards(data);
+     const originals=Array.isArray(data.original_model_races)?data.original_model_races:[];
+     if(originals.length){
+       const byId=new Map(originals.map(x=>[String(x.race_id||''),x]));
+       // Never silently omit today's races just because their history, OR,
+       // identity match or staff input is unavailable.
+       entries=(data.races||[]).map(r=>byId.get(String(r.race_id||''))||{
+         ...r,
+         all_runners:[],top_three:[],field_size:r.declared_runners||'—',
+         going:'Not verified',distance:'Not verified',
+         display_status:'ORIGINAL_RANK_UNAVAILABLE',
+         display_model:'No original ranking · Insufficient free data',
+         display_warning:'Cannot safely match current runners and full original model evidence.',
+         display_selection_strategy:'RANKINGS_ONLY_NO_BET'
+       });
+       get('odds-price-source').textContent='Prices are not currently verified. No staking selections or place terms.';
+       get('priced-ew-cards').innerHTML='';
+       get('forward-record').hidden=true;
+       updateFilters();render();
+       const rated=originals.reduce((n,r)=>n+Number(r.original_input_coverage?.official_ratings_available||0),0);
+       const runners=originals.reduce((n,r)=>n+Number(r.original_input_coverage?.active_runners||0),0);
+       const missingStaff=originals.reduce((n,r)=>n+Number(r.original_input_coverage?.trainer_jockey_ids_missing||0),0);
+       const timestamp=Date.parse(data.observed_utc||'');
+       get('loaded-time').textContent='Free source and PIF stored history checked '+
+         (Number.isFinite(timestamp)?new Date(timestamp).toLocaleTimeString('en-GB',{
+           timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'}):'today')+' UK';
+       status('£0 Free feed · '+originals.length+'/'+(data.races||[]).length+
+         ' races with original V2 research rankings · current official ratings '+
+         rated+'/'+runners+' · runners missing staff IDs '+missingStaff+
+         ' · no validated bet');
+     }else{
+       entries=[];
+       renderFreeRacecards(data);
+     }
      return;
    }
    if(data.status==='SOURCE_UNAVAILABLE'){
