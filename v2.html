@@ -381,6 +381,66 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
  .horse-compact-original .horse-price strong{font-size:16px}
 }
 
+
+/*
+ * Contrast regression fix — 19 Nov 2026
+ * Existing horse rows were designed for a light card. The Free V2 compact
+ * override made the card dark without reversing names, trainer, price-source
+ * or form labels. This restores the original light content surface, leaving
+ * the main dark scanner and model data completely untouched.
+ */
+.horse.horse-compact-original {
+  background:#f5f9f7;
+  color:#18333b;
+  border:1px solid #aecad0;
+  box-shadow:0 1px 3px #0003;
+}
+.horse.horse-compact-original.horse-featured {border-color:#379a7d}
+.horse.horse-compact-original .horse-name {
+  color:#143940;
+  font-size:15px;
+  line-height:1.25;
+}
+.horse.horse-compact-original .horse-context {
+  color:#405962;
+  font-size:11.5px;
+  line-height:1.34;
+}
+.horse.horse-compact-original .horse-rank,
+.horse.horse-compact-original .horse-rank.is-research {
+  color:#775209;
+  font-size:10.5px;
+  font-weight:800;
+}
+.horse.horse-compact-original .meeting-runner-count {color:#12644d}
+.horse.horse-compact-original .claim-context {
+  color:#714a09;
+  font-size:11px;
+  font-weight:750;
+}
+.horse.horse-compact-original .horse-price small,
+.horse.horse-compact-original .horse-price span {color:#405964}
+.horse.horse-compact-original .horse-mini-form>span:first-child,
+.horse.horse-compact-original .horse-mini-form .horse-mini-or {color:#305660}
+.horse.horse-compact-original .form-missing {color:#445e68}
+.horse.horse-compact-original .horse-analysis {
+  border-top:1px solid #c5d7d6;
+}
+.horse.horse-compact-original .horse-analysis>summary {
+  color:#126650;
+  font-size:11px;
+  font-weight:750;
+}
+.horse.horse-compact-original .horse-travel-flag{
+  background:#fff0ca;
+  color:#754900;
+}
+.horse.horse-compact-original .horse-travel-flag span {color:#625139}
+.horse.horse-compact-original .evidence-factor .evidence-sub {color:#52606b}
+@media(max-width:370px) {
+ .horse.horse-compact-original .horse-name {font-size:14px}
+ .horse.horse-compact-original .horse-context {font-size:11px}
+}
 </style>
 </head>
 <body>
