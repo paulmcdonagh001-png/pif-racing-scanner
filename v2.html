@@ -1806,19 +1806,61 @@ function eachWayCard(r,now){
 function render(){
  const cv=get('course').value,typ=get('code').value;
  const matches=entries.filter(x=>(cv==='all'||x.course===cv)&&(typ==='all'||raceGroup(x)===typ));
- const now=Date.now();
- const showStarted=get('show-started').checked;
+ const now=Date.now(),showStarted=get('show-started').checked;
  const rs=matches.filter(x=>showStarted||day!=='today'||Date.parse(x.off_utc)>now);
- const picks=rs.filter(r=>r.each_way_status==='EACH_WAY_FORM_CANDIDATE'&&r.each_way_pick).length;
- const frozen=rs.filter(r=>r.each_way_status==='EACH_WAY_FROZEN_PICK'&&r.each_way_pick).length;
- const unverified=rs.filter(r=>r.each_way_status==='UNVERIFIED_RUNNER').length;
- get('summary').textContent=rs.length+' races · '+picks+' verified Betfair prospects · '+
-   unverified+' unverified · '+frozen+' recorded earlier picks · '+
-   (rs.length-picks-unverified-frozen)+' no pick'+
-   (matches.length!==rs.length?' · races already off hidden':'');
+ const hidden=matches.length-rs.length;
+ const ranked=rs.filter(r=>(r.all_runners||[]).some(h=>Number.isInteger(h.display_rank))).length;
+ get('summary').textContent=rs.length+' races shown · '+ranked+
+   ' with original V2 general rankings · no betting picks'+
+   (hidden?' · '+hidden+' races already off hidden':'');
  get('value-trial-list').innerHTML='';
- get('races').innerHTML=rs.map(r=>eachWayCard(r,now)).join('')||
-   '<div class="card"><strong>No races in this filter.</strong><p>Choose another date, course or race type.</p></div>';
+ const meetingGroups=new Map();
+ for(const r of rs){
+  const key=String(r.date||day)+'|'+String(r.course||'');
+  if(!meetingGroups.has(key))meetingGroups.set(key,[]);
+  meetingGroups.get(key).push(r);
+ }
+ const displayedSummaries=new Set();
+ get('races').innerHTML=rs.map(r=>{
+  const key=String(r.date||day)+'|'+String(r.course||'');
+  const meetingHeader=displayedSummaries.has(key)?'':travelMeetingSummary(meetingGroups.get(key)||[]);
+  displayedSummaries.add(key);
+  return meetingHeader+'<details class="meeting" data-race-key="'+escapeHtml(raceKey(r))+'"'+(collapsedRaces.has(raceKey(r))?'':' open')+'>'+
+ '<summary class="meeting-heading"><div><div class="meeting-title">'+escapeHtml(britishTime(r.off_utc))+' '+escapeHtml(r.course)+'</div>'+
+ (r.race_name?'<div class="details">'+escapeHtml(r.race_name)+'</div>':'')+
+ '<div class="meta">'+escapeHtml(raceGroup(r))+
+ (r.age_band?' · '+escapeHtml(r.age_band):'')+
+ ' · '+escapeHtml(r.distance)+' · '+escapeHtml(r.going)+' · '+r.field_size+' runners</div>'+
+ '<div class="race-model-line"><strong>'+escapeHtml(r.display_model||'Specialist model unavailable')+'</strong>'+
+ ' · '+(r.conditions_selection_status==='NO_SUPPORTED_SELECTION'?'No supported pick':
+    r.conditions_selection_status==='RESEARCH_SHORTLIST'?
+    String(r.conditions_selection_count||0)+' supported':
+    r.display_status==='PROVISIONAL_SPECIALIST_RANKING'?'Limited form':'Research order')+
+ '</div>'+
+ '</div>'+
+ '<div class="meeting-actions"><small class="meta">'+(Date.parse(r.off_utc)<=now?'Off · result pending':'Research only')+'</small>'+
+ '<span class="meeting-control"><span class="meeting-open">Hide race</span><span class="meeting-closed">Show race</span><span class="meeting-arrow" aria-hidden="true">⌄</span></span></div></summary>'+
+ (r.all_runners||r.top_three||[]).map(h=>row(h,r.type,r)).join('')+
+ raceNotes(r)+
+ marketDisagreement(r)+
+ marketPanel(r)+
+ '</details>';
+ }).join('')||
+ '<div class="card"><strong>No races in this filter.</strong><p>Try a different course, race type or day.</p></div>';
+ for(const el of get('races').querySelectorAll('details.meeting')){
+   el.addEventListener('toggle',()=>{
+     if(el.open)collapsedRaces.delete(el.dataset.raceKey);
+     else collapsedRaces.add(el.dataset.raceKey);
+     updateRaceToggle();
+   });
+ }
+ updateRaceToggle();
+ get('races').querySelectorAll('details.other-runners').forEach(el=>{
+   el.addEventListener('toggle',()=>{
+     runnerOpenStates.set(el.dataset.runnersKey,el.open);
+   });
+ });
+
 }
 
 function renderFreeRacecards(data){
