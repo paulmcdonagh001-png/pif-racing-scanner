@@ -7,8 +7,8 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta name="pif-build" content="2026-11-18-free-racecards-stable">
 <meta name="theme-color" content="#081725">
-<title>PIF Racing V2 | Each-way selections</title>
-<meta name="description" content="PIF Racing V2: one conditional each-way research selection per race, or no bet.">
+<title>PIF Racing V2 | Original race rankings</title>
+<meta name="description" content="PIF Racing V2: original form-based race rankings from the Free racing feed and stored historical results.">
 <style>
 :root{color-scheme:dark;--bg:#081725;--card:#11283b;--panel:#163146;--line:#304b60;--ink:#f1f6f9;--muted:#a9becc;--mint:#81dec0;--amber:#f7d396}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Arial,sans-serif}
@@ -357,8 +357,8 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <a href="./database.html">Racing database</a>
 </header>
 <h1>PIF Racing · Original Rankings</h1>
-<p class="ew-guide">Restored original October 2026 V2 general-form rankings. These are research rankings, not proven bets. The older V1 61-factor model is a separate retired version.</p>
-<div class="notice"><strong>Current limitation:</strong> Betfair Exchange access is blocked by Cloudflare for the Frankfurt-hosted connection. Renewing your Betfair session alone will not fix that block. Free Racing API supplies current cards and PIF has historical form, but neither a lay price nor an each-way bookmaker offer is verified. The form watchlist below is <strong>not</strong> a list of bets.</div>
+<p class="ew-guide">Original V2 rankings from today’s free racecards and PIF historical results. <strong>Research only — no automatic betting selections.</strong></p>
+<details class="meta" style="margin:8px 0 12px"><summary style="cursor:pointer">Data sources and limitations</summary><p>Free Racing API provides current cards; PIF stores historical form. Bookmaker odds are reference prices only. Betfair Exchange access remains blocked from the server. No staking recommendations are verified.</p></details>
 <section id="signin" class="card" hidden>
 <h2>Private access</h2>
 <p>Use your existing PIF Racing scanner access code.</p>
@@ -374,9 +374,9 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <button type="button" class="selected" data-day="today">Today</button>
 <button type="button" data-day="tomorrow">Tomorrow</button>
 </div>
-<div class="row"><button id="reload" class="secondary" type="button">Reload saved rankings</button><button id="fresh-scan" type="button">Fresh scan today</button><button id="toggle-races" class="secondary" type="button" hidden>Collapse all races</button><span id="loaded-time" class="meta"></span></div>
+<div class="row"><button id="reload" class="secondary" type="button">Refresh racecards</button><button id="fresh-scan" type="button">Fresh scan today</button><button id="toggle-races" class="secondary" type="button" hidden>Collapse all races</button><span id="loaded-time" class="meta"></span></div>
 <div id="fresh-scan-feedback" role="status" aria-live="polite" hidden></div>
-<p class="meta" id="fresh-scan-note">Free racecards and PIF's stored form power today's analysis. An optional free personal-use odds key adds bookmaker prices and paid-place terms. Betfair Exchange lays still require separate access.</p>
+<p class="meta" id="fresh-scan-note">Daily racecards · Original V2 rankings · Recorded form and bookmaker reference odds.</p>
 <div class="filters">
 <div><label for="course">Racecourse</label><select id="course"><option value="all">All courses</option></select></div>
 <div><label for="code">Race type</label><select id="code"><option value="all">All types</option></select></div>
@@ -403,16 +403,16 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
  <div id="betfair-audit-results"></div>
 </details>
 <h2 style="margin:18px 0 8px">Original V2 · Complete race rankings</h2>
-<p class="ew-guide" id="back-price-warning">Original general-form order restored for comparison. Horse ranking does not establish betting value.</p>
+<p class="ew-guide" id="back-price-warning">Full-field rankings. Missing information is flagged, never estimated.</p>
 <div id="odds-price-source" class="ew-guide"></div>
 <div id="priced-ew-cards" hidden></div>
-<div id="summary">Checking backed each-way value and form watchlist…</div>
+<div id="summary">Loading racecards…</div>
 <div id="value-trial-list"></div>
 <div id="races"></div>
 </section>
 <div id="status" role="status" aria-live="polite"></div>
 <footer>
-PIF Racing is a private research scanner: Free racecards and stored form are separate from optional bookmaker odds. Bookmaker quotes may move, placing edges are experimental and Exchange lay offers are not independently verified.
+Research rankings only. Bookmaker prices may change; no betting value is proven.
 </footer>
 </main>
 <script>
@@ -568,11 +568,11 @@ get('fresh-scan').addEventListener('click',freshScanToday);
 let racingSourceBlocked=false;
 function refreshControls(){
  const button=get('fresh-scan');
+ button.hidden=racingSourceBlocked;
  button.disabled=refreshBusy||racingSourceBlocked;
- button.textContent=refreshBusy?'Scanning Racing API…':
-    racingSourceBlocked?'Full scan unavailable':'Fresh scan today';
+ button.textContent=refreshBusy?'Scanning Racing API…':'Full Standard scan';
  button.title=racingSourceBlocked?
-    'Racing API access denied. Check subscription and credentials.':'';
+    'Standard paid mode is disabled while using the free ranking feed.':'';
 }
 async function resumeFreshScanStatus(){
  // Reattach to an existing server scan after a browser refresh or new login.
@@ -1848,8 +1848,7 @@ function render(){
  '<span class="meeting-control"><span class="meeting-open">Hide race</span><span class="meeting-closed">Show race</span><span class="meeting-arrow" aria-hidden="true">⌄</span></span></div></summary>'+
  (r.all_runners||r.top_three||[]).map(h=>row(h,r.type,r)).join('')+
  raceNotes(r)+
- marketDisagreement(r)+
- marketPanel(r)+
+ (r.display_selection_strategy==='RANKINGS_ONLY_NO_BET'?'':marketDisagreement(r)+marketPanel(r))+
  '</details>';
  }).join('')||
  '<div class="card"><strong>No races in this filter.</strong><p>Try a different course, race type or day.</p></div>';
