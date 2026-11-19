@@ -915,10 +915,13 @@ function row(h,raceType,race){
  const source=hasPrice?String(h.quote?.source||'Quoted'):'No quote';
  const marketNames={ladbrokes_uk:'Ladbrokes',williamhill:'William Hill',
    betway_uk:'Betway',paddypower:'Paddy Power',skybet:'Sky Bet'};
- const priceSource=marketNames[source]?
-   marketNames[source]+' · decimal (reference only)':
+ const partialQuote=hasPrice&&
+   h.quote?.field_match==='INDIVIDUAL_IN_PARTIAL_FIELD';
+ const priceSourceBase=marketNames[source]?
+   marketNames[source]+' · decimal':
    source==='Betfair Exchange'?'Betfair · decimal':
    source==='Bet365'?'Bet365 · decimal':source+' · decimal';
+ const priceSource=priceSourceBase+(partialQuote?' · partial field':' · reference only');
  const age=String(h.runner_age||'').trim(), stall=numeric(h.draw);
  const rating=numeric(facts.official_rating), days=numeric(facts.days_since_last);
  const apiPR=numeric(h.provider_performance_rating), apiSR=numeric(h.provider_speed_rating);
@@ -2220,9 +2223,13 @@ async function reload(){
        });
        const quotes=Number(data.original_runners_priced||0);
        const matchedRaces=Number(data.odds_matched_races||0);
+       const partialRaces=Number(data.odds_partial_reference_races||0);
        get('odds-price-source').textContent=quotes?
-         quotes+' runner win-price references from '+matchedRaces+
-         ' exactly matched bookmaker markets (PuntersEdge). Quote source shown on each runner; not Betfair Exchange, not executable, and not proven value.':
+         quotes+' individually verified win-price references (PuntersEdge). '+
+         matchedRaces+' fully matched races'+
+         (partialRaces?' · '+partialRaces+' partial-field race'+(partialRaces===1?'':'s')+
+           ' with runner-only quotes':'')+
+         '. Prices are indicative, not Betfair Exchange or validated value.':
          'No current bookmaker quotes matched these original-ranked runners. Odds and place terms cannot be assumed.';
        get('priced-ew-cards').innerHTML='';
        get('forward-record').hidden=true;
