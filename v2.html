@@ -699,8 +699,9 @@ function row(h,raceType,race){
  const isSupportedPick=h.conditions_supported===true&&
    race?.conditions_selection_status==='RESEARCH_SHORTLIST'&&
    rank!==null&&rank>=1&&rank<=Math.min(3,Number(race.conditions_selection_count)||0);
- const rankText=isSupportedPick?'PIF #'+rank:
-   rank!==null?'Research order #'+rank:'No supported rank';
+ const rankText=race?.display_selection_strategy==='RANKINGS_ONLY_NO_BET'?
+   (rank!==null?'Original #'+rank:'No original rank'):
+   isSupportedPick?'PIF #'+rank:rank!==null?'Research order #'+rank:'No supported rank';
  const meetingCount=numeric(h.trainer_meeting_runners);
  const knownMeetingCount=meetingCount!==null&&Number.isInteger(meetingCount)&&meetingCount>=1;
  const meetingCountLabel=knownMeetingCount?(meetingCount===1?'only runner at meeting':meetingCount+' runners at meeting'):'';
@@ -1880,8 +1881,8 @@ function renderFreeRacecards(data){
  const course=get('course').value,type=get('code').value;
  const races=upcoming.filter(r=>(course==='all'||r.course===course)&&
    (type==='all'||r.type===type));
- const priced=races.filter(r=>r.priced_ew_angle?.status==='PRICED_EW_RESEARCH_ANGLE');
- const layWatch=races.filter(r=>r.bookmaker_lay_watch?.status==='BOOKMAKER_LAY_WATCH_ONLY');
+ const priced=[]; // Earlier each-way strategy paused for baseline comparison.
+ const layWatch=[]; // Earlier lay strategy paused for baseline comparison.
  const watchlist=races.filter(r=>r.form_prospect?.status==='FREE_FORM_PROSPECT_UNPRICED');
  const startedOnly=get('show-started').checked;
  const oddsStatus=String(data.odds_source_status||'KEY_REQUIRED');
@@ -1897,10 +1898,7 @@ function renderFreeRacecards(data){
    'Odds source: '+escapeHtml(oddsStatus)+
    '. No verified prices have been substituted from old racecards.';
  get('odds-price-source').innerHTML=oddsText;
- get('summary').textContent=priced.length+
-   ' priced each-way research angles · '+layWatch.length+
-   ' bookmaker lay watchlist · '+watchlist.length+
-   ' horses with recorded form · '+races.length+' upcoming races';
+ get('summary').textContent=races.length+' current races · original general-form ranks require historical inputs · no bet';
  const pricedCards=priced.map(r=>{
    const p=r.priced_ew_angle;
    const quote=Number(p.win_decimal);
@@ -1936,7 +1934,7 @@ function renderFreeRacecards(data){
       '</details></div></section>';
  }).join('');
  get('priced-ew-cards').innerHTML=pricedCards||
-   '<div class="ew-guide">No priced each-way research angle qualifies at present.</div>';
+   '<div class="ew-guide">Each-way candidates are paused during the original model comparison.</div>';
  const layCards=layWatch.map(r=>{
    const p=r.bookmaker_lay_watch;
    const bookPrice=Number(p.bookmaker_win_decimal);
@@ -1972,7 +1970,7 @@ function renderFreeRacecards(data){
  get('lay-bookmaker-watch').innerHTML=
    '<div style="margin:12px 0 8px"><h3 style="font-size:19px;margin:0 0 6px">Lay Candidates · '+layWatch.length+'</h3>'+
    '<p class="ew-guide" style="margin:0 0 10px">'+
-   'PIF has screened short-priced maiden and novice favourites using bookmaker win odds and stored form. These are visible research candidates, NOT confirmed Exchange lays. Betfair market access remains blocked (HTTP 403).'+
+   'Lay research paused while comparing the original general model; Betfair API is blocked.'+
    '</p></div>'+
    (layCards||'<div class="ew-guide">No runner qualifies for the current bookmaker-based lay research screen.</div>');
  const pastOpen=!!get('races').querySelector('details.free-watchlist[open]');
@@ -1990,7 +1988,7 @@ function renderFreeRacecards(data){
  get('races').innerHTML='<details class="free-watchlist"'+(pastOpen?' open':'')+
     '><summary style="padding:12px 5px;font-weight:700;cursor:pointer">'+
     'Unpriced form watchlist ('+watchlist.length+') · No betting recommendations</summary>'+
-    '<p class="ew-guide">Historical placing form only. No live bookmaker value is demonstrated.</p>'+
+    '<p class="ew-guide">Historical placing form only. The original rankings cannot be verified with free-only inputs; no betting picks.</p>'+
     (unpricedCards||'<div class="card">No additional form candidates.</div>')+
     '</details>';
  const checked=Date.parse(data.observed_utc||'');
@@ -2002,7 +2000,7 @@ function renderFreeRacecards(data){
  const hasForm=data.free_form_status==='FORM_RESEARCH_AVAILABLE';
  const message=priced.length?
    'Bookmaker price research angles loaded. Check the quoted bookmaker terms; none has proven positive value.':
-   hasForm?'Current racecards and stored form ready. Market prices: '+oddsStatus+'.':
+   hasForm?'Free racecards ready. No original general-model rankings on the current free-only feed.':
    'Free current races loaded, but stored form was unavailable.';
  status(message,false);
 }
