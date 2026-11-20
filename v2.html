@@ -468,7 +468,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <a href="./database.html">Racing database</a>
 </header>
 <h1>PIF Racing · Original Rankings</h1>
-<p class="ew-guide">Original V2 rankings from today’s free racecards and PIF historical results. <strong>Research only — no automatic betting selections.</strong></p>
+<p class="ew-guide">Original V1 CatBoost 61-factor model · current racecards and historical results. <strong>Research only — no automatic betting selections.</strong></p>
 <details class="meta" style="margin:8px 0 12px"><summary style="cursor:pointer">Data sources and limitations</summary><p>Free Racing API provides current cards; PIF stores historical form. Bookmaker odds are reference prices only. Betfair Exchange access remains blocked from the server. No staking recommendations are verified.</p></details>
 <section id="signin" class="card" hidden>
 <h2>Private access</h2>
@@ -487,7 +487,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 </div>
 <div class="row"><button id="reload" class="secondary" type="button">Refresh racecards</button><button id="fresh-scan" type="button">Fresh scan today</button><button id="toggle-races" class="secondary" type="button" hidden>Collapse all races</button><span id="loaded-time" class="meta"></span></div>
 <div id="fresh-scan-feedback" role="status" aria-live="polite" hidden></div>
-<p class="meta" id="fresh-scan-note">Daily racecards · Original V2 rankings · Recorded form and bookmaker reference odds.</p>
+<p class="meta" id="fresh-scan-note">Daily racecards · V1 CatBoost · Recorded form and bookmaker reference odds.</p>
 <div class="filters">
 <div><label for="course">Racecourse</label><select id="course"><option value="all">All courses</option></select></div>
 <div><label for="code">Race type</label><select id="code"><option value="all">All types</option></select></div>
@@ -513,7 +513,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
  <div class="meta" id="betfair-audit-status" role="status" aria-live="polite" style="margin-top:10px">Choose dates and load your account results.</div>
  <div id="betfair-audit-results"></div>
 </details>
-<h2 style="margin:18px 0 8px">Original V2 · Complete race rankings</h2>
+<h2 style="margin:18px 0 8px">V1 CatBoost · Complete race rankings</h2>
 <p class="ew-guide" id="back-price-warning">Full-field rankings. Missing information is flagged, never estimated.</p>
 <div id="odds-price-source" class="ew-guide"></div>
 <div id="priced-ew-cards" hidden></div>
@@ -521,7 +521,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <div id="value-trial-list"></div>
 <div id="races"></div>
 <details class="card" id="original-results">
-  <summary>Original V2 · Tracked rank-one results</summary>
+  <summary>Archived V2 · Tracked rank-one results</summary>
   <div id="original-results-body" class="meta">Open to review recorded selections and official results.</div>
 </details>
 </section>
@@ -2208,6 +2208,16 @@ async function reload(){
      refreshControls();
      networkFailures=0;
      const originals=Array.isArray(data.original_model_races)?data.original_model_races:[];
+     if(data.active_ranking_model==='V1_CATBOOST61'&&!originals.length){
+       // Never retain a V2 snapshot after model selection changes.
+       entries=[];lastRankedViewDay=null;lastRankedUKDate=null;
+       renderFreeRacecards({...data,races:(data.races||[]).map(r=>({...r,form_prospect:null}))});
+       get('summary').textContent='V1 CatBoost 61-factor · '+(data.races||[]).length+' racecards · rankings unavailable';
+       const reasons=data.original_model_rejection_reasons||{};
+       status('V1 CatBoost selected · original race inputs unavailable · no V2 fallback',true);
+       get('loaded-time').textContent='V1 selected; original data coverage insufficient';
+       return;
+     }
      if(originals.length){
        const byId=new Map(originals.map(x=>[String(x.race_id||''),x]));
        // Never silently omit today's races just because their history, OR,
@@ -2246,7 +2256,7 @@ async function reload(){
          (Number.isFinite(timestamp)?new Date(timestamp).toLocaleTimeString('en-GB',{
            timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'}):'today')+' UK';
        status('£0 Free feed · '+originals.length+'/'+(data.races||[]).length+
-         ' races with original V2 research rankings · current official ratings '+
+         ' races with '+(data.active_ranking_model==='V1_CATBOOST61'?'V1 CatBoost 61-factor':'original V2')+' research rankings · current official ratings '+
          rated+'/'+runners+' · runners missing staff IDs '+missingStaff+
          ' · no validated bet');
      }else{
