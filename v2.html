@@ -2164,12 +2164,37 @@ function renderFreeRacecards(data){
       '<div class="ew-source">Odds not connected</div></div>'+
       '<p class="ew-reason">'+escapeHtml((p.evidence||[]).join(' · '))+'</p></div></section>';
  }).join('');
+ const v1Selected=data.active_ranking_model==='V1_CATBOOST61';
+ if(v1Selected){
+   const reasons=data.catboost_race_reasons||{};
+   const reasonText={MISSING_RACE_CONTEXT:'Race details missing',UNVERIFIED_FIELD:'Runner numbers not verified',INSUFFICIENT_CURRENT_INPUTS:'Required runner details missing',NOT_PREOFF_OR_FIELD_MISMATCH:'Field or race time not verified',UNKNOWN_CODE:'Race type unverified',CARD_COMPATIBLE:'Historical inputs incomplete'};
+   const cards=races.map(r=>{
+     const field=Array.isArray(r.declared_field)?r.declared_field:[];
+     const quotes=r.runner_win_quotes||{};
+     const horses=field.map(h=>{
+       const price=Number(quotes[String(h.horse_id||'')]?.win_decimal);
+       return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #31495b">'+
+         '<span style="min-width:24px;color:var(--muted)">'+escapeHtml(h.number||'—')+'</span>'+
+         '<div style="flex:1"><strong>'+escapeHtml(h.horse)+'</strong>'+
+         '<div class="meta">'+escapeHtml([h.trainer,h.jockey].filter(Boolean).join(' · '))+'</div></div>'+
+         '<strong>'+escapeHtml(Number.isFinite(price)&&price>1?ewOddsLabel(price):'—')+'</strong></div>';
+     }).join('');
+     return '<section class="ew-race"><div class="ew-race-top"><strong>'+escapeHtml(britishTime(r.off_utc))+
+       ' · '+escapeHtml(r.course)+'</strong><span class="meta">'+escapeHtml(r.type||'Race')+'</span></div>'+
+       '<p class="meta">'+escapeHtml(r.race_name||'')+'</p>'+
+       '<p class="meta">'+escapeHtml([r.distance,r.going,r.declared_runners?String(r.declared_runners)+' declared':''].filter(Boolean).join(' · '))+'</p>'+
+       '<p class="meta">V1 rank unavailable · '+escapeHtml(reasonText[reasons[r.race_id]]||'Original model inputs incomplete')+'</p>'+
+       (horses||'<p class="meta">Runner details not supplied.</p>')+'</section>';
+   }).join('');
+   get('races').innerHTML=cards||'<div class="card">No upcoming races match these filters.</div>';
+ }else{
  get('races').innerHTML='<details class="free-watchlist"'+(pastOpen?' open':'')+
     '><summary style="padding:12px 5px;font-weight:700;cursor:pointer">'+
     'Unpriced form watchlist ('+watchlist.length+') · No betting recommendations</summary>'+
     '<p class="ew-guide">Historical placing form only. The original rankings cannot be verified with free-only inputs; no betting picks.</p>'+
     (unpricedCards||'<div class="card">No additional form candidates.</div>')+
     '</details>';
+ }
  const checked=Date.parse(data.observed_utc||'');
  get('loaded-time').textContent='Free racecards checked '+
    (Number.isFinite(checked)?new Date(checked).toLocaleTimeString('en-GB',{
@@ -2187,7 +2212,7 @@ async function reload(){
  if(!token)return;
  const requestDay=day,seq=++reloadSeq;
  loading=true;get('reload').disabled=true;
- status('Loading '+requestDay+' independent V2 racing analysis…');
+ status('Loading '+requestDay+' racing analysis…');
  try{
    const data=await request('/v2-races',{session_token:token,day:requestDay});
    // Tab changes invalidate old responses, including errors and retry timers.
@@ -2213,8 +2238,7 @@ async function reload(){
        entries=[];lastRankedViewDay=null;lastRankedUKDate=null;
        renderFreeRacecards({...data,races:(data.races||[]).map(r=>({...r,form_prospect:null}))});
        get('summary').textContent='V1 CatBoost 61-factor · '+(data.races||[]).length+' racecards · rankings unavailable';
-       const reasons=data.original_model_rejection_reasons||{};
-       status('V1 CatBoost selected · original race inputs unavailable · no V2 fallback',true);
+             status('V1 CatBoost selected · current racecards shown · rankings unavailable',true);
        get('loaded-time').textContent='V1 selected; original data coverage insufficient';
        return;
      }
