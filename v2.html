@@ -1064,6 +1064,11 @@ function row(h,raceType,race){
    return x!==null&&x>0?x:null;
   }
   if(factor==='Speed'){
+   if(race?.display_status==='V1_CATBOOST61_RESEARCH_ONLY'){
+     const timing=runner.catboost_evidence||runner.evidence_facts||{};
+     const n=numberOrNull(timing.relevant_timed_runs);
+     return n!==null&&n>0?numberOrNull(timing.historical_adjusted_speed_best2):null;
+   }
    const value=numberOrNull(runner.provider_speed_rating);
    // Provider SR only, never OR/PR disguised as measured speed.
    return value!==null&&value>0&&value<=350?value:null;
@@ -1122,7 +1127,7 @@ function row(h,raceType,race){
      (numberOrNull(h.provider_performance_rating)===null?
       'Official rating not published; API performance rating also unavailable':
       'Official rating not published; too few comparable API ratings');
-   if(label==='Speed')return 'Racing API speed rating not supplied';
+   if(label==='Speed')return race?.display_status==='V1_CATBOOST61_RESEARCH_ONLY'?'Comparable historical timing evidence unavailable':'Racing API speed rating not supplied';
    if(label==='Jumping')return jumpKnown===0?
      '0 recorded '+raceType.toLowerCase()+' outcomes in available history':
      jumpKnown!==null&&jumpKnown<3?
@@ -1182,7 +1187,7 @@ function row(h,raceType,race){
     'Racing API PR '+apiPR+'; OR '+(rating===null?'not published':rating):
     rating!==null&&rating>0?'Official rating '+rating:'Official rating unavailable')+
    (isJumpRace?bar('Jumping',jumpingNote):
-    isFlatRace?bar('Speed',apiSR!==null&&apiSR>0?
+    isFlatRace?bar('Speed',race?.display_status==='V1_CATBOOST61_RESEARCH_ONLY'? 'Historical adjusted speed · '+count((h.catboost_evidence||h.evidence_facts||{}).relevant_timed_runs)+' comparable timed runs':apiSR!==null&&apiSR>0?
       'The Racing API pre-race Speed Rating (SR) '+apiSR+
       ' · relative to other available SR ratings in this field':
       'Racing API Speed Rating not supplied for this runner'):'')+
