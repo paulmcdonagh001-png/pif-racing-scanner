@@ -857,7 +857,7 @@ function row(h,raceType,race){
    race?.conditions_selection_status==='RESEARCH_SHORTLIST'&&
    rank!==null&&rank>=1&&rank<=Math.min(3,Number(race.conditions_selection_count)||0);
  const rankText=race?.display_selection_strategy==='RANKINGS_ONLY_NO_BET'?
-   (rank!==null?'Original #'+rank:'No original rank'):
+   (rank!==null?'V1 #'+rank:'No V1 rank'):
    isSupportedPick?'PIF #'+rank:rank!==null?'Research order #'+rank:'No supported rank';
  const meetingCount=numeric(h.trainer_meeting_runners);
  const knownMeetingCount=meetingCount!==null&&Number.isInteger(meetingCount)&&meetingCount>=1;
@@ -1989,7 +1989,7 @@ function render(){
  const hidden=matches.length-rs.length;
  const ranked=rs.filter(r=>(r.all_runners||[]).some(h=>Number.isInteger(h.display_rank))).length;
  get('summary').textContent=rs.length+' races shown · '+ranked+
-   ' with original V2 general rankings · no betting picks'+
+   ' with original CatBoost rankings · no betting picks'+
    (hidden?' · '+hidden+' races already off hidden':'');
  get('value-trial-list').innerHTML='';
  const meetingGroups=new Map();
