@@ -7,8 +7,8 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta name="pif-build" content="2026-11-18-free-racecards-stable">
 <meta name="theme-color" content="#081725">
-<title>PIF Racing V2 | Original race rankings</title>
-<meta name="description" content="PIF Racing V2: original form-based race rankings from the Free racing feed and stored historical results.">
+<title>PIF Racing V1 | CatBoost race rankings</title>
+<meta name="description" content="PIF Racing V1: original 61-factor CatBoost rankings from current racecards and historical results.">
 <style>
 :root{color-scheme:dark;--bg:#081725;--card:#11283b;--panel:#163146;--line:#304b60;--ink:#f1f6f9;--muted:#a9becc;--mint:#81dec0;--amber:#f7d396}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Arial,sans-serif}
@@ -464,7 +464,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
 <main>
 <header>
 <div class="logo">PIF</div>
-<div><strong>Racing V2</strong><small>Original form rankings · No staking picks</small></div>
+<div><strong>Racing V1</strong><small>CatBoost 61-factor · Research rankings</small></div>
 <a href="./database.html">Racing database</a>
 </header>
 <h1>PIF Racing · Original Rankings</h1>
@@ -576,7 +576,7 @@ function signInRequired(){
  status('Racing login required. Sign in again to run a fresh scan.',true);
 }
 async function request(path,payload){
- const controller=new AbortController(),limit=setTimeout(()=>controller.abort(),65000);
+ const controller=new AbortController(),limit=setTimeout(()=>controller.abort(),path==='/v2-races'?150000:65000);
  try{
   const resp=await fetch(API+path,{method:'POST',cache:'no-store',
    headers:{'Content-Type':'text/plain;charset=UTF-8'},
@@ -2212,7 +2212,7 @@ async function reload(){
  if(!token)return;
  const requestDay=day,seq=++reloadSeq;
  loading=true;get('reload').disabled=true;
- status('Loading '+requestDay+' racing analysis…');
+ status('Calculating '+requestDay+' CatBoost rankings from historical results…');
  try{
    const data=await request('/v2-races',{session_token:token,day:requestDay});
    // Tab changes invalidate old responses, including errors and retry timers.
