@@ -729,6 +729,8 @@ document.querySelectorAll('[data-day]').forEach(b=>b.addEventListener('click',()
  if(newDay!==day){
    day=newDay;
    freeRacecards=null;
+   longshotData=null;
+   renderLongshotPanel();
    lastRankedViewDay=null;
    lastRankedUKDate=null;
    reloadSeq++; // Discard any in-flight response from the previous day.
@@ -2053,6 +2055,8 @@ function longshotRow(h,paper,needPrice){
  const placeOnly=bet365?(ownerPrice-1)*Number(rec.fraction)-1:null;
  const confirmed=bet365?'<span class="longshot-label">Bet365 manually recorded</span>':
    '<span class="longshot-label">Bet365 offer not checked</span>';
+ const sourceMatch=h.price_provisional===true?'<span class="longshot-label">Runner-only reference · race field partly unmatched</span>':
+   h.price_match_status==='COMPLETE_DECLARED_FIELD'?'<span class="longshot-label">Full-field reference match</span>':'';
  const offer=extra?'<span class="longshot-label extra">Extra place · '+escapeHtml(rec.standard_places)+' → '+escapeHtml(rec.places)+'</span>':'';
  const source=!bet365&&h.reference_bookmaker?' · Reference: '+escapeHtml(h.reference_bookmaker):'';
  const filled=rec&&Number.isFinite(ownerPrice);
@@ -2068,7 +2072,7 @@ function longshotRow(h,paper,needPrice){
  ' · '+escapeHtml(h.course)+' · PIF #'+escapeHtml(h.model_rank)+' / '+escapeHtml(h.field_size)+
  ' · '+escapeHtml(h.prior_runs_recorded)+' previous runs</div></div>'+
  '<div class="longshot-price">'+(decimal?escapeHtml(longshotPriceLabel(decimal)):'Price?')+'</div></div>'+
- '<div>'+confirmed+offer+'</div>'+
+ '<div>'+confirmed+sourceMatch+offer+'</div>'+
  '<div class="longshot-detail">'+(needPrice&&!filled?'Model-rated horse only — 20/1+ price NOT confirmed.':
     'Longshot research only; model rank is not a calibrated betting edge.')+source+
  (filled?' · '+rec.places+' places at '+(Number(rec.fraction)===.25?'1/4':'1/5')+
@@ -2115,13 +2119,14 @@ function renderLongshotPanel(){
    'No completed £1 each-way paper results yet';
  body.innerHTML='<div class="longshot-head"><div class="meta">'+
    escapeHtml(longshotData.checked_scored_races||0)+' CatBoost-ranked races checked · '+
-   escapeHtml(longshotData.candidate_count||0)+' live reference longshots</div>'+
+   escapeHtml(longshotData.candidate_count||0)+' 20/1+ model-ranked price references</div>'+
    '<div class="longshot-count">'+shown.length+' found</div></div>'+
-   '<p class="meta">20/1+ only · no daily limit · £2 per paper bet. Independent model probabilities and Bet365 extra places are not verified automatically.</p>'+
+   '<p class="meta">20/1+ only · no daily limit · £2 per paper bet. Odds are indicative reference prices, not confirmed Bet365 odds or independently proven value.</p>'+
    (shown.length?shown.map(h=>longshotRow(h,paper,false)).join(''):
-    '<p class="longshot-empty">No confirmed 20/1+ priced model-rated horses on this scan. No selection forced.</p>')+
-   '<details><summary>'+priceChecks.length+' model-rated horses needing a 20/1+ Bet365 price check</summary>'+
-    '<div class="meta">These are NOT confirmed 20/1+ selections; some have shorter reference prices.</div>'+
+    '<p class="longshot-empty">No model-rated runner has a sufficiently matched current 20/1+ reference price. This does not mean no outsider has a chance.</p>')+
+   '<div class="meta">'+escapeHtml(longshotData.known_shorter_price_count||0)+' model-rated runners already have reference odds shorter than 20/1 · '+escapeHtml(longshotData.partial_reference_candidate_count||0)+' provisional 20/1+ runner-only quotes</div>'+ 
+   '<details><summary>'+priceChecks.length+' model-rated horses with no reliably matched win price</summary>'+
+    '<div class="meta">Not selections until a 20/1+ bookmaker price is checked. No price or extra place has been assumed.</div>'+
     priceChecks.map(h=>longshotRow(h,paper,true)).join('')+'</details>'+
    '<div class="longshot-ledger"><strong>Paper results:</strong> '+escapeHtml(ledger)+
    '<div class="meta">Results and manually entered Bet365 terms are saved only on this device. No bet is placed.</div></div>';
