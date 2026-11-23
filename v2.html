@@ -2072,7 +2072,7 @@ function longshotRow(h,paper,needPrice){
  '<div class="longshot-detail">'+(needPrice&&!filled?'Model-rated horse only — 20/1+ price NOT confirmed.':
     'Longshot research only; model rank is not a calibrated betting edge.')+source+
  (filled?' · '+rec.places+' places at '+(Number(rec.fraction)===.25?'1/4':'1/5')+
-  ' · place-only net £'+placeOnly.toFixed(2):'')+'</div>'+
+  ' · place-only net '+(placeOnly>=0?'+':'')+'£'+placeOnly.toFixed(2):'')+'</div>'+
  resultSelect+
  '<details class="longshot-offer"><summary>'+(filled?'Edit Bet365 offer':'Record Bet365 price / extra place')+'</summary>'+
  '<form data-longshot="'+dataKey+'"><div class="longshot-fields">'+
