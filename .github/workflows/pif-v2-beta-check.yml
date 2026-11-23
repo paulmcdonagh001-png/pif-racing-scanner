@@ -42,6 +42,8 @@ jobs:
           assert 'Collapse all races' in doc and 'Show race' in doc
           PY
           node --check /tmp/pif_v2_beta_script.js
+      - name: Verify uncapped longshot paper screen
+        run: node research/test_v1_longshots.cjs
       - name: Verify missing-evidence cards and shortlist safety
         run: node research/test_v2_evidence_card.cjs
       - name: Verify market comparison maths
