@@ -58,7 +58,8 @@ const sparse={race_id:'no-price',top_three:[{horse:'<script>x</script>',display_
 context.sparse=sparse;
 assert(!vm.runInContext('marketPanel(sparse)',context).includes('<script>'),'Horse name injection');
 assert(vm.runInContext("marketResults(sparse,marketState(sparse))",context).includes('Enter the bookmaker'),'Never fabricate missing odds');
-assert(doc.includes('marketPanel(r)+'),'Racecard must contain embedded panel');
+assert(doc.includes('marketDisagreement(r)+marketPanel(r)')||doc.includes('marketPanel(r)+'),
+ 'Racecard must contain market panel for the eligible V2 research path');
 assert(!doc.includes('research_share_pct'),'Do not leak uncalibrated model shares');
 
 const rowStart=script.indexOf('function row(h,raceType,race){');
