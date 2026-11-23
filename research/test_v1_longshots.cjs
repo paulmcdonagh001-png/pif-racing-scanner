@@ -47,6 +47,6 @@ store['pif-racing-longshot-bet365-owner-v1']=JSON.stringify({
 vm.runInContext('renderLongshotPanel()',context);
 assert(elements['longshot-body'].innerHTML.includes('13 found'),'Manual Bet365 25/1 horse joins the list');
 assert(elements['longshot-body'].innerHTML.includes('Extra place · 4 → 5'),'Flag requires documented place comparison');
-assert(elements['longshot-body'].innerHTML.includes('+£4.00 net'),'Place-only profit must account for £2 total EW stake');
+assert(elements['longshot-body'].innerHTML.includes('place-only net +£4.00'),'Place-only profit must account for £2 total EW stake');
 assert(elements['longshot-body'].innerHTML.includes('1 settled'),'Paper results tracked');
 console.log('CatBoost longshot scanner and extra-place paper tracking checks passed');
