@@ -38,8 +38,12 @@ context.testData={checked_scored_races:15,candidate_count:12,
 vm.runInContext('longshotData=testData;renderLongshotPanel()',context);
 assert(elements['longshot-body'].innerHTML.includes('12 found'),'Must never cap longshot count');
 assert(elements['longshot-body'].innerHTML.includes('Longshot 11'),'Must render all 12');
-assert(elements['longshot-body'].innerHTML.includes('1 model-rated horses needing a 20/1+ Bet365 price check'));
+assert(elements['longshot-body'].innerHTML.includes('1 model-rated horses with no reliably matched win price'));
 assert(!elements['longshot-body'].innerHTML.includes('Extra place ·'),'Cannot invent extra-place offer');
+context.testData.candidates[0].price_provisional=true;
+vm.runInContext('renderLongshotPanel()',context);
+assert(elements['longshot-body'].innerHTML.includes('Runner-only reference · race field partly unmatched'),
+ 'A partially mismatched race must never be displayed as a full-field quote');
 const key='2026-11-23|race-13|horse-13';
 store['pif-racing-longshot-bet365-owner-v1']=JSON.stringify({
  [key]:{price:26,places:5,standard_places:4,fraction:.2,result:'placed'}
