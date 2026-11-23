@@ -7,8 +7,7 @@ const html = fs.readFileSync('v2.html', 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 assert(script, 'V2 embedded script missing');
 const begin = script.indexOf('async function reload(){');
-const end = script.indexOf("
-get('races').addEventListener('change',ev=>", begin);
+const end = script.indexOf("get(\'races\').addEventListener(\'change\',ev=>", begin);
 assert(begin >= 0 && end > begin, 'V2 reload handler missing');
 const switchBegin = script.indexOf("document.querySelectorAll('[data-day]').forEach(b=>");
 const switchEnd = script.indexOf("get('reload').addEventListener('click',reload);", switchBegin);
