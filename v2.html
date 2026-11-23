@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<meta name="pif-build" content="2026-11-18-free-racecards-stable">
+<meta name="pif-build" content="2026-11-23-longshot-paper-v1">
 <meta name="theme-color" content="#081725">
 <title>PIF Racing V1 | CatBoost race rankings</title>
 <meta name="description" content="PIF Racing V1: original 61-factor CatBoost rankings from current racecards and historical results.">
@@ -458,6 +458,30 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
   font-size:11px;
   padding:7px 10px 4px;
 }
+
+
+/* CatBoost outsider research: compact mobile cards, owner-recorded Bet365 terms. */
+.longshot-panel{border-color:#4a7773}
+.longshot-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.longshot-head h2{margin:0;font-size:17px}
+.longshot-count{font-size:19px;font-weight:800;color:var(--mint)}
+.longshot-item{border-top:1px solid var(--line);padding:10px 0}
+.longshot-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.longshot-name{font-weight:800;font-size:15px;line-height:1.2}
+.longshot-price{color:var(--mint);font-weight:800;font-size:17px;text-align:right;white-space:nowrap}
+.longshot-detail{color:var(--muted);font-size:11px;line-height:1.45;margin-top:4px}
+.longshot-label{display:inline-block;border:1px solid #42645e;border-radius:5px;padding:1px 5px;margin:3px 3px 2px 0;font-size:10px;color:#d5eee3}
+.longshot-label.extra{border-color:#8bbd80;color:#c8f2ad}
+.longshot-offer>summary{border:0;padding:7px 0 3px;color:var(--mint);font-weight:700}
+.longshot-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:4px 0}
+.longshot-fields label{font-size:11px}
+.longshot-fields input,.longshot-fields select{width:100%;font-size:12px;padding:8px 5px}
+.longshot-ledger{border-top:1px solid var(--line);margin-top:9px;padding-top:8px;font-size:12px;color:var(--muted)}
+.longshot-ledger strong{color:var(--ink)}
+.longshot-item select.paper-result{font-size:11px;max-width:170px;padding:6px;margin-top:5px}
+.longshot-empty{color:var(--muted);font-size:12px}
+@media(max-width:420px){.longshot-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.longshot-name{font-size:14px}}
+
 </style>
 </head>
 <body>
@@ -513,6 +537,13 @@ footer{border-top:1px solid var(--line);color:var(--muted);margin-top:24px;paddi
  <div class="meta" id="betfair-audit-status" role="status" aria-live="polite" style="margin-top:10px">Choose dates and load your account results.</div>
  <div id="betfair-audit-results"></div>
 </details>
+
+<section class="card longshot-panel" id="longshot-panel" aria-label="20 to 1 and bigger longshot research">
+ <div class="longshot-head"><h2>20/1+ Longshot Scanner</h2></div>
+ <p class="meta">CatBoost ranking versus current prices · every race · no daily cap.</p>
+ <div id="longshot-body" class="longshot-empty">Loading longshot research with today's racecards…</div>
+ <div id="longshot-feedback" class="meta" role="status" aria-live="polite"></div>
+</section>
 <h2 style="margin:18px 0 8px">V1 CatBoost · Complete race rankings</h2>
 <p class="ew-guide" id="back-price-warning">Full-field rankings. Missing information is flagged, never estimated.</p>
 <div id="odds-price-source" class="ew-guide"></div>
@@ -1986,7 +2017,158 @@ function eachWayCard(r,now){
    '</details></div></section>';
 }
 
+
+const LONGSHOT_PAPER_KEY='pif-racing-longshot-bet365-owner-v1';
+let longshotData=null;
+function readLongshotPaper(){
+ try{
+  const data=JSON.parse(localStorage.getItem(LONGSHOT_PAPER_KEY)||'{}');
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{};
+ }catch(_){return {}}
+}
+function storeLongshotPaper(data){
+ try{localStorage.setItem(LONGSHOT_PAPER_KEY,JSON.stringify(data));return true}
+ catch(_){return false}
+}
+function longshotId(h){return [h.date,h.race_id,h.horse_id].map(x=>String(x||'')).join('|')}
+function longshotDecimal(raw){
+ const s=String(raw==null?'':raw).trim();
+ const f=s.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
+ const v=f?1+Number(f[1])/Number(f[2]):Number(s);
+ return s&&Number.isFinite(v)&&v>1&&v<=1001?v:null;
+}
+function longshotPriceLabel(decimal){
+ if(!Number.isFinite(decimal)||decimal<=1)return 'No 20/1+ quote';
+ const fraction=decimal-1;
+ return Number.isInteger(fraction)?fraction+'/1':decimal.toFixed(2)+' dec';
+}
+function longshotRow(h,paper,needPrice){
+ const key=longshotId(h),rec=paper[key];
+ const ownerPrice=rec?Number(rec.price):null;
+ const reference=Number(h.win_decimal);
+ const decimal=Number.isFinite(ownerPrice)&&ownerPrice>1?ownerPrice:
+   (Number.isFinite(reference)&&reference>1?reference:null);
+ const bet365=rec&&Number.isFinite(ownerPrice);
+ const extra=rec&&Number(rec.places)>Number(rec.standard_places)&&Number(rec.standard_places)>=2;
+ const placeOnly=bet365?(ownerPrice-1)*Number(rec.fraction)-1:null;
+ const confirmed=bet365?'<span class="longshot-label">Bet365 manually recorded</span>':
+   '<span class="longshot-label">Bet365 offer not checked</span>';
+ const offer=extra?'<span class="longshot-label extra">Extra place · '+escapeHtml(rec.standard_places)+' → '+escapeHtml(rec.places)+'</span>':'';
+ const source=!bet365&&h.reference_bookmaker?' · Reference: '+escapeHtml(h.reference_bookmaker):'';
+ const filled=rec&&Number.isFinite(ownerPrice);
+ const result=rec?.result||'pending';
+ const resultSelect=filled?'<label class="meta">£1 each-way paper result <select class="paper-result" data-longshot="'+escapeHtml(encodeURIComponent(key))+'">'+
+   [['pending','Awaiting result'],['won','Won'],['placed','Placed only'],['lost','Unplaced']].map(z=>
+   '<option value="'+z[0]+'"'+(result===z[0]?' selected':'')+'>'+z[1]+'</option>').join('')+'</select></label>':'';
+ const dataKey=escapeHtml(encodeURIComponent(key));
+ const selectOption=(value,chosen,label)=>'<option value="'+value+'"'+(Number(chosen)===Number(value)?' selected':'')+'>'+label+'</option>';
+ return '<div class="longshot-item">'+
+ '<div class="longshot-top"><div><div class="longshot-name">'+escapeHtml(h.horse)+'</div>'+
+ '<div class="longshot-detail">'+escapeHtml(new Date(h.off_utc).toLocaleTimeString('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'}))+
+ ' · '+escapeHtml(h.course)+' · PIF #'+escapeHtml(h.model_rank)+' / '+escapeHtml(h.field_size)+
+ ' · '+escapeHtml(h.prior_runs_recorded)+' previous runs</div></div>'+
+ '<div class="longshot-price">'+(decimal?escapeHtml(longshotPriceLabel(decimal)):'Price?')+'</div></div>'+
+ '<div>'+confirmed+offer+'</div>'+
+ '<div class="longshot-detail">'+(needPrice&&!filled?'Model-rated horse only — 20/1+ price NOT confirmed.':
+    'Longshot research only; model rank is not a calibrated betting edge.')+source+
+ (filled?' · '+rec.places+' places at '+(Number(rec.fraction)===.25?'1/4':'1/5')+
+  ' · place-only net £'+placeOnly.toFixed(2):'')+'</div>'+
+ resultSelect+
+ '<details class="longshot-offer"><summary>'+(filled?'Edit Bet365 offer':'Record Bet365 price / extra place')+'</summary>'+
+ '<form data-longshot="'+dataKey+'"><div class="longshot-fields">'+
+ '<label>Bet365 price<input name="price" required placeholder="25/1" value="'+escapeHtml(filled?longshotPriceLabel(ownerPrice):'')+'"></label>'+
+ '<label>Paid places<select name="places" required><option value="">Select</option>'+
+ [2,3,4,5,6,7,8].map(n=>selectOption(n,rec?.places,n+' places')).join('')+'</select></label>'+
+ '<label>Place odds<select name="fraction" required><option value="">Select</option>'+
+ selectOption('.2',rec?.fraction,'1/5')+selectOption('.25',rec?.fraction,'1/4')+'</select></label>'+
+ '<label>Normal places<input name="standard_places" type="number" min="2" max="8" placeholder="e.g. 4" value="'+escapeHtml(rec?.standard_places||'')+'"></label>'+
+ '<label>Normal price (optional)<input name="standard_price" placeholder="e.g. 33/1" value="'+escapeHtml(rec?.standard_price?longshotPriceLabel(Number(rec.standard_price)):'')+'"></label>'+
+ '</div><label style="display:flex;align-items:center;gap:7px;font-size:11px"><input type="checkbox" name="checked" required style="width:auto">I checked these Bet365 terms on its racecard</label>'+
+ '<div class="row"><button type="submit">Save paper offer</button></div>'+
+ '<p class="meta">Manual observation, not a live Bet365 feed. Recheck prices, places, non-runners and any reduced Each Way Extra odds before betting.</p></form></details>'+
+ '</div>';
+}
+function renderLongshotPanel(){
+ const body=get('longshot-body');
+ if(!body)return;
+ if(!longshotData||!Array.isArray(longshotData.candidates)){
+  body.innerHTML='<p class="longshot-empty">Longshot research loads with current CatBoost results; no offers are assumed.</p>';
+  return;
+ }
+ const paper=readLongshotPaper();
+ const all=[...(longshotData.candidates||[]),...(longshotData.price_checks||[])];
+ const shown=[],priceChecks=[];
+ for(const h of all){
+  const rec=paper[longshotId(h)];
+  const manual=rec&&Number(rec.price)>=21;
+  if(manual||Number(h.win_decimal)>=21)shown.push(h);
+  else priceChecks.push(h);
+ }
+ const settles=Object.values(paper).filter(r=>r&&['won','placed','lost'].includes(r.result)&&Number(r.price)>1&&Number(r.fraction)>0);
+ const profit=settles.reduce((total,r)=>{
+  const w=Number(r.price)-1,f=Number(r.fraction);
+  return total+(r.result==='won'?w*(1+f):r.result==='placed'?w*f-1:-2);
+ },0);
+ const ledger=settles.length?settles.length+' settled · £'+(settles.length*2).toFixed(2)+
+   ' paper staked · '+(profit>=0?'+':'')+'£'+profit.toFixed(2)+' net · '+
+   (profit/(settles.length*2)*100).toFixed(1)+'% ROI':
+   'No completed £1 each-way paper results yet';
+ body.innerHTML='<div class="longshot-head"><div class="meta">'+
+   escapeHtml(longshotData.checked_scored_races||0)+' CatBoost-ranked races checked · '+
+   escapeHtml(longshotData.candidate_count||0)+' live reference longshots</div>'+
+   '<div class="longshot-count">'+shown.length+' found</div></div>'+
+   '<p class="meta">20/1+ only · no daily limit · £2 per paper bet. Independent model probabilities and Bet365 extra places are not verified automatically.</p>'+
+   (shown.length?shown.map(h=>longshotRow(h,paper,false)).join(''):
+    '<p class="longshot-empty">No confirmed 20/1+ priced model-rated horses on this scan. No selection forced.</p>')+
+   '<details><summary>'+priceChecks.length+' model-rated horses needing a 20/1+ Bet365 price check</summary>'+
+    '<div class="meta">These are NOT confirmed 20/1+ selections; some have shorter reference prices.</div>'+
+    priceChecks.map(h=>longshotRow(h,paper,true)).join('')+'</details>'+
+   '<div class="longshot-ledger"><strong>Paper results:</strong> '+escapeHtml(ledger)+
+   '<div class="meta">Results and manually entered Bet365 terms are saved only on this device. No bet is placed.</div></div>';
+}
+get('longshot-panel').addEventListener('submit',event=>{
+ const form=event.target.closest('form[data-longshot]');
+ if(!form)return;
+ event.preventDefault();
+ const f=new FormData(form);
+ const price=longshotDecimal(f.get('price'));
+ const places=Number(f.get('places'));
+ const fraction=Number(f.get('fraction'));
+ const normalPlaces=f.get('standard_places')?Number(f.get('standard_places')):null;
+ const normalPrice=f.get('standard_price')?longshotDecimal(f.get('standard_price')):null;
+ const feedback=get('longshot-feedback');
+ if(!price||!Number.isInteger(places)||places<2||places>8||
+    ![.2,.25].includes(fraction)||!f.get('checked')||
+    (normalPlaces!==null&&(!Number.isInteger(normalPlaces)||normalPlaces<2||normalPlaces>8))||
+    (f.get('standard_price')&&!normalPrice)){
+  feedback.textContent='Check the actual price, paid places, fraction and verification tick box.';
+  return;
+ }
+ const key=decodeURIComponent(form.dataset.longshot);
+ const stored=readLongshotPaper(),prior=stored[key];
+ stored[key]={price,places,fraction,standard_places:normalPlaces,
+   standard_price:normalPrice,observed_at:new Date().toISOString(),
+   result:prior?.result||'pending',source:'BET365_OWNER_ENTERED'};
+ if(!storeLongshotPaper(stored)){
+  feedback.textContent='Could not save to this device; local storage may be disabled.';
+  return;
+ }
+ renderLongshotPanel();
+ get('longshot-feedback').textContent='Bet365 offer recorded manually. Recheck at bet placement.';
+});
+get('longshot-panel').addEventListener('change',event=>{
+ const target=event.target.closest('select.paper-result');
+ if(!target)return;
+ const key=decodeURIComponent(target.dataset.longshot);
+ const records=readLongshotPaper();
+ if(!records[key])return;
+ if(!['pending','won','placed','lost'].includes(target.value))return;
+ records[key].result=target.value;
+ if(storeLongshotPaper(records))renderLongshotPanel();
+});
+
 function render(){
+ renderLongshotPanel();
  const cv=get('course').value,typ=get('code').value;
  const matches=entries.filter(x=>(cv==='all'||x.course===cv)&&(typ==='all'||raceGroup(x)===typ));
  const now=Date.now(),showStarted=get('show-started').checked;
@@ -2237,6 +2419,8 @@ async function reload(){
      racingSourceBlocked=true; // Full paid Standard refresh is not available.
      refreshControls();
      networkFailures=0;
+     longshotData=data.longshots||null;
+     renderLongshotPanel();
      const originals=Array.isArray(data.original_model_races)?data.original_model_races:[];
      if(data.active_ranking_model==='V1_CATBOOST61'&&!originals.length){
        // Never retain a V2 snapshot after model selection changes.
@@ -2313,6 +2497,7 @@ async function reload(){
    }
    if(data.status==='SOURCE_UNAVAILABLE'){
      freeRacecards=null;
+     longshotData=null;renderLongshotPanel();
      racingSourceBlocked=data.error_code===401||
         data.connection_problem==='RACING_API_ACCESS_DENIED';
      refreshControls();
@@ -2330,6 +2515,7 @@ async function reload(){
    }
    racingSourceBlocked=false;
    freeRacecards=null;
+   longshotData=null;renderLongshotPanel();
    get('forward-record').hidden=false;
    refreshControls();
    if(data.status!=='RESEARCH_ONLY'||!String(data.version||'').startsWith('pif-v2-independent-'))
