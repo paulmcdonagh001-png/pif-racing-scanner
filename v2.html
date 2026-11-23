@@ -2060,6 +2060,17 @@ function longshotRow(h,paper,needPrice){
  const offer=extra?'<span class="longshot-label extra">Extra place · '+escapeHtml(rec.standard_places)+' → '+escapeHtml(rec.places)+'</span>':'';
  const source=!bet365&&h.reference_bookmaker?' · Reference: '+escapeHtml(h.reference_bookmaker):'';
  const filled=rec&&Number.isFinite(ownerPrice);
+ const mRank=Number(h.reference_market_rank),gap=Number(h.market_rank_gap);
+ const discrepancy=Number.isInteger(mRank)&&mRank>0&&Number.isInteger(gap)&&gap>0?
+   'PIF #'+h.model_rank+' · reference price order #'+mRank+' (+'+gap+' places)':
+   h.screen_reason==='HIGH_MODEL_RANK_MARKET_ORDER_UNAVAILABLE'?
+   'PIF top-half rank · full price-order comparison unavailable':
+   h.screen_reason==='MODEL_NOT_HIGHLY_RANKED'?
+   'Outside top half of model rankings':
+   h.screen_reason==='INSUFFICIENT_PRIOR_FORM'?
+   'Limited historical form; not shortlisted':
+   h.screen_reason==='NO_MARKET_RANK_DISAGREEMENT'?
+   'No favourable model-versus-market ranking difference':'';
  const result=rec?.result||'pending';
  const resultSelect=filled?'<label class="meta">£1 each-way paper result <select class="paper-result" data-longshot="'+escapeHtml(encodeURIComponent(key))+'">'+
    [['pending','Awaiting result'],['won','Won'],['placed','Placed only'],['lost','Unplaced']].map(z=>
@@ -2072,7 +2083,7 @@ function longshotRow(h,paper,needPrice){
  ' · '+escapeHtml(h.course)+' · PIF #'+escapeHtml(h.model_rank)+' / '+escapeHtml(h.field_size)+
  ' · '+escapeHtml(h.prior_runs_recorded)+' previous runs</div></div>'+
  '<div class="longshot-price">'+(decimal?escapeHtml(longshotPriceLabel(decimal)):'Price?')+'</div></div>'+
- '<div>'+confirmed+sourceMatch+offer+'</div>'+
+ '<div>'+confirmed+sourceMatch+offer+'</div>'+ (discrepancy?'<div class="longshot-detail"><strong>'+escapeHtml(discrepancy)+'</strong></div>':'')+
  '<div class="longshot-detail">'+(needPrice&&!filled?'Model-rated horse only — 20/1+ price NOT confirmed.':
     'Longshot research only; model rank is not a calibrated betting edge.')+source+
  (filled?' · '+rec.places+' places at '+(Number(rec.fraction)===.25?'1/4':'1/5')+
@@ -2101,11 +2112,13 @@ function renderLongshotPanel(){
  }
  const paper=readLongshotPaper();
  const all=[...(longshotData.candidates||[]),...(longshotData.price_checks||[])];
- const shown=[],priceChecks=[];
+ const others=Array.isArray(longshotData.other_longshots)?longshotData.other_longshots:[];
+ const shown=[],priceChecks=[],manuallyShort=[];
  for(const h of all){
   const rec=paper[longshotId(h)];
-  const manual=rec&&Number(rec.price)>=21;
-  if(manual||Number(h.win_decimal)>=21)shown.push(h);
+  const entered=rec&&Number.isFinite(Number(rec.price))&&Number(rec.price)>1;
+  if(entered&&Number(rec.price)<21)manuallyShort.push(h);
+  else if((entered&&Number(rec.price)>=21)||Number(h.win_decimal)>=21)shown.push(h);
   else priceChecks.push(h);
  }
  const settles=Object.values(paper).filter(r=>r&&['won','placed','lost'].includes(r.result)&&Number(r.price)>1&&Number(r.fraction)>0);
@@ -2118,14 +2131,23 @@ function renderLongshotPanel(){
    (profit/(settles.length*2)*100).toFixed(1)+'% ROI':
    'No completed £1 each-way paper results yet';
  body.innerHTML='<div class="longshot-head"><div class="meta">'+
-   escapeHtml(longshotData.checked_scored_races||0)+' CatBoost-ranked races checked · '+
-   escapeHtml(longshotData.candidate_count||0)+' 20/1+ model-ranked price references</div>'+
-   '<div class="longshot-count">'+shown.length+' found</div></div>'+
-   '<p class="meta">20/1+ only · no daily limit · £2 per paper bet. Odds are indicative reference prices, not confirmed Bet365 odds or independently proven value.</p>'+
+   escapeHtml(longshotData.checked_scored_races||0)+' CatBoost races assessed · '+
+   escapeHtml(longshotData.all_priced_longshot_count??longshotData.candidate_count??0)+
+   ' horses priced 20/1+</div>'+
+   '<div class="longshot-count">'+shown.length+' flagged</div></div>'+
+   '<p class="meta">All 20/1+ runners checked against the original CatBoost ranking. No daily limit. £1 each-way paper testing; Bet365 odds and extra places require confirmation.</p>'+
    (shown.length?shown.map(h=>longshotRow(h,paper,false)).join(''):
-    '<p class="longshot-empty">No model-rated runner has a sufficiently matched current 20/1+ reference price. This does not mean no outsider has a chance.</p>')+
-   '<div class="meta">'+escapeHtml(longshotData.known_shorter_price_count||0)+' model-rated runners already have reference odds shorter than 20/1 · '+escapeHtml(longshotData.partial_reference_candidate_count||0)+' provisional 20/1+ runner-only quotes</div>'+ 
-   '<details><summary>'+priceChecks.length+' model-rated horses with no reliably matched win price</summary>'+
+    '<p class="longshot-empty">No 20/1+ runners meet the model-versus-price research screen on the current data. Other priced outsiders are listed below; nothing is forced.</p>')+
+   (others.length?'<details><summary>'+others.length+' other priced 20/1+ runners · weaker model evidence</summary>'+
+      '<p class="meta">All priced outsiders remain visible for comparison, even when CatBoost does not flag them.</p>'+
+      others.map(h=>longshotRow(h,paper,false)).join('')+'</details>':'')+
+   '<div class="meta">'+escapeHtml(longshotData.known_shorter_price_count||0)+' runners priced below 20/1 · '+
+   escapeHtml(longshotData.partial_reference_candidate_count||0)+' runner-only provisional 20/1+ references · '+
+   escapeHtml(Math.max(0,(longshotData.checked_races||0)-(longshotData.checked_scored_races||0)))+
+   ' other races not CatBoost-ranked</div>'+ 
+   (manuallyShort.length?'<details><summary>'+manuallyShort.length+' manually entered odds now shorter than 20/1</summary>'+
+      manuallyShort.map(h=>longshotRow(h,paper,false)).join('')+'</details>':'')+
+   '<details><summary>'+priceChecks.length+' well-ranked horses with no reliable reference price</summary>'+
     '<div class="meta">Not selections until a 20/1+ bookmaker price is checked. No price or extra place has been assumed.</div>'+
     priceChecks.map(h=>longshotRow(h,paper,true)).join('')+'</details>'+
    '<div class="longshot-ledger"><strong>Paper results:</strong> '+escapeHtml(ledger)+
