@@ -7,7 +7,7 @@ const html = fs.readFileSync('v2.html', 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 assert(script, 'V2 embedded script missing');
 const begin = script.indexOf('async function reload(){');
-const end = script.indexOf('authUi();if(token)reload().then(resumeFreshScanStatus);', begin);
+const end = script.indexOf('authUi();if(token)', begin);
 assert(begin >= 0 && end > begin, 'V2 reload handler missing');
 const switchBegin = script.indexOf("document.querySelectorAll('[data-day]').forEach(b=>");
 const switchEnd = script.indexOf("get('reload').addEventListener('click',reload);", switchBegin);
@@ -20,6 +20,7 @@ assert(script.slice(begin,end).includes('networkFailures<3'), 'Missing bounded r
 
 const els = {
  reload: {disabled:false}, summary:{textContent:''}, races:{innerHTML:''},
+ 'forward-record':{hidden:false},
  'loaded-time':{textContent:'',dataset:{}}
 };
 const pending = [];
@@ -30,7 +31,8 @@ const ctx = {
  get:id=>els[id],
  request:(path,payload)=>new Promise((resolve,reject)=>pending.push({path,payload,resolve,reject})),
  status:text=>{ctx.lastStatus=text;},
- updateFilters(){}, render(){ctx.lastRendered=ctx.entries.map(r=>r.race_id);},
+ updateFilters(){}, refreshControls(){}, renderLongshotPanel(){},
+ render(){ctx.lastRendered=ctx.entries.map(r=>r.race_id);},
  updateForwardRecord(){}, showScanProgress(){},
  escapeHtml:x=>String(x),
  setTimeout:fn=>{timers.push(fn);return timers.length;}
